@@ -682,8 +682,7 @@ export default function Anotacoes() {
                          <div className="flex items-center gap-2 flex-wrap">
                            {(() => {
                              const tEntry = tapeteEntries[fab.nome];
-                             const tStatus = tEntry?.status;
-                             if (!tStatus || tStatus === "nao-visitado") return null;
+                             const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                              const cfg = STATUS_CONFIG[tStatus];
                              return (
                                <span
@@ -914,8 +913,7 @@ export default function Anotacoes() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {(() => {
                       const tEntry = tapeteEntries[fab.nome];
-                      const tStatus = tEntry?.status;
-                      if (!tStatus || tStatus === "nao-visitado") return null;
+                      const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                       const cfg = STATUS_CONFIG[tStatus];
                       return (
                         <span
