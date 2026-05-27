@@ -660,15 +660,7 @@ export default function SupplierDetail({ supplier, note, onSaveNote, onDeleteNot
             </Section>
           )}
 
-          {/* Notas Pessoais */}
-          <div className="px-6 py-4 border-b" style={{ borderColor: "oklch(0.93 0.003 80)" }}>
-            <NotesPanel
-              supplier={supplier}
-              note={note}
-              onSave={onSaveNote}
-              onDelete={onDeleteNote}
-            />
-          </div>
+          {/* Notas Pessoais — ocultado: o lugar de anotações agora é Anotações/Diário */}
 
           </div>
           <div className="h-8" />
