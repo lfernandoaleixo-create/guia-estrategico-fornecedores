@@ -14,7 +14,8 @@ import {
   STATUS_CONFIG,
   type SupplierStatus,
 } from "@/shared/supplier-notes/useSupplierNotes";
-import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
+import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 
 interface YiwuSupplier {
   id: number;
@@ -23,10 +24,73 @@ interface YiwuSupplier {
   district?: string;
   floor?: string;
   booth?: string;
+  gate?: string;
   address?: string;
+  location?: string;
+  years?: string;
+  products?: string;
+  url?: string;
+  source?: string;
+  score?: number;
+  priority?: "alta" | "media" | "baixa";
+  scoreBreakdown?: {
+    alibaba: number;
+    years: number;
+    premium: number;
+    district: number;
+    floor: number;
+  };
 }
 
 const PAGE_SIZE = 30;
+
+function priorityLabel(p?: string) {
+  if (p === "alta") return "Alta";
+  if (p === "media") return "Média";
+  if (p === "baixa") return "Baixa";
+  return "—";
+}
+
+/**
+ * Mapeia um YiwuSupplier em retangulozinhos read-only.
+ * Cobre identificação + localização + score + url + produtos listados.
+ */
+function buildYiwuPrefilledFields(s: YiwuSupplier): PrefilledField[] {
+  const fields: PrefilledField[] = [
+    { label: "Empresa", value: s.name, copyable: true },
+    { label: "Categoria (NCM)", value: s.category || "—" },
+    { label: "ID Yiwu", value: `#${s.id}` },
+    {
+      label: "Prioridade",
+      value: s.score
+        ? `${priorityLabel(s.priority)} · ${s.score}/100`
+        : priorityLabel(s.priority),
+    },
+    { label: "Distrito", value: s.district ? `Distrito ${s.district}` : "—" },
+    { label: "Andar", value: s.floor ? `${s.floor}º andar` : "—" },
+    { label: "Portão / Booth", value: s.gate || s.booth || "—", copyable: !!(s.gate || s.booth) },
+    { label: "Anos no Yiwugo", value: s.years ? `${s.years} anos` : "—" },
+  ];
+
+  if (s.address) {
+    fields.push({ label: "Endereço", value: s.address, copyable: true, full: true });
+  }
+  if (s.location && s.location !== s.address) {
+    fields.push({ label: "Localização exata", value: s.location, copyable: true, full: true });
+  }
+  if (s.url) {
+    fields.push({
+      label: "Página Yiwugo / Alibaba",
+      value: s.url,
+      href: s.url,
+      full: true,
+    });
+  }
+  if (s.products) {
+    fields.push({ label: "Produtos listados", value: s.products, full: true });
+  }
+  return fields;
+}
 
 export default function YiwuAnotacoes() {
   const { entries, loaded } = useSupplierNotes("yiwu");
@@ -252,13 +316,65 @@ export default function YiwuAnotacoes() {
                           {s.floor ? ` · ${s.floor}` : ""}
                         </span>
                       </div>
-                      <h3 className="font-bold text-base text-foreground">{s.name}</h3>
-                      {entry?.observacoes && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {entry.observacoes}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-base text-foreground">{s.name}</h3>
+                        {s.score !== undefined && (
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono"
+                            style={{
+                              background:
+                                s.priority === "alta"
+                                  ? "rgba(16,185,129,0.12)"
+                                  : s.priority === "media"
+                                  ? "rgba(245,158,11,0.12)"
+                                  : "rgba(115,115,115,0.12)",
+                              color:
+                                s.priority === "alta"
+                                  ? "#34d399"
+                                  : s.priority === "media"
+                                  ? "#fbbf24"
+                                  : "#a3a3a3",
+                              border: `1px solid ${
+                                s.priority === "alta"
+                                  ? "rgba(16,185,129,0.3)"
+                                  : s.priority === "media"
+                                  ? "rgba(245,158,11,0.3)"
+                                  : "rgba(115,115,115,0.3)"
+                              }`,
+                            }}
+                            title={`Prioridade ${priorityLabel(s.priority)} · Score ${s.score}/100`}
+                          >
+                            {s.score} · {priorityLabel(s.priority).toUpperCase()}
+                          </span>
+                        )}
+                        {s.years && (
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono text-muted-foreground bg-muted/40">
+                            {s.years} anos
+                          </span>
+                        )}
+                        {s.url && (
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono text-cyan-400 hover:text-cyan-300 bg-cyan-400/10 border border-cyan-400/20"
+                          >
+                            ↗ link
+                          </a>
+                        )}
+                      </div>
+                      {s.products && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          {s.products}
                         </p>
                       )}
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                      {entry?.observacoes && (
+                        <p className="text-sm text-foreground/80 mt-1 line-clamp-2 italic">
+                          “{entry.observacoes}”
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                         {s.address && <span>{s.address}</span>}
                         {entry?.updatedAt && <span>· Atualizado em {entry.updatedAt}</span>}
                         {entry && entry.attachments.length > 0 && (
@@ -282,6 +398,8 @@ export default function YiwuAnotacoes() {
                         supplierName={s.name}
                         accent="#0891b2"
                         compact
+                        prefilledFields={buildYiwuPrefilledFields(s)}
+                        editableFields={DEFAULT_EDITABLE_FIELDS}
                       />
                     </div>
                   )}

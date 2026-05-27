@@ -35,6 +35,7 @@ export interface SupplierNoteEntry {
   supplierId: string;
   status: SupplierStatus;
   observacoes: string;
+  fields: Record<string, string>;
   attachments: SupplierAttachment[];
   createdAt: string;
   updatedAt: string;
@@ -212,14 +213,19 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
   const upsertEntry = useCallback(
     (
       supplierId: string,
-      patch: { status?: SupplierStatus; observacoes?: string }
+      patch: { status?: SupplierStatus; observacoes?: string; fields?: Record<string, string> }
     ) => {
       setEntries((prev) => {
         const existing = prev[supplierId];
+        const mergedFields = {
+          ...(existing?.fields ?? {}),
+          ...(patch.fields ?? {}),
+        };
         const updated: SupplierNoteEntry = {
           supplierId,
           status: patch.status ?? existing?.status ?? "nao-visitado",
           observacoes: patch.observacoes ?? existing?.observacoes ?? "",
+          fields: patch.fields ? mergedFields : existing?.fields ?? {},
           attachments: existing?.attachments ?? [],
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),
@@ -251,6 +257,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           supplierId,
           status: existing?.status ?? "nao-visitado",
           observacoes: existing?.observacoes ?? "",
+          fields: existing?.fields ?? {},
           attachments: [...(existing?.attachments ?? []), att],
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),

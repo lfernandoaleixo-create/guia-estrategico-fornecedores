@@ -33,6 +33,27 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 
+/** Campo apenas leitura (vem do cadastro do fornecedor) */
+export interface PrefilledField {
+  label: string;
+  value: string;
+  /** Ocupa coluna inteira em md+ (ex.: endereço longo) */
+  full?: boolean;
+  /** Permite copiar com 1 clique */
+  copyable?: boolean;
+  /** Hiperlink (mailto, tel, url) */
+  href?: string;
+}
+
+/** Campo editável pelo operador (preenche manualmente conforme contato) */
+export interface EditableField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  type?: "text" | "tel" | "email" | "url" | "number" | "date";
+  full?: boolean;
+}
+
 interface Props {
   scope: "aquario" | "tapete" | "yiwu";
   supplierId: string;
@@ -41,6 +62,10 @@ interface Props {
   accent?: string;
   /** Texto compacto: oculta o cabeçalho "DIÁRIO DE NEGOCIAÇÃO" */
   compact?: boolean;
+  /** Campos já cadastrados (exibidos como retângulos read-only) */
+  prefilledFields?: PrefilledField[];
+  /** Campos editáveis pelo operador (formulário rápido) */
+  editableFields?: EditableField[];
 }
 
 function isImage(att: SupplierAttachment) {
@@ -70,6 +95,8 @@ export default function SupplierNotesPanel({
   supplierName,
   accent = "#16a34a",
   compact = false,
+  prefilledFields = [],
+  editableFields = [],
 }: Props) {
   const {
     getEntry,
@@ -83,15 +110,18 @@ export default function SupplierNotesPanel({
 
   const [status, setStatus] = useState<SupplierStatus>(entry?.status ?? "nao-visitado");
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
+  const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Sync quando entry chega async do IndexedDB ou troca o supplier
   useEffect(() => {
     setStatus(entry?.status ?? "nao-visitado");
     setObservacoes(entry?.observacoes ?? "");
-  }, [entry?.supplierId, entry?.status, entry?.observacoes]);
+    setFields(entry?.fields ?? {});
+  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields]);
 
   const attachments = entry?.attachments ?? [];
 
@@ -102,8 +132,22 @@ export default function SupplierNotesPanel({
   };
 
   const handleSave = () => {
-    upsertEntry(supplierId, { status, observacoes });
+    upsertEntry(supplierId, { status, observacoes, fields });
     flashSaved();
+  };
+
+  const handleFieldChange = (key: string, value: string) => {
+    setFields((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey(null), 1200);
+    } catch {
+      /* ignore */
+    }
   };
 
   const flashSaved = () => {
@@ -133,7 +177,11 @@ export default function SupplierNotesPanel({
     setObservacoes("");
   };
 
-  const hasContent = observacoes.trim().length > 0 || attachments.length > 0 || status !== "nao-visitado";
+  const hasContent =
+    observacoes.trim().length > 0 ||
+    attachments.length > 0 ||
+    status !== "nao-visitado" ||
+    Object.values(fields).some((v) => v && v.trim().length > 0);
 
   return (
     <div
@@ -201,6 +249,91 @@ export default function SupplierNotesPanel({
           })}
         </div>
       </div>
+
+      {/* DADOS DO FORNECEDOR (auto-preenchidos) */}
+      {prefilledFields.length > 0 && (
+        <div className="mb-4">
+          <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
+            Dados do Fornecedor
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {prefilledFields.map((f, i) => (
+              <div
+                key={`${f.label}-${i}`}
+                className={`rounded-lg border bg-zinc-50/70 px-3 py-2 ${f.full ? "sm:col-span-2" : ""}`}
+                style={{ borderColor: "#e4e4e7" }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[10px] font-bold tracking-wider uppercase text-zinc-400">
+                    {f.label}
+                  </div>
+                  {f.copyable && f.value && f.value !== "—" && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(f.value, `pre-${i}`)}
+                      className="text-[10px] text-zinc-400 hover:text-zinc-700 transition-colors px-1.5 py-0.5 rounded"
+                      title="Copiar"
+                    >
+                      {copiedKey === `pre-${i}` ? "✓ copiado" : "copiar"}
+                    </button>
+                  )}
+                </div>
+                {f.href && f.value && f.value !== "—" ? (
+                  <a
+                    href={f.href}
+                    target={f.href.startsWith("http") ? "_blank" : undefined}
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-zinc-800 hover:underline break-words"
+                    style={{ color: accent }}
+                  >
+                    {f.value}
+                  </a>
+                ) : (
+                  <div className="text-sm font-medium text-zinc-800 break-words">
+                    {f.value || <span className="text-zinc-400">—</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CAMPOS EDITÁVEIS (operador preenche) */}
+      {editableFields.length > 0 && (
+        <div className="mb-4">
+          <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
+            Informações do Contato
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {editableFields.map((f) => (
+              <div
+                key={f.key}
+                className={`rounded-lg border bg-white px-3 py-2 transition-colors focus-within:border-zinc-400 ${f.full ? "sm:col-span-2" : ""}`}
+                style={{ borderColor: "#e4e4e7" }}
+              >
+                <label
+                  htmlFor={`field-${f.key}`}
+                  className="text-[10px] font-bold tracking-wider uppercase text-zinc-400 block"
+                >
+                  {f.label}
+                </label>
+                <input
+                  id={`field-${f.key}`}
+                  type={f.type ?? "text"}
+                  value={fields[f.key] ?? ""}
+                  onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  className="w-full bg-transparent text-sm font-medium text-zinc-800 placeholder:text-zinc-400 focus:outline-none"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-1.5">
+            Clique em <strong>Salvar nota</strong> abaixo para gravar as alterações.
+          </p>
+        </div>
+      )}
 
       {/* OBSERVAÇÕES */}
       <div className="mb-4">

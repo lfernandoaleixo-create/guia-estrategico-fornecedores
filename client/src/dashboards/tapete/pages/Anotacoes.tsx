@@ -14,7 +14,9 @@ import { getClassificacao, tipoLabel, type TipoEmpresa } from "@tapete/lib/class
 import { contatosFabricas } from "@tapete/lib/contatos";
 import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
-import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
+import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
+import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
   Mail, Phone, MessageCircle, Globe, Copy, CheckCheck, MapPin,
@@ -124,9 +126,73 @@ interface DiarioSectionProps {
   categoria: "fabrica" | "trader" | "materia_prima";
   neg: Negociacao | undefined;
   onNegUpdated: () => void;
+  contato?: ContatoFabrica | null;
+  tipoEmpresa?: TipoEmpresa;
 }
 
-function DiarioSection({ empresaId, nomeEmpresa, categoria, neg, onNegUpdated }: DiarioSectionProps) {
+function nonEmpty(v?: string | null): string | undefined {
+  if (!v) return undefined;
+  const t = v.trim();
+  if (!t || /não encontrado/i.test(t)) return undefined;
+  return t;
+}
+
+function buildTapetePrefilledFields(
+  nomeFallback: string,
+  c?: ContatoFabrica | null,
+  tipo?: TipoEmpresa,
+): PrefilledField[] {
+  const fields: PrefilledField[] = [];
+  const nomeOficial = c?.nomeOficial || nomeFallback;
+  fields.push({ label: "Empresa", value: nomeOficial, copyable: true });
+  if (tipo) fields.push({ label: "Classificação", value: tipo });
+  if (c) {
+    const cidade = nonEmpty(c.cidade);
+    const prov = nonEmpty(c.provincia);
+    if (cidade || prov) {
+      fields.push({ label: "Cidade / Província", value: [cidade, prov].filter(Boolean).join(", ") });
+    }
+    const email = nonEmpty(c.email);
+    if (email) fields.push({ label: "E-mail", value: email, copyable: true, href: `mailto:${email}` });
+    const tel = nonEmpty(c.telefone);
+    if (tel) fields.push({ label: "Telefone", value: tel, copyable: true, href: `tel:${tel.replace(/\s/g, "")}` });
+    const wa = nonEmpty(c.whatsapp);
+    if (wa) fields.push({ label: "WhatsApp", value: wa, copyable: true });
+    const site = nonEmpty(c.site);
+    if (site) fields.push({ label: "Site", value: site, href: site, full: true });
+    const aliba = nonEmpty(c.alibabaUrl);
+    if (aliba) fields.push({ label: "Alibaba", value: aliba, href: aliba, full: true });
+    const produto = nonEmpty(c.produtoPrincipal);
+    if (produto) fields.push({ label: "Produto principal", value: produto, full: true });
+    const moq = nonEmpty(c.moq);
+    if (moq) fields.push({ label: "MOQ registrado", value: moq });
+    const preco = nonEmpty(c.precoFob);
+    if (preco) fields.push({ label: "Preço FOB", value: preco });
+    const cert = nonEmpty(c.certificacoes);
+    if (cert) fields.push({ label: "Certificações", value: cert, full: true });
+    const anos = nonEmpty(c.anosExperiencia);
+    if (anos) fields.push({ label: "Experiência", value: anos });
+    const obs = nonEmpty(c.observacao);
+    if (obs) fields.push({ label: "Observação do cadastro", value: obs, full: true });
+  } else {
+    fields.push({
+      label: "Cadastro",
+      value: "Sem contatos no banco local. Busque no Alibaba ou Made-in-China.",
+      full: true,
+    });
+  }
+  return fields;
+}
+
+function DiarioSection({
+  empresaId,
+  nomeEmpresa,
+  categoria,
+  neg,
+  onNegUpdated,
+  contato,
+  tipoEmpresa,
+}: DiarioSectionProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _unused = { categoria, neg, onNegUpdated };
   return (
@@ -136,6 +202,8 @@ function DiarioSection({ empresaId, nomeEmpresa, categoria, neg, onNegUpdated }:
         supplierId={empresaId}
         supplierName={nomeEmpresa}
         accent="#dc2626"
+        prefilledFields={buildTapetePrefilledFields(nomeEmpresa, contato, tipoEmpresa)}
+        editableFields={DEFAULT_EDITABLE_FIELDS}
       />
     </div>
   );
@@ -722,6 +790,8 @@ export default function Anotacoes() {
                           categoria={fab.classificacao ? tipoParaCategoria(fab.classificacao.tipo) : "fabrica"}
                           neg={neg}
                           onNegUpdated={() => refetch()}
+                          contato={c}
+                          tipoEmpresa={fab.classificacao?.tipo}
                         />
                       </div>
                     )}
@@ -962,6 +1032,8 @@ export default function Anotacoes() {
                     categoria={cl ? tipoParaCategoria(cl.tipo) : "fabrica"}
                     neg={neg}
                     onNegUpdated={() => refetch()}
+                    contato={c}
+                    tipoEmpresa={cl?.tipo}
                   />
                 </div>
               )}

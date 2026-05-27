@@ -10,7 +10,8 @@
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
-import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
+import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import {
   ChevronDown,
   ChevronUp,
@@ -36,6 +37,49 @@ const categoryStyles: Record<
   acessorio: { icon: "📦", label: "Acessório", tint: "oklch(0.96 0.04 280)", border: "oklch(0.85 0.06 280)" },
   mercado: { icon: "🏪", label: "Mercado · Feira", tint: "oklch(0.96 0.04 30)", border: "oklch(0.85 0.06 30)" },
 };
+
+function buildAquarioPrefilledFields(s: Supplier): PrefilledField[] {
+  const fields: PrefilledField[] = [
+    { label: "Empresa", value: s.name, copyable: true },
+    { label: "Nome em Português", value: s.namePortuguese || "—" },
+  ];
+  if (s.nameChinese) fields.push({ label: "Nome em Chinês", value: s.nameChinese, copyable: true });
+  fields.push(
+    { label: "Cidade / Província", value: `${s.city}, ${s.province}` },
+    { label: "Endereço", value: s.location || "—", copyable: !!s.location, full: true },
+  );
+  if (s.founded) fields.push({ label: "Fundada em", value: s.founded });
+  if (s.companySize) fields.push({ label: "Tamanho da empresa", value: s.companySize });
+  if (s.productionCapacity) fields.push({ label: "Capacidade de produção", value: s.productionCapacity, full: true });
+  if (s.annualRevenue) fields.push({ label: "Faturamento anual", value: s.annualRevenue });
+  if (s.contactPerson) fields.push({ label: "Contato registrado", value: s.contactPerson, copyable: true });
+  if (s.email) {
+    fields.push({
+      label: "E-mail principal",
+      value: s.email,
+      copyable: true,
+      href: `mailto:${s.email}`,
+    });
+  }
+  if (s.phone) fields.push({ label: "Telefone", value: s.phone, copyable: true, href: `tel:${s.phone}` });
+  if (s.whatsapp) fields.push({ label: "WhatsApp", value: s.whatsapp, copyable: true });
+  if (s.wechat) fields.push({ label: "WeChat", value: s.wechat, copyable: true });
+  if (s.website) fields.push({ label: "Site oficial", value: s.website, href: s.website, full: true });
+  if (s.alibabaUrl) fields.push({ label: "Alibaba", value: s.alibabaUrl, href: s.alibabaUrl, full: true });
+  if (s.priceRange || s.priceRangeFob)
+    fields.push({ label: "Faixa de preço", value: s.priceRangeFob || s.priceRange || "—" });
+  if (s.moqMin || s.moqDetails)
+    fields.push({ label: "MOQ", value: s.moqMin || s.moqDetails || "—" });
+  if (s.leadTime) fields.push({ label: "Lead time", value: s.leadTime });
+  if (s.paymentTerms) fields.push({ label: "Pagamento", value: s.paymentTerms, full: true });
+  if (s.samplePolicy) fields.push({ label: "Política de amostras", value: s.samplePolicy, full: true });
+  if (s.languagesSpoken) fields.push({ label: "Idiomas", value: s.languagesSpoken });
+  if (s.tradeShowBooth) fields.push({ label: "Feira / Stand", value: s.tradeShowBooth });
+  if (s.certifications?.length) fields.push({ label: "Certificações", value: s.certifications.join(", "), full: true });
+  if (s.exportMarkets?.length) fields.push({ label: "Mercados de exportação", value: s.exportMarkets.join(", "), full: true });
+  if (s.specialties) fields.push({ label: "Especialidades", value: s.specialties, full: true });
+  return fields;
+}
 
 export default function DiaryCard({ supplier, defaultExpanded = false }: Props) {
   const { getEntry } = useSupplierNotes("aquario");
@@ -154,6 +198,8 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             supplierId={supplier.id}
             supplierName={supplier.name}
             accent="#dc2626"
+            prefilledFields={buildAquarioPrefilledFields(supplier)}
+            editableFields={DEFAULT_EDITABLE_FIELDS}
           />
         </div>
       )}
