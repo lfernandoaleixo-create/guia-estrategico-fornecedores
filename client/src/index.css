@@ -3,6 +3,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* =============================================================================
+   GUIA ESTRATÉGICO DE FORNECEDORES — Dashboard unificado
+   Mescla os 3 design systems (aquario / tapete / yiwu) com escopo via classe.
+   ============================================================================= */
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -42,136 +47,386 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ─── DEFAULT (capa principal "Guia Estratégico de Fornecedores") ──────────── */
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
-}
-
-.dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --radius: 0.75rem;
+  --background: oklch(0.06 0.015 250);
+  --foreground: oklch(0.97 0.01 80);
+  --card: oklch(0.10 0.02 250);
+  --card-foreground: oklch(0.97 0.01 80);
+  --popover: oklch(0.10 0.02 250);
+  --popover-foreground: oklch(0.97 0.01 80);
+  --primary: oklch(0.78 0.16 75);
+  --primary-foreground: oklch(0.10 0.02 250);
+  --secondary: oklch(0.17 0.03 250);
+  --secondary-foreground: oklch(0.85 0.01 80);
+  --muted: oklch(0.17 0.03 250);
+  --muted-foreground: oklch(0.62 0.02 80);
+  --accent: oklch(0.55 0.18 25);
+  --accent-foreground: oklch(0.97 0.01 80);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.22 0.03 250);
+  --input: oklch(0.22 0.03 250);
+  --ring: oklch(0.78 0.16 75);
+  --chart-1: oklch(0.78 0.16 75);
+  --chart-2: oklch(0.55 0.18 25);
+  --chart-3: oklch(0.65 0.18 200);
+  --chart-4: oklch(0.55 0.18 150);
+  --chart-5: oklch(0.7 0.15 300);
+  --sidebar: oklch(0.10 0.02 250);
+  --sidebar-foreground: oklch(0.97 0.01 80);
+  --sidebar-primary: oklch(0.78 0.16 75);
+  --sidebar-primary-foreground: oklch(0.10 0.02 250);
+  --sidebar-accent: oklch(0.17 0.03 250);
+  --sidebar-accent-foreground: oklch(0.85 0.01 80);
+  --sidebar-border: oklch(0.22 0.03 250);
+  --sidebar-ring: oklch(0.78 0.16 75);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
-  [type="button"]:not(:disabled),
-  [type="submit"]:not(:disabled),
-  [type="reset"]:not(:disabled),
-  a[href],
-  select:not(:disabled),
-  input[type="checkbox"]:not(:disabled),
-  input[type="radio"]:not(:disabled) {
+  * { @apply border-border outline-ring/50; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { @apply bg-background text-foreground; font-family: 'Inter', system-ui, sans-serif; }
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled), [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled), a[href], select:not(:disabled),
+  input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
-
-  .flex {
-    min-height: 0;
-    min-width: 0;
-  }
-
+  .flex { min-height: 0; min-width: 0; }
   @media (min-width: 640px) {
-    .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
-      padding-right: 1.5rem;
-    }
+    .container { padding-left: 1.5rem; padding-right: 1.5rem; }
   }
-
   @media (min-width: 1024px) {
-    .container {
-      padding-left: 2rem; /* 32px - desktop padding */
-      padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
-    }
+    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
   }
+}
+
+/* ============================================================================
+   SCOPE: AQUARIO — Mercado Oriental Premium / Edição Editorial
+   Pergaminho quente + Vermelhão chinês + Tinta sumi
+   Fraunces + Inter + JetBrains Mono
+   ============================================================================ */
+.scope-aquario {
+  --radius: 0.625rem;
+  --primary: oklch(0.46 0.20 28);
+  --primary-foreground: oklch(0.985 0.005 80);
+  --background: oklch(0.984 0.006 80);
+  --foreground: oklch(0.18 0.012 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.012 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.012 60);
+  --secondary: oklch(0.952 0.006 80);
+  --secondary-foreground: oklch(0.32 0.012 60);
+  --muted: oklch(0.952 0.006 80);
+  --muted-foreground: oklch(0.5 0.012 60);
+  --accent: oklch(0.946 0.008 80);
+  --accent-foreground: oklch(0.18 0.012 60);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.89 0.006 80);
+  --input: oklch(0.89 0.006 80);
+  --ring: oklch(0.46 0.20 28);
+  --chart-1: oklch(0.46 0.20 28);
+  --chart-2: oklch(0.38 0.14 160);
+  --chart-3: oklch(0.4 0.14 220);
+  --chart-4: oklch(0.55 0.15 40);
+  --chart-5: oklch(0.5 0.13 280);
+  --sidebar: oklch(0.155 0.014 60);
+  --sidebar-foreground: oklch(0.92 0.006 80);
+  --sidebar-primary: oklch(0.55 0.20 28);
+  --sidebar-primary-foreground: oklch(0.985 0.005 80);
+  --sidebar-accent: oklch(0.215 0.014 60);
+  --sidebar-accent-foreground: oklch(0.96 0.006 80);
+  --sidebar-border: oklch(0.25 0.014 60);
+  --sidebar-ring: oklch(0.55 0.20 28);
+  --color-terrario: oklch(0.42 0.13 155);
+  --color-terrario-bg: oklch(0.96 0.04 155);
+  --color-aquario: oklch(0.42 0.14 220);
+  --color-aquario-bg: oklch(0.96 0.04 220);
+  --color-equipamento: oklch(0.5 0.15 40);
+  --color-equipamento-bg: oklch(0.97 0.04 60);
+  --color-mercado: oklch(0.5 0.13 290);
+  --color-mercado-bg: oklch(0.97 0.04 290);
+  --color-gold: oklch(0.7 0.13 75);
+  --shadow-soft: 0 1px 2px oklch(0.15 0.01 60 / 0.04), 0 1px 3px oklch(0.15 0.01 60 / 0.06);
+  --shadow-card: 0 1px 2px oklch(0.15 0.01 60 / 0.04), 0 4px 12px oklch(0.15 0.01 60 / 0.06);
+  --shadow-lift: 0 8px 24px oklch(0.15 0.01 60 / 0.08), 0 2px 6px oklch(0.15 0.01 60 / 0.04);
+  --shadow-deep: 0 24px 48px -12px oklch(0.15 0.01 60 / 0.18);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  background-color: oklch(0.984 0.006 80);
+  color: oklch(0.18 0.012 60);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: -0.005em;
+}
+.scope-aquario h1, .scope-aquario h2, .scope-aquario h3, .scope-aquario .font-display {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-feature-settings: "ss01";
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+.scope-aquario h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.05; letter-spacing: -0.03em; font-weight: 700; }
+.scope-aquario h2 { font-size: clamp(1.4rem, 2.6vw, 1.875rem); line-height: 1.15; letter-spacing: -0.025em; font-weight: 600; }
+.scope-aquario h3 { font-size: 1.15rem; line-height: 1.25; letter-spacing: -0.018em; font-weight: 600; }
+.scope-aquario code, .scope-aquario kbd, .scope-aquario samp, .scope-aquario pre,
+.scope-aquario .mono, .scope-aquario .font-mono {
+  font-family: 'JetBrains Mono', 'Menlo', 'Monaco', monospace;
+  font-feature-settings: "calt", "ss01";
+  font-size: 0.93em;
+  letter-spacing: -0.01em;
+}
+.scope-aquario ::selection { background: oklch(0.46 0.20 28 / 0.18); color: oklch(0.18 0.012 60); }
+.scope-aquario .container { max-width: 1480px; }
+.scope-aquario .eyebrow { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.7rem; font-weight: 600; color: var(--muted-foreground); }
+.scope-aquario .category-border-terrario { border-left: 4px solid var(--color-terrario); }
+.scope-aquario .category-border-aquario { border-left: 4px solid var(--color-aquario); }
+.scope-aquario .category-border-equipamento { border-left: 4px solid var(--color-equipamento); }
+.scope-aquario .category-border-mercado { border-left: 4px solid var(--color-mercado); }
+.scope-aquario .category-border-acessorio { border-left: 4px solid var(--color-mercado); }
+.scope-aquario .badge-terrario { background-color: var(--color-terrario-bg); color: var(--color-terrario); border: 1px solid oklch(0.42 0.13 155 / 0.18); }
+.scope-aquario .badge-aquario { background-color: var(--color-aquario-bg); color: var(--color-aquario); border: 1px solid oklch(0.42 0.14 220 / 0.18); }
+.scope-aquario .badge-equipamento { background-color: var(--color-equipamento-bg); color: var(--color-equipamento); border: 1px solid oklch(0.5 0.15 40 / 0.18); }
+.scope-aquario .badge-mercado { background-color: var(--color-mercado-bg); color: var(--color-mercado); border: 1px solid oklch(0.5 0.13 290 / 0.18); }
+.scope-aquario .card-premium {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+.scope-aquario .card-premium:hover { box-shadow: var(--shadow-lift); transform: translateY(-1px); border-color: oklch(0.78 0.008 80); }
+@keyframes scope-aquario-card-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.scope-aquario .card-animate { animation: scope-aquario-card-enter 0.4s var(--ease-out) both; }
+.scope-aquario button:not(:disabled):active,
+.scope-aquario [role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.985);
+  transition: transform 120ms var(--ease-out);
+}
+.scope-aquario .divider-ornament { display: flex; align-items: center; gap: 0.75rem; color: var(--muted-foreground); }
+.scope-aquario .divider-ornament::before, .scope-aquario .divider-ornament::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
+}
+.scope-aquario .link-underline { position: relative; display: inline-block; }
+.scope-aquario .link-underline::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px;
+  background: currentColor; transform: scaleX(0); transform-origin: left;
+  transition: transform 240ms var(--ease-out);
+}
+.scope-aquario .link-underline:hover::after { transform: scaleX(1); }
+.scope-aquario .seal-stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+  background: var(--primary); color: var(--primary-foreground);
+  font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.1rem;
+  box-shadow: 0 0 0 1px oklch(0.46 0.20 28 / 0.2), 0 0 0 4px oklch(0.46 0.20 28 / 0.08);
+}
+.scope-aquario .bg-paper {
+  background-color: var(--background);
+  background-image: radial-gradient(oklch(0.85 0.008 80 / 0.4) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: 0 0;
+}
+.scope-aquario .num-display { font-family: 'Fraunces', serif; font-weight: 600; font-feature-settings: "ss01", "tnum"; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.scope-aquario .num-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-feature-settings: "tnum", "zero"; }
+
+/* ============================================================================
+   SCOPE: TAPETE — Grupo Fox · Corporate Intelligence
+   Azul-marinho + Vermelho-China + Dourado
+   Plus Jakarta Sans + Inter + JetBrains Mono
+   ============================================================================ */
+.scope-tapete {
+  --radius: 0.625rem;
+  --navy: oklch(0.18 0.06 255);
+  --navy-light: oklch(0.24 0.06 255);
+  --navy-border: oklch(0.30 0.05 255);
+  --china-red: oklch(0.48 0.22 25);
+  --china-red-light: oklch(0.55 0.20 25);
+  --gold: oklch(0.72 0.14 75);
+  --gold-light: oklch(0.82 0.10 75);
+  --background: oklch(0.965 0.006 248);
+  --foreground: oklch(0.16 0.025 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.025 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.025 255);
+  --primary: oklch(0.48 0.22 25);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.94 0.04 75);
+  --secondary-foreground: oklch(0.35 0.08 75);
+  --muted: oklch(0.94 0.005 250);
+  --muted-foreground: oklch(0.50 0.02 255);
+  --accent: oklch(0.93 0.03 255);
+  --accent-foreground: oklch(0.18 0.06 255);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.87 0.012 250);
+  --input: oklch(0.87 0.012 250);
+  --ring: oklch(0.48 0.22 25);
+  --chart-1: oklch(0.48 0.22 25);
+  --chart-2: oklch(0.72 0.14 75);
+  --chart-3: oklch(0.18 0.06 255);
+  --chart-4: oklch(0.55 0.15 200);
+  --chart-5: oklch(0.65 0.12 145);
+  --sidebar: oklch(0.15 0.065 258);
+  --sidebar-foreground: oklch(0.92 0.01 255);
+  --sidebar-primary: oklch(0.48 0.22 25);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.22 0.065 258);
+  --sidebar-accent-foreground: oklch(0.92 0.01 255);
+  --sidebar-border: oklch(0.28 0.055 258);
+  --sidebar-ring: oklch(0.48 0.22 25);
+  background-color: oklch(0.965 0.006 248);
+  color: oklch(0.16 0.025 255);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+}
+.scope-tapete h1, .scope-tapete h2, .scope-tapete h3, .scope-tapete h4, .scope-tapete h5, .scope-tapete h6 {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.scope-tapete h1 { font-size: 2rem; }
+.scope-tapete h2 { font-size: 1.5rem; }
+.scope-tapete h3 { font-size: 1.25rem; }
+.scope-tapete p { font-family: 'Inter', system-ui, sans-serif; }
+.scope-tapete .font-mono, .scope-tapete code, .scope-tapete .data-value, .scope-tapete [class*="font-mono"] {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-feature-settings: "liga" 1, "calt" 1;
+}
+.scope-tapete button:not(:disabled):active { transform: scale(0.97); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.scope-tapete .container { max-width: 1280px; }
+.scope-tapete .nav-item {
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150;
+  font-family: 'Inter', sans-serif;
+  color: oklch(0.72 0.025 255);
+  letter-spacing: -0.005em;
+}
+.scope-tapete .nav-item:hover { background: oklch(0.22 0.065 258); color: oklch(0.95 0.01 255); }
+.scope-tapete .nav-item.active { background: oklch(0.48 0.22 25); color: white; box-shadow: 0 2px 8px oklch(0.48 0.22 25 / 0.35); }
+.scope-tapete .stat-card {
+  @apply bg-card rounded-xl p-5 shadow-sm border border-border;
+  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.scope-tapete .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px oklch(0.18 0.06 255 / 0.10); }
+.scope-tapete .section-badge { @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider; font-family: 'Inter', sans-serif; }
+.scope-tapete .ncm-code { font-family: 'JetBrains Mono', monospace; @apply text-sm font-bold px-2 py-0.5 rounded; background: oklch(0.18 0.06 255 / 0.08); color: oklch(0.18 0.06 255); border: 1px solid oklch(0.18 0.06 255 / 0.2); }
+.scope-tapete .page-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.875rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; color: oklch(0.16 0.025 255); }
+.scope-tapete .page-subtitle { font-family: 'Inter', sans-serif; font-size: 1.0625rem; font-weight: 500; color: oklch(0.42 0.03 255); letter-spacing: -0.01em; margin-top: 0.25rem; }
+.scope-tapete .kpi-value { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.625rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.scope-tapete .kpi-label { font-family: 'Inter', sans-serif; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.375rem; }
+.scope-tapete .table-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 0.9375rem; letter-spacing: -0.015em; }
+.scope-tapete .table-meta { font-family: 'Inter', sans-serif; font-size: 0.8125rem; color: oklch(0.52 0.02 255); }
+.scope-tapete .fade-in-up { opacity: 0; transform: translateY(16px); transition: opacity 0.45s cubic-bezier(0.23, 1, 0.32, 1), transform 0.45s cubic-bezier(0.23, 1, 0.32, 1); }
+.scope-tapete .fade-in-up.visible { opacity: 1; transform: translateY(0); }
+
+/* ============================================================================
+   SCOPE: YIWU — Guia de Expedição
+   Dark navy + Amber gold + Cyan
+   Sora + Space Mono
+   ============================================================================ */
+.scope-yiwu {
+  --radius: 0.5rem;
+  --background: oklch(0.13 0.04 240);
+  --foreground: oklch(0.95 0.01 240);
+  --card: oklch(0.17 0.04 240);
+  --card-foreground: oklch(0.95 0.01 240);
+  --popover: oklch(0.17 0.04 240);
+  --popover-foreground: oklch(0.95 0.01 240);
+  --primary: oklch(0.75 0.17 75);
+  --primary-foreground: oklch(0.13 0.04 240);
+  --secondary: oklch(0.22 0.04 240);
+  --secondary-foreground: oklch(0.85 0.01 240);
+  --muted: oklch(0.22 0.04 240);
+  --muted-foreground: oklch(0.60 0.02 240);
+  --accent: oklch(0.65 0.18 200);
+  --accent-foreground: oklch(0.13 0.04 240);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.28 0.04 240);
+  --input: oklch(0.22 0.04 240);
+  --ring: oklch(0.75 0.17 75);
+  --chart-1: oklch(0.75 0.17 75);
+  --chart-2: oklch(0.65 0.18 200);
+  --chart-3: oklch(0.55 0.18 150);
+  --chart-4: oklch(0.65 0.22 25);
+  --chart-5: oklch(0.70 0.15 300);
+  --sidebar: oklch(0.15 0.04 240);
+  --sidebar-foreground: oklch(0.95 0.01 240);
+  --sidebar-primary: oklch(0.75 0.17 75);
+  --sidebar-primary-foreground: oklch(0.13 0.04 240);
+  --sidebar-accent: oklch(0.22 0.04 240);
+  --sidebar-accent-foreground: oklch(0.85 0.01 240);
+  --sidebar-border: oklch(0.28 0.04 240);
+  --sidebar-ring: oklch(0.75 0.17 75);
+  background-color: oklch(0.13 0.04 240);
+  color: oklch(0.95 0.01 240);
+  font-family: 'Sora', sans-serif;
+}
+.scope-yiwu .font-mono { font-family: 'Space Mono', monospace; }
+.scope-yiwu .container { max-width: 1400px; }
+.scope-yiwu .glow-amber { box-shadow: 0 0 20px oklch(0.75 0.17 75 / 0.3); }
+.scope-yiwu .glow-cyan { box-shadow: 0 0 20px oklch(0.65 0.18 200 / 0.3); }
+.scope-yiwu .text-glow-amber { text-shadow: 0 0 20px oklch(0.75 0.17 75 / 0.5); }
+.scope-yiwu .supplier-card {
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  border: 1px solid oklch(0.28 0.04 240);
+}
+.scope-yiwu .supplier-card:hover {
+  border-color: oklch(0.65 0.18 200 / 0.6);
+  box-shadow: 0 0 24px oklch(0.65 0.18 200 / 0.15), 0 4px 16px oklch(0 0 0 / 0.4);
+  transform: translateY(-2px);
+}
+.scope-yiwu .tab-active { position: relative; }
+.scope-yiwu .tab-active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: oklch(0.75 0.17 75); border-radius: 1px; }
+.scope-yiwu .badge-vidraria { background: oklch(0.65 0.18 200 / 0.15); color: oklch(0.75 0.18 200); border: 1px solid oklch(0.65 0.18 200 / 0.3); }
+.scope-yiwu .badge-plasticos { background: oklch(0.55 0.18 150 / 0.15); color: oklch(0.70 0.18 150); border: 1px solid oklch(0.55 0.18 150 / 0.3); }
+.scope-yiwu .badge-termicas { background: oklch(0.75 0.17 75 / 0.15); color: oklch(0.80 0.17 75); border: 1px solid oklch(0.75 0.17 75 / 0.3); }
+.scope-yiwu .badge-premium { background: oklch(0.65 0.22 25 / 0.15); color: oklch(0.75 0.22 25); border: 1px solid oklch(0.65 0.22 25 / 0.3); }
+@keyframes scope-yiwu-countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.scope-yiwu .count-up { animation: scope-yiwu-countUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+@keyframes scope-yiwu-cardEntrance { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.scope-yiwu .card-enter { animation: scope-yiwu-cardEntrance 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+.scope-yiwu .gradient-text-amber {
+  background: linear-gradient(135deg, oklch(0.80 0.17 75), oklch(0.70 0.20 55));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.scope-yiwu .gradient-text-cyan {
+  background: linear-gradient(135deg, oklch(0.70 0.18 200), oklch(0.60 0.20 220));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ============================================================================
+   CAPA — animações e estilos da landing principal
+   ============================================================================ */
+@keyframes capa-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.capa-anim { animation: capa-fade-up 0.7s cubic-bezier(0.23, 1, 0.32, 1) both; }
+.capa-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
