@@ -36,7 +36,7 @@ export default function ScopeWrapper({
       {scope !== "capa" && (
         <a
           href="/"
-          className="fixed top-4 right-4 z-[9999] inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-bold tracking-wide shadow-2xl shadow-amber-900/40 ring-2 ring-white/20 transition-all hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-[9999] inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-bold tracking-wide shadow-2xl shadow-amber-900/40 ring-2 ring-white/20 transition-all hover:scale-105 active:scale-95"
           style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
           title="Voltar ao Guia Estratégico"
         >
