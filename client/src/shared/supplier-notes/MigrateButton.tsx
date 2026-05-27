@@ -5,7 +5,8 @@
 //   - Confirmação clara antes de mover
 //   - Toast de sucesso/erro
 // =============================================================================
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowRightLeft, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups } from "./useCustomGroups";
@@ -47,6 +48,27 @@ export function MigrateButton({
   const [step, setStep] = useState<"select" | "confirm">("select");
   const [target, setTarget] = useState<MigrationTarget | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Trava scroll do body quando aberto
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Fecha com ESC
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const groupOptions = useMemo(
     () => groups.filter((g) => !g.promotedToDashboard),
@@ -124,17 +146,17 @@ export function MigrateButton({
         Migrar contato
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.55)" }}
+          className="fixed inset-0 flex items-center justify-center p-4 animate-[fadeIn_140ms_ease-out]"
+          style={{ background: "rgba(15,15,20,0.62)", backdropFilter: "blur(4px)", zIndex: 9999 }}
           onClick={close}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl max-h-[88vh] overflow-y-auto animate-[scaleIn_180ms_cubic-bezier(0.23,1,0.32,1)]"
             style={{ border: "1px solid #e4e4e7" }}
           >
             <div className="flex items-center justify-between mb-4">
@@ -278,7 +300,12 @@ export function MigrateButton({
               </>
             )}
           </div>
-        </div>
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+          `}</style>
+        </div>,
+        document.body,
       )}
     </>
   );
