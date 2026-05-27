@@ -430,6 +430,29 @@ export default function YiwuAnotacoes() {
                           {s.products}
                         </p>
                       )}
+                      {entry?.groupIds && entry.groupIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {entry.groupIds.map((gid) => {
+                            const g = allGroups.find((x) => x.id === gid);
+                            if (!g) return null;
+                            return (
+                              <span
+                                key={gid}
+                                className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                                style={{
+                                  background: `${g.color}22`,
+                                  border: `1px solid ${g.color}66`,
+                                  color: g.color,
+                                }}
+                                title={g.legend || g.name}
+                              >
+                                <span style={{ width: 6, height: 6, borderRadius: 999, background: g.color }} />
+                                {g.name}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       {entry?.observacoes && (
                         <p className="text-sm text-foreground/80 mt-1 line-clamp-2 italic">
                           “{entry.observacoes}”

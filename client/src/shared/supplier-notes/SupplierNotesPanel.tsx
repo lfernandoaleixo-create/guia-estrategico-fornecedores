@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GroupPicker } from "./GroupPicker";
+import { MigrateButton } from "./MigrateButton";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
@@ -254,19 +255,42 @@ export default function SupplierNotesPanel({
       style={{ borderColor: "#e4e4e7" }}
     >
       {!compact && (
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <FileText size={16} className="text-zinc-500" />
             <h4 className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500">
               Diário de Negociação
             </h4>
           </div>
-          {entry?.updatedAt && (
-            <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-              <Calendar size={12} />
-              <span>Atualizado em {entry.updatedAt}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {entry?.updatedAt && (
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <Calendar size={12} />
+                <span>Atualizado em {entry.updatedAt}</span>
+              </div>
+            )}
+            <MigrateButton
+              fromScope={scope}
+              fromSupplierId={supplierId}
+              accent={accent ?? "#475569"}
+              context={{
+                supplierName: supplierName ?? supplierId,
+                ...(prefilledFields ?? []).reduce((ctx, f) => {
+                  const k = f.label.toLowerCase();
+                  if (k.includes("chinês")) ctx.chineseName = f.value;
+                  else if (k === "cidade / província") {
+                    const [c, p] = f.value.split(",").map((s) => s.trim());
+                    ctx.city = c; ctx.province = p;
+                  } else if (k === "endereço") ctx.address = f.value;
+                  else if (k.includes("contato")) ctx.contactName = f.value;
+                  else if (k.includes("e-mail")) ctx.email = f.value;
+                  else if (k.includes("whatsapp") || k.includes("telefone")) ctx.phone = f.value;
+                  else if (k.includes("site")) ctx.website = f.value;
+                  return ctx;
+                }, {} as Record<string, string>),
+              }}
+            />
+          </div>
         </div>
       )}
 

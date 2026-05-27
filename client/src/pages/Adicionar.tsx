@@ -1,0 +1,985 @@
+// =============================================================================
+// /adicionar — 4ª aba "Adicionar Fornecedores".
+// Local onde o operador cadastra grupos personalizados (ex.: Brinquedos, Vidro)
+// e fornecedores avulsos que ainda não pertencem a nenhum dos 3 dashboards.
+// Quando um grupo crescer, ele pode ser "promovido" a dashboard independente.
+// =============================================================================
+import { useMemo, useState } from "react";
+import { Link } from "wouter";
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Layers,
+  Building2,
+  Sparkles,
+  Rocket,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  useCustomGroups,
+  CUSTOM_GROUP_PALETTE,
+  BRANCH_SUGGESTIONS,
+  type CustomGroup,
+} from "@/shared/supplier-notes/useCustomGroups";
+import {
+  useExtraSuppliers,
+  type ExtraSupplier,
+} from "@/shared/supplier-notes/useExtraSuppliers";
+
+const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
+const TEXT_MUTED = "oklch(0.65 0.02 80)";
+const SURFACE = "oklch(0.10 0.02 250)";
+const BORDER = "oklch(0.22 0.03 250)";
+
+function fmtDate(ts: number): string {
+  return new Date(ts).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+interface GroupDraft {
+  id?: string;
+  name: string;
+  branch: string;
+  color: string;
+  description: string;
+}
+
+interface SupplierDraft {
+  groupId: string;
+  name: string;
+  chineseName: string;
+  category: string;
+  city: string;
+  province: string;
+  address: string;
+  contactName: string;
+  contactRole: string;
+  email: string;
+  whatsapp: string;
+  link: string;
+  moq: string;
+  priceFob: string;
+  leadTime: string;
+  notes: string;
+}
+
+const EMPTY_SUPPLIER: SupplierDraft = {
+  groupId: "",
+  name: "",
+  chineseName: "",
+  category: "",
+  city: "",
+  province: "",
+  address: "",
+  contactName: "",
+  contactRole: "",
+  email: "",
+  whatsapp: "",
+  link: "",
+  moq: "",
+  priceFob: "",
+  leadTime: "",
+  notes: "",
+};
+
+export default function AdicionarPage() {
+  const {
+    groups,
+    createGroup,
+    updateGroup,
+    deleteGroup,
+    promoteToDashboard,
+    demoteFromDashboard,
+  } = useCustomGroups();
+  const { list: suppliers, create: createSupplier, remove: removeSupplier } =
+    useExtraSuppliers();
+
+  // Modal de grupo
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupDraft, setGroupDraft] = useState<GroupDraft>({
+    name: "",
+    branch: "",
+    color: CUSTOM_GROUP_PALETTE[0],
+    description: "",
+  });
+
+  // Form de fornecedor
+  const [supplierDraft, setSupplierDraft] = useState<SupplierDraft>(EMPTY_SUPPLIER);
+  const [showSupplierForm, setShowSupplierForm] = useState(false);
+
+  const suppliersByGroup = useMemo(() => {
+    const map: Record<string, ExtraSupplier[]> = {};
+    suppliers.forEach((s) => {
+      (map[s.groupId] ??= []).push(s);
+    });
+    return map;
+  }, [suppliers]);
+
+  function startCreateGroup() {
+    setGroupDraft({
+      name: "",
+      branch: "",
+      color: CUSTOM_GROUP_PALETTE[Math.floor(Math.random() * CUSTOM_GROUP_PALETTE.length)],
+      description: "",
+    });
+    setGroupModalOpen(true);
+  }
+
+  function startEditGroup(g: CustomGroup) {
+    setGroupDraft({
+      id: g.id,
+      name: g.name,
+      branch: g.branch,
+      color: g.color,
+      description: g.description,
+    });
+    setGroupModalOpen(true);
+  }
+
+  async function saveGroup() {
+    if (!groupDraft.name.trim()) {
+      toast.error("Dê um nome ao grupo.");
+      return;
+    }
+    if (!groupDraft.branch.trim()) {
+      toast.error("Informe o ramo (ex: Brinquedos, Vidro, Aquário).");
+      return;
+    }
+    if (groupDraft.id) {
+      await updateGroup(groupDraft.id, {
+        name: groupDraft.name,
+        branch: groupDraft.branch,
+        color: groupDraft.color,
+        description: groupDraft.description,
+      });
+      toast.success(`Grupo "${groupDraft.name}" atualizado`);
+    } else {
+      await createGroup({
+        name: groupDraft.name,
+        branch: groupDraft.branch,
+        color: groupDraft.color,
+        description: groupDraft.description,
+      });
+      toast.success(`Grupo "${groupDraft.name}" criado`);
+    }
+    setGroupModalOpen(false);
+  }
+
+  async function handleDeleteGroup(g: CustomGroup) {
+    const used = suppliersByGroup[g.id]?.length ?? 0;
+    const msg = used > 0
+      ? `Excluir o grupo "${g.name}"? ${used} fornecedor${used === 1 ? "" : "es"} ficará${used === 1 ? "" : "ão"} sem grupo.`
+      : `Excluir o grupo "${g.name}"?`;
+    if (!window.confirm(msg)) return;
+    await deleteGroup(g.id);
+    toast.success("Grupo excluído");
+  }
+
+  async function handleSaveSupplier() {
+    if (!supplierDraft.groupId) {
+      toast.error("Selecione um grupo para o fornecedor.");
+      return;
+    }
+    if (!supplierDraft.name.trim()) {
+      toast.error("Informe o nome do fornecedor.");
+      return;
+    }
+    await createSupplier({
+      groupId: supplierDraft.groupId,
+      name: supplierDraft.name.trim(),
+      chineseName: supplierDraft.chineseName.trim() || undefined,
+      category: supplierDraft.category.trim() || undefined,
+      city: supplierDraft.city.trim() || undefined,
+      province: supplierDraft.province.trim() || undefined,
+      address: supplierDraft.address.trim() || undefined,
+      contactName: supplierDraft.contactName.trim() || undefined,
+      contactRole: supplierDraft.contactRole.trim() || undefined,
+      moq: supplierDraft.moq.trim() || undefined,
+      priceFob: supplierDraft.priceFob.trim() || undefined,
+      leadTime: supplierDraft.leadTime.trim() || undefined,
+      notes: supplierDraft.notes.trim() || undefined,
+      phones: supplierDraft.whatsapp.trim()
+        ? [{ id: `c-${Date.now()}`, label: "WhatsApp", value: supplierDraft.whatsapp.trim() }]
+        : [],
+      emails: supplierDraft.email.trim()
+        ? [{ id: `c-${Date.now()}`, value: supplierDraft.email.trim() }]
+        : [],
+      links: supplierDraft.link.trim()
+        ? [{ id: `c-${Date.now()}`, value: supplierDraft.link.trim() }]
+        : [],
+    });
+    toast.success(`Fornecedor "${supplierDraft.name}" cadastrado`);
+    setSupplierDraft(EMPTY_SUPPLIER);
+    setShowSupplierForm(false);
+  }
+
+  async function handleRemoveSupplier(s: ExtraSupplier) {
+    if (!window.confirm(`Excluir o fornecedor "${s.name}"?`)) return;
+    await removeSupplier(s.id);
+    toast.success("Fornecedor excluído");
+  }
+
+  return (
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background:
+          "radial-gradient(ellipse at top left, oklch(0.18 0.05 28 / 0.45), transparent 55%), radial-gradient(ellipse at bottom right, oklch(0.18 0.06 240 / 0.55), transparent 55%), oklch(0.06 0.015 250)",
+      }}
+    >
+      {/* Header */}
+      <header
+        className="relative z-10 border-b"
+        style={{ borderColor: BORDER }}
+      >
+        <div className="container flex items-center justify-between py-5">
+          <Link href="/">
+            <a
+              className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
+              style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar à home
+            </a>
+          </Link>
+          <div
+            className="flex items-center gap-2 text-xs"
+            style={{
+              color: TEXT_MUTED,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.1em",
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
+            <span>BANCO DE FORNECEDORES AVULSOS</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="relative z-10 container py-12 max-w-5xl">
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full border"
+          style={{
+            borderColor: "oklch(0.78 0.16 75 / 0.3)",
+            background: "oklch(0.78 0.16 75 / 0.07)",
+          }}
+        >
+          <Plus className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
+          <span
+            className="text-[11px] tracking-[0.18em] uppercase font-semibold"
+            style={{
+              color: "oklch(0.85 0.13 75)",
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            Adicionar Fornecedores
+          </span>
+        </div>
+        <h1
+          className="mb-4"
+          style={{
+            fontFamily: "'Fraunces', Georgia, serif",
+            fontSize: "clamp(2rem, 5vw, 3.5rem)",
+            lineHeight: 1.05,
+            letterSpacing: "-0.03em",
+            fontWeight: 600,
+            color: TEXT_PRIMARY,
+          }}
+        >
+          Cadastre fornecedores que ainda
+          <br />
+          <span
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.85 0.16 75), oklch(0.65 0.20 35) 60%, oklch(0.55 0.22 25))",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              fontStyle: "italic",
+              fontWeight: 500,
+              display: "inline-block",
+              paddingRight: "0.18em",
+              marginRight: "-0.18em",
+            }}
+          >
+            não têm um dashboard
+          </span>
+        </h1>
+        <p
+          className="text-base max-w-2xl"
+          style={{ color: "oklch(0.78 0.015 80)", lineHeight: 1.55 }}
+        >
+          Crie um <strong>grupo</strong> para o ramo (ex.: Brinquedos, Vidro, Decoração)
+          e cadastre os fornecedores ali. Quando o grupo crescer e merecer, você pode
+          promovê-lo a um dashboard independente — mantendo todos os dados.
+        </p>
+      </section>
+
+      {/* Grupos Personalizados */}
+      <section className="relative z-10 container max-w-5xl mb-12">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Layers className="w-5 h-5" style={{ color: "oklch(0.78 0.16 75)" }} />
+            <h2
+              className="text-xl font-semibold"
+              style={{
+                fontFamily: "'Fraunces', serif",
+                color: TEXT_PRIMARY,
+              }}
+            >
+              Grupos Personalizados
+            </h2>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{
+                background: "oklch(0.22 0.03 250)",
+                color: TEXT_MUTED,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {groups.length}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={startCreateGroup}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.78 0.16 75), oklch(0.55 0.18 25))",
+              color: "oklch(0.10 0.02 250)",
+            }}
+          >
+            <Plus className="w-4 h-4" /> Novo grupo
+          </button>
+        </div>
+
+        {groups.length === 0 ? (
+          <div
+            className="rounded-2xl border-2 border-dashed p-10 text-center"
+            style={{ borderColor: BORDER, color: TEXT_MUTED }}
+          >
+            Nenhum grupo personalizado ainda. Clique em <strong>"Novo grupo"</strong> para criar o primeiro.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.map((g) => {
+              const count = suppliersByGroup[g.id]?.length ?? 0;
+              return (
+                <div
+                  key={g.id}
+                  className="rounded-2xl p-5 border transition-all"
+                  style={{
+                    background: SURFACE,
+                    borderColor: BORDER,
+                    borderLeft: `4px solid ${g.color}`,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <div
+                        className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
+                        style={{ color: g.color, fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {g.branch || "Sem ramo"}
+                      </div>
+                      <h3
+                        className="font-semibold leading-tight"
+                        style={{
+                          fontFamily: "'Fraunces', serif",
+                          color: TEXT_PRIMARY,
+                          fontSize: "1.15rem",
+                        }}
+                      >
+                        {g.name}
+                      </h3>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => startEditGroup(g)}
+                        className="p-1.5 rounded hover:bg-white/5"
+                        style={{ color: TEXT_MUTED }}
+                        title="Editar grupo"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGroup(g)}
+                        className="p-1.5 rounded hover:bg-red-500/10"
+                        style={{ color: "#fca5a5" }}
+                        title="Excluir grupo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {g.description && (
+                    <p
+                      className="text-xs mb-3 italic"
+                      style={{ color: "oklch(0.78 0.015 80)", lineHeight: 1.45 }}
+                    >
+                      {g.description}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-xs"
+                      style={{
+                        color: TEXT_MUTED,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      <Building2 className="w-3 h-3 inline-block mr-1" />
+                      {count} fornecedor{count === 1 ? "" : "es"}
+                    </span>
+                    {g.promotedToDashboard ? (
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Rebaixar "${g.name}" de dashboard? Volta a ser apenas grupo personalizado.`)) return;
+                          await demoteFromDashboard(g.id);
+                          toast.success("Rebaixado para grupo personalizado");
+                        }}
+                        className="text-[11px] uppercase tracking-wider font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md"
+                        style={{
+                          color: TEXT_MUTED,
+                          border: `1px solid ${BORDER}`,
+                          background: "transparent",
+                        }}
+                        title="Rebaixar a grupo personalizado"
+                      >
+                        <Rocket className="w-3 h-3" /> Promovido
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(
+                            `Promover "${g.name}" a dashboard independente? Aparecerá como card próprio na home, com mesmo padrão visual dos demais.`,
+                          )) return;
+                          await promoteToDashboard(g.id);
+                          toast.success(`"${g.name}" agora é um dashboard !`, {
+                            description: "Volte para a home para vê-lo no grid.",
+                          });
+                        }}
+                        className="text-[11px] uppercase tracking-wider font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md"
+                        style={{
+                          color: g.color,
+                          border: `1px solid ${g.color}55`,
+                          background: `${g.color}12`,
+                        }}
+                      >
+                        <Rocket className="w-3 h-3" /> Promover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Cadastro de fornecedor avulso */}
+      <section className="relative z-10 container max-w-5xl mb-12">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <h2
+            className="text-xl font-semibold"
+            style={{ fontFamily: "'Fraunces', serif", color: TEXT_PRIMARY }}
+          >
+            Cadastrar fornecedor avulso
+          </h2>
+          {!showSupplierForm && (
+            <button
+              type="button"
+              onClick={() => {
+                if (groups.length === 0) {
+                  toast.error("Crie pelo menos um grupo antes de cadastrar fornecedores.");
+                  return;
+                }
+                setSupplierDraft({ ...EMPTY_SUPPLIER, groupId: groups[0].id });
+                setShowSupplierForm(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+              style={{
+                background: "oklch(0.22 0.03 250)",
+                color: TEXT_PRIMARY,
+                border: `1px solid ${BORDER}`,
+              }}
+            >
+              <Plus className="w-4 h-4" /> Novo fornecedor
+            </button>
+          )}
+        </div>
+
+        {showSupplierForm && (
+          <div
+            className="rounded-2xl border p-6 mb-4"
+            style={{ background: SURFACE, borderColor: BORDER }}
+          >
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Grupo">
+                <select
+                  value={supplierDraft.groupId}
+                  onChange={(e) =>
+                    setSupplierDraft({ ...supplierDraft, groupId: e.target.value })
+                  }
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    background: "oklch(0.14 0.02 250)",
+                    color: TEXT_PRIMARY,
+                    border: `1px solid ${BORDER}`,
+                  }}
+                >
+                  <option value="">— Selecione um grupo —</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} {g.branch ? `· ${g.branch}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Nome do fornecedor">
+                <Input
+                  value={supplierDraft.name}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, name: v })}
+                  placeholder="Ex.: Yiwu Glass Co."
+                />
+              </Field>
+              <Field label="Nome em chinês (opcional)">
+                <Input
+                  value={supplierDraft.chineseName}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, chineseName: v })}
+                  placeholder="义乌玻璃有限公司"
+                />
+              </Field>
+              <Field label="Categoria/NCM">
+                <Input
+                  value={supplierDraft.category}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, category: v })}
+                  placeholder="Brinquedos / Vidraria…"
+                />
+              </Field>
+              <Field label="Cidade">
+                <Input
+                  value={supplierDraft.city}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, city: v })}
+                  placeholder="Yiwu"
+                />
+              </Field>
+              <Field label="Província">
+                <Input
+                  value={supplierDraft.province}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, province: v })}
+                  placeholder="Zhejiang"
+                />
+              </Field>
+              <Field label="Endereço completo" full>
+                <Input
+                  value={supplierDraft.address}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, address: v })}
+                  placeholder="Distrito 4, Rua 8, Portão North Gate"
+                />
+              </Field>
+              <Field label="Pessoa de contato">
+                <Input
+                  value={supplierDraft.contactName}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, contactName: v })}
+                  placeholder="Mr. Wang"
+                />
+              </Field>
+              <Field label="Cargo">
+                <Input
+                  value={supplierDraft.contactRole}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, contactRole: v })}
+                  placeholder="Sales Manager"
+                />
+              </Field>
+              <Field label="E-mail">
+                <Input
+                  value={supplierDraft.email}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, email: v })}
+                  placeholder="contato@empresa.com"
+                />
+              </Field>
+              <Field label="WhatsApp / WeChat">
+                <Input
+                  value={supplierDraft.whatsapp}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, whatsapp: v })}
+                  placeholder="+86 139 0000 0000"
+                />
+              </Field>
+              <Field label="Site / Alibaba / Yiwugo" full>
+                <Input
+                  value={supplierDraft.link}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, link: v })}
+                  placeholder="https://…"
+                />
+              </Field>
+              <Field label="MOQ">
+                <Input
+                  value={supplierDraft.moq}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, moq: v })}
+                  placeholder="100 unidades"
+                />
+              </Field>
+              <Field label="Preço FOB">
+                <Input
+                  value={supplierDraft.priceFob}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, priceFob: v })}
+                  placeholder="USD 4,20"
+                />
+              </Field>
+              <Field label="Lead time">
+                <Input
+                  value={supplierDraft.leadTime}
+                  onChange={(v) => setSupplierDraft({ ...supplierDraft, leadTime: v })}
+                  placeholder="30 dias"
+                />
+              </Field>
+              <Field label="Observações" full>
+                <textarea
+                  value={supplierDraft.notes}
+                  onChange={(e) =>
+                    setSupplierDraft({ ...supplierDraft, notes: e.target.value })
+                  }
+                  rows={3}
+                  className="w-full rounded-lg px-3 py-2 text-sm resize-vertical"
+                  style={{
+                    background: "oklch(0.14 0.02 250)",
+                    color: TEXT_PRIMARY,
+                    border: `1px solid ${BORDER}`,
+                  }}
+                  placeholder="Detalhes da negociação, política de amostras, etc."
+                />
+              </Field>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => {
+                  setShowSupplierForm(false);
+                  setSupplierDraft(EMPTY_SUPPLIER);
+                }}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{
+                  background: "transparent",
+                  color: TEXT_MUTED,
+                  border: `1px solid ${BORDER}`,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveSupplier}
+                className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.78 0.16 75), oklch(0.55 0.18 25))",
+                  color: "oklch(0.10 0.02 250)",
+                }}
+              >
+                <Check className="w-4 h-4" /> Salvar fornecedor
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Listagem agrupada */}
+        {groups.length > 0 && (
+          <div className="space-y-6">
+            {groups.map((g) => {
+              const items = suppliersByGroup[g.id] ?? [];
+              if (items.length === 0) return null;
+              return (
+                <div key={g.id}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 999,
+                        background: g.color,
+                      }}
+                    />
+                    <h3
+                      className="text-sm font-bold uppercase tracking-[0.15em]"
+                      style={{ color: TEXT_PRIMARY, fontFamily: "'Inter', sans-serif" }}
+                    >
+                      {g.name}
+                    </h3>
+                    <span
+                      className="text-[11px]"
+                      style={{
+                        color: TEXT_MUTED,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      · {items.length} fornecedor{items.length === 1 ? "" : "es"}
+                    </span>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {items.map((s) => (
+                      <div
+                        key={s.id}
+                        className="rounded-xl p-4 border"
+                        style={{ background: SURFACE, borderColor: BORDER }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4
+                              className="font-semibold"
+                              style={{
+                                fontFamily: "'Fraunces', serif",
+                                color: TEXT_PRIMARY,
+                              }}
+                            >
+                              {s.name}
+                            </h4>
+                            {s.chineseName && (
+                              <p
+                                className="text-xs italic mt-0.5"
+                                style={{ color: TEXT_MUTED }}
+                              >
+                                {s.chineseName}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleRemoveSupplier(s)}
+                            className="p-1.5 rounded hover:bg-red-500/10"
+                            style={{ color: "#fca5a5" }}
+                            title="Excluir fornecedor"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div
+                          className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs"
+                          style={{ color: TEXT_MUTED }}
+                        >
+                          {s.category && <span>{s.category}</span>}
+                          {s.city && <span>· {s.city}</span>}
+                          {s.contactName && <span>· {s.contactName}</span>}
+                          {s.priceFob && <span>· {s.priceFob}</span>}
+                          {s.moq && <span>· MOQ {s.moq}</span>}
+                        </div>
+                        {s.notes && (
+                          <p
+                            className="text-xs mt-2 italic"
+                            style={{ color: "oklch(0.78 0.015 80)" }}
+                          >
+                            "{s.notes}"
+                          </p>
+                        )}
+                        <div
+                          className="text-[10px] mt-2 font-mono"
+                          style={{ color: TEXT_MUTED }}
+                        >
+                          Cadastrado em {fmtDate(s.createdAt)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {suppliers.length === 0 && groups.length > 0 && !showSupplierForm && (
+          <div
+            className="rounded-2xl border-2 border-dashed p-10 text-center"
+            style={{ borderColor: BORDER, color: TEXT_MUTED }}
+          >
+            Nenhum fornecedor cadastrado nos grupos personalizados ainda.
+          </div>
+        )}
+      </section>
+
+      {/* Modal de grupo */}
+      {groupModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)" }}
+          onClick={() => setGroupModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl p-6 border"
+            style={{
+              background: "oklch(0.12 0.02 250)",
+              borderColor: BORDER,
+              color: TEXT_PRIMARY,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3
+                className="text-lg font-semibold"
+                style={{ fontFamily: "'Fraunces', serif" }}
+              >
+                {groupDraft.id ? "Editar grupo" : "Novo grupo"}
+              </h3>
+              <button
+                onClick={() => setGroupModalOpen(false)}
+                className="p-1 rounded hover:bg-white/5"
+                style={{ color: TEXT_MUTED }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Field label="Nome do grupo">
+                <Input
+                  value={groupDraft.name}
+                  onChange={(v) => setGroupDraft({ ...groupDraft, name: v })}
+                  placeholder="Ex.: Brinquedos infantis"
+                />
+              </Field>
+              <Field label="Ramo">
+                <input
+                  list="branch-list"
+                  value={groupDraft.branch}
+                  onChange={(e) =>
+                    setGroupDraft({ ...groupDraft, branch: e.target.value })
+                  }
+                  placeholder="Brinquedos, Vidro, Aquário…"
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    background: "oklch(0.14 0.02 250)",
+                    color: TEXT_PRIMARY,
+                    border: `1px solid ${BORDER}`,
+                  }}
+                />
+                <datalist id="branch-list">
+                  {BRANCH_SUGGESTIONS.map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="Legenda / descrição">
+                <textarea
+                  value={groupDraft.description}
+                  onChange={(e) =>
+                    setGroupDraft({ ...groupDraft, description: e.target.value })
+                  }
+                  rows={2}
+                  className="w-full rounded-lg px-3 py-2 text-sm resize-vertical"
+                  style={{
+                    background: "oklch(0.14 0.02 250)",
+                    color: TEXT_PRIMARY,
+                    border: `1px solid ${BORDER}`,
+                  }}
+                  placeholder="Quem entra nesse grupo? Especialidades, observações…"
+                />
+              </Field>
+              <Field label="Cor">
+                <div className="flex flex-wrap gap-2">
+                  {CUSTOM_GROUP_PALETTE.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setGroupDraft({ ...groupDraft, color: c })}
+                      className="w-7 h-7 rounded-full transition-transform"
+                      style={{
+                        background: c,
+                        boxShadow:
+                          groupDraft.color === c
+                            ? `0 0 0 2px oklch(0.97 0.01 80), 0 0 0 4px ${c}`
+                            : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setGroupModalOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{
+                  background: "transparent",
+                  color: TEXT_MUTED,
+                  border: `1px solid ${BORDER}`,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveGroup}
+                className="px-4 py-2 rounded-lg text-sm font-semibold"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.78 0.16 75), oklch(0.55 0.18 25))",
+                  color: "oklch(0.10 0.02 250)",
+                }}
+              >
+                {groupDraft.id ? "Salvar alterações" : "Criar grupo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Subcomponentes ───────────────────────────────────────────────────────────
+function Field({
+  label,
+  full,
+  children,
+}: {
+  label: string;
+  full?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      className={`flex flex-col gap-1.5 ${full ? "sm:col-span-2" : ""}`}
+      style={{ color: TEXT_MUTED }}
+    >
+      <span
+        className="text-[10px] uppercase tracking-[0.15em] font-semibold"
+        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Input({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-lg px-3 py-2 text-sm"
+      style={{
+        background: "oklch(0.14 0.02 250)",
+        color: TEXT_PRIMARY,
+        border: `1px solid ${BORDER}`,
+      }}
+    />
+  );
+}

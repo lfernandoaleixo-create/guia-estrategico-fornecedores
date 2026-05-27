@@ -18,7 +18,7 @@ export interface SupplierGroup {
 }
 
 const DB_NAME = "guia-fornecedores";
-const DB_VERSION = 2; // bumped to add "groups" store
+const DB_VERSION = 3; // bumped: adicionadas stores custom_groups e extra_suppliers
 const STORE_GROUPS = "groups";
 const STORE_CUSTOM = "custom"; // mantido para compatibilidade com useCustomSuppliers
 
@@ -34,6 +34,13 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_GROUPS)) {
         db.createObjectStore(STORE_GROUPS, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("custom_groups")) {
+        db.createObjectStore("custom_groups", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("extra_suppliers")) {
+        const store = db.createObjectStore("extra_suppliers", { keyPath: "id" });
+        store.createIndex("groupId", "groupId", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);

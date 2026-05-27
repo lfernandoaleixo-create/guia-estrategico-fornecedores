@@ -209,6 +209,27 @@ function fileToDataURL(file: File): Promise<string> {
   });
 }
 
+// ---------- API direta (usada por migração e backup) ----------
+export async function readEntryDirect(
+  scope: "aquario" | "tapete" | "yiwu",
+  supplierId: string,
+): Promise<SupplierNoteEntry | null> {
+  const all = await dbGetAll(scope);
+  return all[supplierId] ?? null;
+}
+export async function writeEntryDirect(
+  scope: "aquario" | "tapete" | "yiwu",
+  entry: SupplierNoteEntry,
+): Promise<void> {
+  await dbPut(scope, entry);
+}
+export async function deleteEntryDirect(
+  scope: "aquario" | "tapete" | "yiwu",
+  supplierId: string,
+): Promise<void> {
+  await dbDelete(scope, supplierId);
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

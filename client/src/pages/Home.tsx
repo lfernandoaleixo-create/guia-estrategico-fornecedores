@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Compass, Fish, MapPin, PawPrint, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, Compass, Fish, Layers, MapPin, PawPrint, Plus, Sparkles, TrendingUp } from "lucide-react";
+import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
+import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 
-const dashboards = [
+const baseDashboards = [
   {
     href: "/aquario",
     eyebrow: "DASHBOARD 01",
@@ -47,16 +50,101 @@ const dashboards = [
     chips: ["896+ fornecedores", "5 Distritos", "LogComex", "Travel Guide"],
     badge: "义乌",
   },
+  {
+    href: "/adicionar",
+    eyebrow: "DASHBOARD 04",
+    title: "Adicionar Fornecedores",
+    subtitle: "Banco de fornecedores avulsos",
+    description:
+      "Cadastre fornecedores que ainda não pertencem a nenhum dashboard. Crie grupos personalizados por ramo (brinquedos, vidro, decoração…) e, quando crescerem, promova-os a dashboards independentes.",
+    accent: "oklch(0.78 0.16 75)",
+    accentSoft: "oklch(0.86 0.13 75)",
+    accentBg: "oklch(0.78 0.16 75 / 0.12)",
+    accentBorder: "oklch(0.78 0.16 75 / 0.5)",
+    icon: Plus,
+    chips: ["Novos grupos", "Cadastro avulso", "Promover a dashboard"],
+    badge: "+",
+    eyebrowDynamic: true as const,
+    isAddCard: true as const,
+  },
 ];
 
-const stats = [
-  { label: "Dashboards integrados", value: "3" },
-  { label: "Fornecedores mapeados", value: "1.200+" },
-  { label: "Fontes de dados", value: "LogComex · Alibaba · Yiwugo" },
-  { label: "Atualizado em", value: "Maio / 2026" },
+function buildStats(dashboardCount: number) {
+  return [
+    { label: "Dashboards integrados", value: String(dashboardCount) },
+    { label: "Fornecedores mapeados", value: "1.200+" },
+    { label: "Fontes de dados", value: "LogComex · Alibaba · Yiwugo" },
+    { label: "Atualizado em", value: "Maio / 2026" },
+  ];
+}
+
+const NUMERO_POR_EXTENSO = [
+  "Zero",
+  "Um",
+  "Dois",
+  "Três",
+  "Quatro",
+  "Cinco",
+  "Seis",
+  "Sete",
+  "Oito",
+  "Nove",
+  "Dez",
 ];
+function nDashboardsLabel(n: number): string {
+  return NUMERO_POR_EXTENSO[n] ?? String(n);
+}
 
 export default function Home() {
+  const { groups: customGroups } = useCustomGroups();
+  const { list: extraSuppliers } = useExtraSuppliers();
+
+  const promotedDashboards = useMemo(() => {
+    const promoted = customGroups.filter((g) => g.promotedToDashboard);
+    // Numeração: 3 dashboards principais (01-03), depois promovidos (04, 05…)
+    return promoted.map((g, idx) => {
+      const count = extraSuppliers.filter((s) => s.groupId === g.id).length;
+      return {
+        href: `/grupo/${g.id}`,
+        eyebrow: `DASHBOARD ${String(3 + idx + 1).padStart(2, "0")}`,
+        title: g.name,
+        subtitle: g.branch || "Grupo personalizado",
+        description:
+          g.description ||
+          `Dashboard independente promovido a partir do grupo personalizado "${g.name}". Lista os fornecedores cadastrados neste ramo.`,
+        accent: g.color,
+        accentSoft: g.color,
+        accentBg: `${g.color}1f`,
+        accentBorder: `${g.color}88`,
+        icon: Layers,
+        chips: [
+          `${count} fornecedor${count === 1 ? "" : "es"}`,
+          g.branch || "Sem ramo",
+          "Promovido",
+        ],
+        badge: "\u2605",
+      };
+    });
+  }, [customGroups, extraSuppliers]);
+
+  // Ordem final: 3 dashboards principais + promovidos + card de adicionar.
+  const dashboards = useMemo(() => {
+    const addCardBase = baseDashboards.find((d) => "isAddCard" in d && d.isAddCard);
+    const main = baseDashboards.filter((d) => !("isAddCard" in d && d.isAddCard));
+    const totalCount = main.length + promotedDashboards.length + (addCardBase ? 1 : 0);
+    // Numeração dinâmica do card de adicionar = último número
+    const addCard = addCardBase
+      ? {
+          ...addCardBase,
+          eyebrow: `DASHBOARD ${String(totalCount).padStart(2, "0")}`,
+        }
+      : null;
+    return {
+      list: [...main, ...promotedDashboards, ...(addCard ? [addCard] : [])],
+      totalCount,
+    };
+  }, [promotedDashboards]);
+
   return (
     <div className="min-h-screen relative overflow-hidden" style={{
       background: "radial-gradient(ellipse at top left, oklch(0.18 0.05 28 / 0.45), transparent 55%), radial-gradient(ellipse at bottom right, oklch(0.18 0.06 240 / 0.55), transparent 55%), oklch(0.06 0.015 250)"
@@ -98,7 +186,7 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-3 text-xs"
                style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>
             <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
-            <span>3 DASHBOARDS · ATUALIZADO MAI/2026</span>
+            <span>{dashboards.totalCount} DASHBOARDS · ATUALIZADO MAI/2026</span>
           </div>
         </div>
       </header>
@@ -152,7 +240,7 @@ export default function Home() {
                lineHeight: 1.55,
                animationDelay: "0.1s",
              }}>
-            Três dashboards de inteligência comercial reunidos em um único portal. Acesse
+            {nDashboardsLabel(dashboards.totalCount)} dashboards de inteligência comercial reunidos em um único portal. Acesse
             fornecedores, importadores, mapas, dados de NCM e roteiros — tudo em um lugar,
             sem login.
           </p>
@@ -164,7 +252,7 @@ export default function Home() {
                  background: "oklch(0.22 0.03 250)",
                  animationDelay: "0.2s",
                }}>
-            {stats.map((s) => (
+            {buildStats(dashboards.totalCount).map((s) => (
               <div key={s.label}
                    className="p-4 md:p-5"
                    style={{ background: "oklch(0.08 0.018 250)" }}>
@@ -209,12 +297,12 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-2 text-xs"
                style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}>
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>3 / 3 ATIVOS</span>
+            <span>{dashboards.totalCount} / {dashboards.totalCount} ATIVOS</span>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-5">
-          {dashboards.map((d, i) => {
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {dashboards.list.map((d, i) => {
             const Icon = d.icon;
             return (
               <Link key={d.href} href={d.href}>
