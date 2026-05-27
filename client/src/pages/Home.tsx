@@ -9,9 +9,10 @@ const dashboards = [
     subtitle: "Mercado Oriental Premium",
     description:
       "Diretório editorial de fábricas chinesas para aquários, terrários e equipamentos de aquariofilia. Filtros por categoria, mapa interativo, anotações e diário de negociação.",
-    accent: "oklch(0.55 0.22 28)",
-    accentBg: "oklch(0.55 0.22 28 / 0.08)",
-    accentBorder: "oklch(0.55 0.22 28 / 0.35)",
+    accent: "oklch(0.72 0.18 28)",
+    accentSoft: "oklch(0.85 0.14 30)",
+    accentBg: "oklch(0.72 0.18 28 / 0.12)",
+    accentBorder: "oklch(0.72 0.18 28 / 0.5)",
     icon: Fish,
     chips: ["Aquários", "Terrários", "Equipamentos", "Mercado Atacado"],
     badge: "中国",
@@ -23,9 +24,10 @@ const dashboards = [
     subtitle: "Corporate Intelligence — Grupo Fox",
     description:
       "Inteligência completa sobre a importação brasileira de tapetes higiênicos: exportadores chineses, importadores nacionais, cruzamento, comparador, NCM e tributação.",
-    accent: "oklch(0.48 0.22 25)",
-    accentBg: "oklch(0.48 0.22 25 / 0.08)",
-    accentBorder: "oklch(0.48 0.22 25 / 0.35)",
+    accent: "oklch(0.74 0.16 220)",
+    accentSoft: "oklch(0.86 0.12 220)",
+    accentBg: "oklch(0.74 0.16 220 / 0.12)",
+    accentBorder: "oklch(0.74 0.16 220 / 0.5)",
     icon: PawPrint,
     chips: ["Exportadores", "Importadores", "NCM 4818", "Diário"],
     badge: "BR×CN",
@@ -37,9 +39,10 @@ const dashboards = [
     subtitle: "Guia de Expedição China",
     description:
       "896+ fornecedores mapeados no Mercado Internacional de Yiwu. Análise da Flashgoods, dados LogComex, mapa dos 5 distritos e roteiro de viagem.",
-    accent: "oklch(0.78 0.16 75)",
-    accentBg: "oklch(0.78 0.16 75 / 0.08)",
-    accentBorder: "oklch(0.78 0.16 75 / 0.4)",
+    accent: "oklch(0.82 0.16 90)",
+    accentSoft: "oklch(0.90 0.13 92)",
+    accentBg: "oklch(0.82 0.16 90 / 0.14)",
+    accentBorder: "oklch(0.82 0.16 90 / 0.5)",
     icon: MapPin,
     chips: ["896+ fornecedores", "5 Distritos", "LogComex", "Travel Guide"],
     badge: "义乌",
@@ -272,11 +275,10 @@ export default function Home() {
                   </h3>
 
                   {/* Subtitle */}
-                  <div className="text-sm mb-4"
+                  <div className="text-sm mb-4 font-semibold"
                        style={{
-                         color: d.accent,
+                         color: d.accentSoft,
                          fontFamily: "'Inter', sans-serif",
-                         fontWeight: 500,
                          fontStyle: "italic",
                        }}>
                     {d.subtitle}
@@ -285,9 +287,9 @@ export default function Home() {
                   {/* Description */}
                   <p className="text-sm mb-6"
                      style={{
-                       color: "oklch(0.7 0.015 80)",
+                       color: "oklch(0.88 0.01 80)",
                        fontFamily: "'Inter', sans-serif",
-                       lineHeight: 1.55,
+                       lineHeight: 1.6,
                      }}>
                     {d.description}
                   </p>
@@ -296,10 +298,11 @@ export default function Home() {
                   <div className="flex flex-wrap gap-1.5 mb-6">
                     {d.chips.map((c) => (
                       <span key={c}
-                            className="text-[10px] tracking-wider font-semibold uppercase px-2 py-1 rounded-md"
+                            className="text-[10px] tracking-wider font-semibold uppercase px-2.5 py-1 rounded-md"
                             style={{
-                              background: "oklch(0.17 0.03 250)",
-                              color: "oklch(0.7 0.015 80)",
+                              background: d.accentBg,
+                              color: d.accentSoft,
+                              border: `1px solid ${d.accentBorder}`,
                               fontFamily: "'Inter', sans-serif",
                             }}>
                         {c}
@@ -310,8 +313,8 @@ export default function Home() {
                   {/* CTA */}
                   <div className="flex items-center justify-between pt-5 border-t"
                        style={{ borderColor: "oklch(0.22 0.03 250)" }}>
-                    <span className="text-xs uppercase tracking-[0.18em] font-semibold transition-colors"
-                          style={{ color: d.accent, fontFamily: "'Inter', sans-serif" }}>
+                    <span className="text-xs uppercase tracking-[0.18em] font-bold transition-colors"
+                          style={{ color: d.accentSoft, fontFamily: "'Inter', sans-serif" }}>
                       Acessar dashboard
                     </span>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 group-hover:translate-x-1"
