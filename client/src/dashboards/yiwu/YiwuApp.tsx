@@ -5,6 +5,7 @@ import PrincipalDistribuidor from "@yiwu/pages/PrincipalDistribuidor";
 import Suppliers from "@yiwu/pages/Suppliers";
 import Metodologia from "@yiwu/pages/Metodologia";
 import MarketMap from "@yiwu/pages/MarketMap";
+import Anotacoes from "@yiwu/pages/Anotacoes";
 import NotFound from "@yiwu/pages/NotFound";
 
 export default function YiwuApp() {
@@ -18,6 +19,7 @@ export default function YiwuApp() {
         <Route path="/fornecedores" component={Suppliers} />
         <Route path="/metodologia" component={Metodologia} />
         <Route path="/mapa" component={MarketMap} />
+        <Route path="/anotacoes" component={Anotacoes} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

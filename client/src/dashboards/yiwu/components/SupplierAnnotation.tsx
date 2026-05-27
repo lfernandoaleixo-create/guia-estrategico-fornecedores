@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { Star, StickyNote, Save, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Star, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { useYiwuNotes } from "@yiwu/hooks/useYiwuNotes";
+import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
 
 type Props = {
   supplierId: number;
@@ -21,12 +20,13 @@ type Props = {
 };
 
 /**
- * Per-supplier annotation controls (versão sem login, persistência local).
- * - O botão de estrela alterna o favorito (atualização otimista) salvando em localStorage.
- * - O botão de nota abre o dialog para editar uma nota privada de até 2000 caracteres.
+ * Per-supplier annotation controls (versão unificada, sem login).
+ * - Estrela: alterna favorito (localStorage via useYiwuNotes).
+ * - Bloco/folha de notas: abre o painel unificado com status, observações e anexos.
  */
 export function SupplierAnnotation({ supplierId, supplierName, variant = "compact", className }: Props) {
-  const { notes, toggleFavorite, saveNote, removeNote } = useYiwuNotes();
+  const { notes, toggleFavorite } = useYiwuNotes();
+  const { getEntry } = useSupplierNotes("yiwu");
 
   const current = useMemo(
     () => notes.find(n => n.supplierId === supplierId),
@@ -34,16 +34,10 @@ export function SupplierAnnotation({ supplierId, supplierName, variant = "compac
   );
 
   const isFavorite = Boolean(current?.favorite);
-  const noteText = current?.note ?? "";
+  const noteEntry = getEntry(String(supplierId));
+  const hasNote = !!noteEntry && (noteEntry.observacoes.trim().length > 0 || noteEntry.attachments.length > 0 || noteEntry.status !== "nao-visitado");
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [draftNote, setDraftNote] = useState("");
-
-  useEffect(() => {
-    if (dialogOpen) setDraftNote(noteText);
-  }, [dialogOpen, noteText]);
-
-  const hasNote = (noteText?.trim().length ?? 0) > 0;
 
   return (
     <div className={`inline-flex items-center gap-1 ${className ?? ""}`}>
@@ -74,7 +68,7 @@ export function SupplierAnnotation({ supplierId, supplierName, variant = "compac
           e.stopPropagation();
           setDialogOpen(true);
         }}
-        title={hasNote ? "Editar nota privada" : "Adicionar nota privada"}
+        title={hasNote ? "Editar diário de negociação" : "Adicionar diário de negociação"}
         className={`p-1.5 rounded-md border transition-all duration-150 active:scale-[0.92] ${
           hasNote
             ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300"
@@ -85,64 +79,31 @@ export function SupplierAnnotation({ supplierId, supplierName, variant = "compac
         <StickyNote className="w-3.5 h-3.5" />
       </button>
 
-      {variant === "full" && hasNote && (
+      {variant === "full" && hasNote && noteEntry?.observacoes && (
         <span className="text-[10px] font-mono text-cyan-300/80 max-w-[160px] truncate">
-          {noteText}
+          {noteEntry.observacoes}
         </span>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white text-zinc-900">
           <DialogHeader>
-            <DialogTitle className="text-base">Nota privada</DialogTitle>
-            <DialogDescription className="text-xs">
-              <span className="font-mono text-primary">{supplierName}</span>
-              <span className="block mt-1">
-                Salva localmente neste navegador. Use para registrar contato preferido, condições, observações de visita, etc.
+            <DialogTitle className="text-base text-zinc-900">Diário de Negociação</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-600">
+              <span className="font-mono font-semibold text-zinc-800">{supplierName}</span>
+              <span className="block mt-1 text-zinc-500">
+                Status, observações e arquivos salvos localmente neste navegador.
               </span>
             </DialogDescription>
           </DialogHeader>
 
-          <Textarea
-            value={draftNote}
-            onChange={e => setDraftNote(e.target.value)}
-            maxLength={2000}
-            placeholder="Ex.: Visitar dia 3 às 14h. Pedir catálogo de copos térmicos 350ml."
-            className="min-h-[140px] text-sm"
+          <SupplierNotesPanel
+            scope="yiwu"
+            supplierId={String(supplierId)}
+            supplierName={supplierName}
+            accent="#0891b2"
+            compact
           />
-          <div className="text-[10px] font-mono text-muted-foreground text-right">
-            {draftNote.length}/2000
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            {hasNote && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => {
-                  removeNote(supplierId);
-                  toast.success("Anotação removida.");
-                  setDialogOpen(false);
-                }}
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" /> Apagar
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                saveNote(supplierId, draftNote);
-                toast.success("Nota salva.");
-                setDialogOpen(false);
-              }}
-            >
-              <Save className="w-3.5 h-3.5 mr-1" />
-              Salvar nota
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

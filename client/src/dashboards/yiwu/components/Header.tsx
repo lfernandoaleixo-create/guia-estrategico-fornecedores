@@ -8,6 +8,7 @@ const navItems = [
   { path: "/mapa", label: "Mapa do Mercado" },
   { path: "/distribuidor", label: "Principal Distribuidor Brasileiro" },
   { path: "/metodologia", label: "Método de Avaliação" },
+  { path: "/anotacoes", label: "Anotações / Diário" },
 ];
 
 export default function Header() {
