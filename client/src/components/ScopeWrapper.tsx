@@ -36,11 +36,11 @@ export default function ScopeWrapper({
       {scope !== "capa" && (
         <a
           href="/"
-          className="fixed bottom-4 right-4 z-[9999] inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-900/90 hover:bg-neutral-800 text-white text-xs font-semibold tracking-wide shadow-2xl backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95"
+          className="fixed top-4 right-4 z-[9999] inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-bold tracking-wide shadow-2xl shadow-amber-900/40 ring-2 ring-white/20 transition-all hover:scale-105 active:scale-95"
           style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
           title="Voltar ao Guia Estratégico"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Voltar ao Guia
