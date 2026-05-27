@@ -16,6 +16,7 @@ import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
+import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
@@ -81,9 +82,6 @@ interface AnexoLocal {
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 function fmtData(ts: number | Date) {
   return new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-function fmtHora(ts: number) {
-  return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`;
@@ -459,7 +457,7 @@ function DiarioSectionLegacy({ empresaId, nomeEmpresa, categoria, neg, onNegUpda
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-slate-700">
-                      {fmtData(ent.dataEntrada)} às {fmtHora(ent.dataEntrada)}
+                      {fmtData(ent.dataEntrada)}
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${st.color}`}>{st.label}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">{canalLabel}</span>
@@ -567,7 +565,7 @@ export default function Anotacoes() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
           <NotebookPen className="w-4 h-4" />
           <span>Anotações / Diário de Negociação — NCM 4818.90.90</span>
-          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">☁ Nuvem</span>
+          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">Salvo no navegador</span>
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -587,16 +585,9 @@ export default function Anotacoes() {
         </div>
       </div>
 
-      {/* Alerta informativo */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex gap-3">
-        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-blue-900">Diário compartilhado em tempo real</p>
-          <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
-            Todas as anotações são salvas no banco de dados e compartilhadas entre todos os funcionários.
-            Expanda qualquer empresa para ver o histórico ou adicionar uma nova anotação.
-          </p>
-        </div>
+      {/* Proteção de dados (backup) */}
+      <div className="mb-4">
+        <BackupPanel tone="light" />
       </div>
 
       {/* Summary Cards — clicáveis para ver Top 5 da categoria */}

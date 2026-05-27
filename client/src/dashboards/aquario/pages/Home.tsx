@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useNotes, statusConfig, type Note } from "@aquario/hooks/useNotes";
 import { useDiary } from "@aquario/hooks/useDiary";
 import DiaryCard from "@aquario/components/DiaryCard";
+import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -772,6 +773,11 @@ export default function Home() {
                     </>
                   )}
                 </p>
+              </div>
+
+              {/* Proteção de dados (backup) */}
+              <div className="mb-5">
+                <BackupPanel tone="light" />
               </div>
 
               {/* Contagem de filtros aplicados */}
