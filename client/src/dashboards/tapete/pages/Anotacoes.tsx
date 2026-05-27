@@ -15,6 +15,7 @@ import { contatosFabricas } from "@tapete/lib/contatos";
 import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
+import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
@@ -510,6 +511,7 @@ export default function Anotacoes() {
   const [activeCategory, setActiveCategory] = useState<TipoEmpresa | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { entries: tapeteEntries } = useSupplierNotes("tapete");
 
   // Carregar negociações do banco
   const { data: negociacoesList, refetch } = trpc.diario.listarNegociacoes.useQuery();
@@ -676,11 +678,26 @@ export default function Anotacoes() {
                         i === 1 ? "bg-slate-600 text-white" :
                         i === 2 ? "bg-slate-400 text-white" : "bg-slate-100 text-slate-500"
                       }`}>{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-900">{fab.nome}</p>
-                          {negSt && <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${negSt.color}`}>{negSt.label}</span>}
-                        </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center gap-2 flex-wrap">
+                           {(() => {
+                             const tEntry = tapeteEntries[fab.nome];
+                             const tStatus = tEntry?.status;
+                             if (!tStatus || tStatus === "nao-visitado") return null;
+                             const cfg = STATUS_CONFIG[tStatus];
+                             return (
+                               <span
+                                 className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                                 style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+                                 title={cfg.label}
+                               >
+                                 <span className="mr-1">{cfg.emoji}</span>{cfg.label}
+                               </span>
+                             );
+                           })()}
+                           <p className="text-sm font-semibold text-slate-900">{fab.nome}</p>
+                           {negSt && <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${negSt.color}`}>{negSt.label}</span>}
+                         </div>
                         <p className="text-xs text-slate-500">{fab.provincia}{c?.nomeOficial ? ` · ${c.nomeOficial}` : ""}</p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0 mr-2">
@@ -895,6 +912,21 @@ export default function Anotacoes() {
                 <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const tEntry = tapeteEntries[fab.nome];
+                      const tStatus = tEntry?.status;
+                      if (!tStatus || tStatus === "nao-visitado") return null;
+                      const cfg = STATUS_CONFIG[tStatus];
+                      return (
+                        <span
+                          className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                          style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+                          title={cfg.label}
+                        >
+                          <span className="mr-1">{cfg.emoji}</span>{cfg.label}
+                        </span>
+                      );
+                    })()}
                     <p className="text-sm font-semibold text-slate-800">{fab.nome}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${rel.color}`}>{rel.label}</span>
                     {tipoInfo && (

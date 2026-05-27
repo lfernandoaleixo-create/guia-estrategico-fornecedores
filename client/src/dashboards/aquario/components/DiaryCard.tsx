@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
-import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -92,6 +92,9 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
   const [expanded, setExpanded] = useState(defaultExpanded || !!entry);
 
   const cat = categoryStyles[supplier.category];
+  const status = entry?.status ?? "nao-visitado";
+  const statusCfg = STATUS_CONFIG[status];
+  const hasStatus = status !== "nao-visitado";
   const attachments = entry?.attachments ?? [];
   const hasContent =
     (entry?.observacoes?.length ?? 0) > 0 ||
@@ -112,14 +115,32 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
         className="w-full text-left p-5 flex items-start gap-4 hover:bg-black/[0.015] transition-colors"
       >
         <div
-          className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-          style={{ background: cat.tint, border: `1px solid ${cat.border}` }}
+          className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl relative"
+          style={{
+            background: hasStatus ? statusCfg.bg : cat.tint,
+            border: `1.5px solid ${hasStatus ? statusCfg.border : cat.border}`,
+          }}
+          title={hasStatus ? statusCfg.label : cat.label}
           aria-hidden
         >
-          {cat.icon}
+          {hasStatus ? statusCfg.emoji : cat.icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
+            {hasStatus && (
+              <span
+                className="eyebrow px-2 py-0.5 rounded font-bold"
+                style={{
+                  background: statusCfg.bg,
+                  color: statusCfg.color,
+                  border: `1px solid ${statusCfg.border}`,
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {statusCfg.label.toUpperCase()}
+              </span>
+            )}
             <span
               className="eyebrow px-2 py-0.5 rounded"
               style={{ background: cat.tint, color: "oklch(0.32 0.06 60)", fontSize: "0.6rem" }}
