@@ -45,6 +45,7 @@ function fmtDate(ts: number): string {
 
 interface GroupDraft {
   id?: string;
+  number: number;
   name: string;
   branch: string;
   color: string;
@@ -97,13 +98,17 @@ export default function AdicionarPage() {
     deleteGroup,
     promoteToDashboard,
     demoteFromDashboard,
+    reorderGroups,
   } = useCustomGroups();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const { list: suppliers, create: createSupplier, remove: removeSupplier } =
     useExtraSuppliers();
 
   // Modal de grupo
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupDraft, setGroupDraft] = useState<GroupDraft>({
+    number: 1,
     name: "",
     branch: "",
     color: CUSTOM_GROUP_PALETTE[0],
@@ -123,7 +128,11 @@ export default function AdicionarPage() {
   }, [suppliers]);
 
   function startCreateGroup() {
+    const used = new Set(groups.map((g) => g.number).filter(Boolean));
+    let next = 1;
+    while (used.has(next)) next += 1;
     setGroupDraft({
+      number: next,
       name: "",
       branch: "",
       color: CUSTOM_GROUP_PALETTE[Math.floor(Math.random() * CUSTOM_GROUP_PALETTE.length)],
@@ -135,12 +144,31 @@ export default function AdicionarPage() {
   function startEditGroup(g: CustomGroup) {
     setGroupDraft({
       id: g.id,
+      number: g.number ?? 1,
       name: g.name,
       branch: g.branch,
       color: g.color,
       description: g.description,
     });
     setGroupModalOpen(true);
+  }
+
+  async function onDropGroup(targetId: string) {
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    const ids = groups.map((g) => g.id);
+    const fromIdx = ids.indexOf(dragId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, dragId);
+    await reorderGroups(ids);
+    setDragId(null);
+    setDragOverId(null);
+    toast.success("Grupos renumerados");
   }
 
   async function saveGroup() {
@@ -152,22 +180,37 @@ export default function AdicionarPage() {
       toast.error("Informe o ramo (ex: Brinquedos, Vidro, Aquário).");
       return;
     }
+    if (!Number.isInteger(groupDraft.number) || groupDraft.number <= 0) {
+      toast.error("O número do grupo deve ser inteiro positivo.");
+      return;
+    }
+    const dup = groups.find(
+      (g) => g.number === groupDraft.number && g.id !== groupDraft.id,
+    );
+    if (dup) {
+      toast.error(
+        `Já existe um grupo com o número ${groupDraft.number} ("${dup.name}"). Escolha outro.`,
+      );
+      return;
+    }
     if (groupDraft.id) {
       await updateGroup(groupDraft.id, {
+        number: groupDraft.number,
         name: groupDraft.name,
         branch: groupDraft.branch,
         color: groupDraft.color,
         description: groupDraft.description,
       });
-      toast.success(`Grupo "${groupDraft.name}" atualizado`);
+      toast.success(`Grupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" atualizado`);
     } else {
       await createGroup({
+        number: groupDraft.number,
         name: groupDraft.name,
         branch: groupDraft.branch,
         color: groupDraft.color,
         description: groupDraft.description,
       });
-      toast.success(`Grupo "${groupDraft.name}" criado`);
+      toast.success(`Grupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" criado`);
     }
     setGroupModalOpen(false);
   }
@@ -373,14 +416,36 @@ export default function AdicionarPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((g) => {
               const count = suppliersByGroup[g.id]?.length ?? 0;
+              const isDragging = dragId === g.id;
+              const isDragOver = dragOverId === g.id && dragId !== g.id;
               return (
                 <div
                   key={g.id}
-                  className="rounded-2xl p-5 border transition-all"
+                  draggable
+                  onDragStart={(e) => {
+                    setDragId(g.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragId && dragId !== g.id) setDragOverId(g.id);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverId === g.id) setDragOverId(null);
+                  }}
+                  onDrop={() => onDropGroup(g.id)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
+                  className="rounded-2xl p-5 border transition-all cursor-grab active:cursor-grabbing"
                   style={{
                     background: SURFACE,
-                    borderColor: BORDER,
+                    borderColor: isDragOver ? g.color : BORDER,
                     borderLeft: `4px solid ${g.color}`,
+                    opacity: isDragging ? 0.4 : 1,
+                    transform: isDragOver ? "translateY(-2px)" : undefined,
+                    boxShadow: isDragOver ? `0 8px 28px ${g.color}33` : undefined,
                   }}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -389,7 +454,7 @@ export default function AdicionarPage() {
                         className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
                         style={{ color: g.color, fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        {g.branch || "Sem ramo"}
+                        GRUPO Nº {String(g.number ?? 0).padStart(2, "0")} · {g.branch || "Sem ramo"}
                       </div>
                       <h3
                         className="font-semibold leading-tight"
@@ -540,7 +605,8 @@ export default function AdicionarPage() {
                   <option value="">— Selecione um grupo —</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.name} {g.branch ? `· ${g.branch}` : ""}
+                      Grupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
+                      {g.branch ? ` · ${g.branch}` : ""}
                     </option>
                   ))}
                 </select>
@@ -837,6 +903,34 @@ export default function AdicionarPage() {
             </div>
 
             <div className="space-y-3">
+              <Field label="Número do grupo">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={groupDraft.number}
+                  onChange={(e) =>
+                    setGroupDraft({
+                      ...groupDraft,
+                      number: Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                    })
+                  }
+                  className="w-full rounded-lg px-3 py-2"
+                  style={{
+                    background: "oklch(0.14 0.02 250)",
+                    color: TEXT_PRIMARY,
+                    border: `1px solid ${BORDER}`,
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1.1rem",
+                  }}
+                />
+                <span
+                  className="text-[10px] mt-1"
+                  style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Sugestão automática do próximo livre. Também dá para arrastar os cards para reordenar.
+                </span>
+              </Field>
               <Field label="Nome do grupo">
                 <Input
                   value={groupDraft.name}

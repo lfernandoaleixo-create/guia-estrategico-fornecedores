@@ -164,7 +164,7 @@ export default function GrupoDashboard() {
             className="text-[11px] tracking-[0.18em] uppercase font-semibold"
             style={{ color: accent, fontFamily: "'Inter', sans-serif" }}
           >
-            {group.branch || "Grupo personalizado"}
+            GRUPO Nº {String(group.number ?? 0).padStart(2, "0")} · {group.branch || "Grupo personalizado"}
           </span>
         </div>
         <h1

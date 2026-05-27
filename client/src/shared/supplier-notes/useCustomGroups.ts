@@ -8,12 +8,17 @@
 //     ramo (Brinquedos, Vidro, Aquário, Tapete, etc.) e pode ser promovido a
 //     um dashboard independente quando ficar grande.
 //
+// Cada grupo tem um `number` (1, 2, 3…) único, sugerido automaticamente como
+// o próximo livre, mas editável. Reordenar os grupos via drag & drop renumera
+// automaticamente todos eles na ordem visual.
+//
 // Persistido em IndexedDB no DB "guia-fornecedores", store "custom_groups".
 // =============================================================================
 import { useCallback, useEffect, useState } from "react";
 
 export interface CustomGroup {
   id: string;
+  number: number;        // número do grupo (1, 2, 3…), único
   name: string;          // ex: "Brinquedos infantis"
   branch: string;        // ramo de mercado, ex: "Brinquedos"
   color: string;         // hex
@@ -25,7 +30,7 @@ export interface CustomGroup {
 }
 
 const DB_NAME = "guia-fornecedores";
-const DB_VERSION = 3; // bumped: nova store "custom_groups"
+const DB_VERSION = 3;
 const STORE_GROUPS = "groups";
 const STORE_CUSTOM_LEGACY = "custom";
 const STORE_CUSTOM_GROUPS = "custom_groups";
@@ -80,6 +85,18 @@ async function dbPut(group: CustomGroup): Promise<void> {
   });
 }
 
+async function dbPutMany(groups: CustomGroup[]): Promise<void> {
+  if (!isBrowser) return;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readwrite");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    const store = tx.objectStore(STORE_CUSTOM_GROUPS);
+    groups.forEach((g) => store.put(g));
+  });
+}
+
 async function dbDelete(id: string): Promise<void> {
   if (!isBrowser) return;
   const db = await openDB();
@@ -109,18 +126,18 @@ export const BRANCH_SUGGESTIONS = [
 ];
 
 export const CUSTOM_GROUP_PALETTE = [
-  "#f97316", // laranja
-  "#ef4444", // vermelho
-  "#f59e0b", // âmbar
-  "#84cc16", // lima
-  "#10b981", // esmeralda
-  "#06b6d4", // ciano
-  "#3b82f6", // azul
-  "#8b5cf6", // violeta
-  "#ec4899", // rosa
-  "#64748b", // ardósia
-  "#14b8a6", // teal
-  "#a855f7", // roxo
+  "#f97316",
+  "#ef4444",
+  "#f59e0b",
+  "#84cc16",
+  "#10b981",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#64748b",
+  "#14b8a6",
+  "#a855f7",
 ];
 
 function genId(): string {
@@ -138,8 +155,27 @@ export function useCustomGroups() {
   const reload = useCallback(async () => {
     try {
       const all = await dbReadAll();
-      all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-      setGroups(all);
+      // Migração leve: garante number atribuído para registros antigos.
+      const used = new Set<number>();
+      all.forEach((g) => {
+        if (typeof g.number === "number" && g.number > 0) used.add(g.number);
+      });
+      let next = 1;
+      const fixed = all.map((g) => {
+        if (typeof g.number === "number" && g.number > 0) return g;
+        while (used.has(next)) next += 1;
+        const withNumber = { ...g, number: next };
+        used.add(next);
+        return withNumber;
+      });
+      // Persiste correção em background.
+      fixed.forEach((g, idx) => {
+        if (g !== all[idx]) {
+          dbPut(g).catch((e) => console.warn("[useCustomGroups migrate]", e));
+        }
+      });
+      fixed.sort((a, b) => a.number - b.number);
+      setGroups(fixed);
     } catch (err) {
       console.error("[useCustomGroups]", err);
     } finally {
@@ -152,13 +188,25 @@ export function useCustomGroups() {
   }, [reload]);
 
   const createGroup = useCallback(
-    async (input: { name: string; branch: string; color?: string; description?: string }) => {
+    async (input: {
+      name: string;
+      branch: string;
+      color?: string;
+      description?: string;
+      number?: number;
+    }) => {
       const trimmed = input.name.trim();
       if (!trimmed) return null;
       const fallbackColor =
         CUSTOM_GROUP_PALETTE[Math.floor(Math.random() * CUSTOM_GROUP_PALETTE.length)];
+      const used = new Set(groups.map((g) => g.number).filter(Boolean));
+      let auto = 1;
+      while (used.has(auto)) auto += 1;
+      const number =
+        typeof input.number === "number" && input.number > 0 ? Math.floor(input.number) : auto;
       const group: CustomGroup = {
         id: genId(),
+        number,
         name: trimmed,
         branch: input.branch.trim(),
         color: input.color || fallbackColor,
@@ -171,7 +219,7 @@ export function useCustomGroups() {
       await reload();
       return group;
     },
-    [reload],
+    [groups, reload],
   );
 
   const updateGroup = useCallback(
@@ -232,6 +280,30 @@ export function useCustomGroups() {
     [groups, reload],
   );
 
+  /**
+   * Reordena a lista de grupos. `orderedIds` é a nova ordem visual desejada.
+   * O número de cada grupo é renumerado para 1..N na nova ordem.
+   */
+  const reorderGroups = useCallback(
+    async (orderedIds: string[]) => {
+      const byId = new Map(groups.map((g) => [g.id, g]));
+      const reordered: CustomGroup[] = [];
+      orderedIds.forEach((id, idx) => {
+        const g = byId.get(id);
+        if (g) reordered.push({ ...g, number: idx + 1, updatedAt: nowISO() });
+      });
+      // Anexa quaisquer grupos não citados (defesa) no final, mantendo unicidade.
+      groups.forEach((g) => {
+        if (!orderedIds.includes(g.id)) {
+          reordered.push({ ...g, number: reordered.length + 1, updatedAt: nowISO() });
+        }
+      });
+      await dbPutMany(reordered);
+      await reload();
+    },
+    [groups, reload],
+  );
+
   return {
     groups,
     loading,
@@ -241,6 +313,7 @@ export function useCustomGroups() {
     deleteGroup,
     promoteToDashboard,
     demoteFromDashboard,
+    reorderGroups,
   };
 }
 

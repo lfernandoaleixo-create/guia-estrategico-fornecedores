@@ -290,6 +290,14 @@ export default function YiwuAnotacoes() {
                     }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? "#fff" : g.color }} />
+                    <span
+                      className="font-mono text-[9px] px-1 rounded"
+                      style={{
+                        background: active ? "rgba(255,255,255,0.25)" : `${g.color}33`,
+                      }}
+                    >
+                      Nº {String(g.number ?? 0).padStart(2, "0")}
+                    </span>
                     {g.name}
                   </button>
                 );
@@ -447,6 +455,16 @@ export default function YiwuAnotacoes() {
                                 title={g.legend || g.name}
                               >
                                 <span style={{ width: 6, height: 6, borderRadius: 999, background: g.color }} />
+                                <span
+                                  style={{
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    background: `${g.color}44`,
+                                    padding: "0 4px",
+                                    borderRadius: 3,
+                                  }}
+                                >
+                                  Nº {String(g.number ?? 0).padStart(2, "0")}
+                                </span>
                                 {g.name}
                               </span>
                             );

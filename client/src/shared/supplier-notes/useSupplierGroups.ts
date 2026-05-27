@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export interface SupplierGroup {
   id: string;
+  number: number; // número do grupo (1, 2, 3…), único
   name: string;
   legend: string; // descrição/legenda livre
   color: string; // hex (ex: "#f97316")
@@ -111,9 +112,27 @@ export function useSupplierGroups() {
   const reload = useCallback(async () => {
     try {
       const all = await dbReadAll();
-      // Ordenar pelo nome para exibição estável
-      all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-      setGroups(all);
+      // Migração leve: garante number atribuído.
+      const used = new Set<number>();
+      all.forEach((g) => {
+        if (typeof g.number === "number" && g.number > 0) used.add(g.number);
+      });
+      let next = 1;
+      const fixed = all.map((g) => {
+        if (typeof g.number === "number" && g.number > 0) return g;
+        while (used.has(next)) next += 1;
+        const withNumber = { ...g, number: next };
+        used.add(next);
+        return withNumber;
+      });
+      fixed.forEach((g, idx) => {
+        if (g !== all[idx]) {
+          dbPut(g).catch((e) => console.warn("[useSupplierGroups migrate]", e));
+        }
+      });
+      // Ordena por número para exibição estável.
+      fixed.sort((a, b) => a.number - b.number);
+      setGroups(fixed);
     } catch (err) {
       console.error("[useSupplierGroups] reload", err);
     } finally {
@@ -126,13 +145,19 @@ export function useSupplierGroups() {
   }, [reload]);
 
   const createGroup = useCallback(
-    async (input: { name: string; legend?: string; color?: string }) => {
+    async (input: { name: string; legend?: string; color?: string; number?: number }) => {
       const trimmed = input.name.trim();
       if (!trimmed) return null;
       const palette = GROUP_COLOR_PALETTE;
       const fallbackColor = palette[Math.floor(Math.random() * palette.length)];
+      const used = new Set(groups.map((g) => g.number).filter(Boolean));
+      let auto = 1;
+      while (used.has(auto)) auto += 1;
+      const number =
+        typeof input.number === "number" && input.number > 0 ? Math.floor(input.number) : auto;
       const group: SupplierGroup = {
         id: genId(),
+        number,
         name: trimmed,
         legend: input.legend?.trim() ?? "",
         color: input.color || fallbackColor,
@@ -143,13 +168,13 @@ export function useSupplierGroups() {
       await reload();
       return group;
     },
-    [reload],
+    [groups, reload],
   );
 
   const updateGroup = useCallback(
     async (
       id: string,
-      patch: Partial<Pick<SupplierGroup, "name" | "legend" | "color">>,
+      patch: Partial<Pick<SupplierGroup, "name" | "legend" | "color" | "number">>,
     ) => {
       const current = groups.find((g) => g.id === id);
       if (!current) return;

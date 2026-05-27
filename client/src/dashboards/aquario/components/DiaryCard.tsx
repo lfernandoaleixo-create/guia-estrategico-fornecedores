@@ -165,6 +165,17 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 title={g.legend || g.name}
               >
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: g.color }} />
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: "0.55rem",
+                    background: `${g.color}33`,
+                    padding: "0 4px",
+                    borderRadius: 3,
+                  }}
+                >
+                  Nº {String(g.number ?? 0).padStart(2, "0")}
+                </span>
                 {g.name}
               </span>
             ))}

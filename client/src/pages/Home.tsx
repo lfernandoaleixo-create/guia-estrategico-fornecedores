@@ -108,7 +108,7 @@ export default function Home() {
         href: `/grupo/${g.id}`,
         eyebrow: `DASHBOARD ${String(3 + idx + 1).padStart(2, "0")}`,
         title: g.name,
-        subtitle: g.branch || "Grupo personalizado",
+        subtitle: `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
         description:
           g.description ||
           `Dashboard independente promovido a partir do grupo personalizado "${g.name}". Lista os fornecedores cadastrados neste ramo.`,

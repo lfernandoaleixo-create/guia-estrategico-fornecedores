@@ -126,6 +126,18 @@ export function GroupsManager({ tone = "light" }: Props) {
                 display: "inline-block",
               }}
             />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                opacity: 0.85,
+                background: `${g.color}33`,
+                padding: "1px 6px",
+                borderRadius: 4,
+              }}
+            >
+              Nº {String(g.number ?? 0).padStart(2, "0")}
+            </span>
             <span>{g.name}</span>
             {g.legend && <span style={{ opacity: 0.7, fontWeight: 400 }}>· {g.legend}</span>}
             <button

@@ -91,6 +91,18 @@ export function GroupPicker({ selectedIds, onChange, tone = "light" }: Props) {
                   display: "inline-block",
                 }}
               />
+              <span
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: active ? "rgba(255,255,255,0.22)" : `${g.color}33`,
+                  padding: "1px 5px",
+                  borderRadius: 4,
+                }}
+              >
+                Nº {String(g.number ?? 0).padStart(2, "0")}
+              </span>
               {g.name}
               {active && <span aria-hidden>✓</span>}
             </button>
