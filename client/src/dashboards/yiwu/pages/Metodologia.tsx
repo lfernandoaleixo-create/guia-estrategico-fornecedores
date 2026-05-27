@@ -119,9 +119,9 @@ export default function Metodologia() {
         <div className="border-b border-border/50 py-10" style={{ background: 'oklch(0.13 0.04 240)' }}>
           <div className="container">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-3">
-              <Link href="/"><a className="hover:text-foreground">Home</a></Link>
+              <Link href="/" className="hover:text-foreground">Home</Link>
               <ChevronRight className="w-3 h-3" />
-              <Link href="/fornecedores"><a className="hover:text-foreground">Fornecedores</a></Link>
+              <Link href="/fornecedores" className="hover:text-foreground">Fornecedores</Link>
               <ChevronRight className="w-3 h-3" />
               <span className="text-primary">Método de Avaliação</span>
             </div>
@@ -295,11 +295,9 @@ export default function Metodologia() {
               Volte ao diretório de fornecedores e use o filtro "Prioridade Alta" para ver os 31 fornecedores recomendados
               como ponto de partida da visita ao Futian Market.
             </p>
-            <Link href="/fornecedores">
-              <a className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
-                Ver Fornecedores Priorizados
-                <ChevronRight className="w-4 h-4" />
-              </a>
+            <Link href="/fornecedores" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
+              Ver Fornecedores Priorizados
+              <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

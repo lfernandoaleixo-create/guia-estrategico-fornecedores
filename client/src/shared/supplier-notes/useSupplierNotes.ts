@@ -236,8 +236,21 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+// ---------- Pub/Sub global para sincronizar instâncias do hook ----------
+// Cada instância (lista, painel, etc.) registra um listener; quando uma escreve,
+// todas recebem o estado atualizado e re-renderizam.
+type Scope = "aquario" | "tapete" | "yiwu";
+const listeners: Record<Scope, Set<(state: Record<string, SupplierNoteEntry>) => void>> = {
+  aquario: new Set(),
+  tapete: new Set(),
+  yiwu: new Set(),
+};
+function notify(scope: Scope, state: Record<string, SupplierNoteEntry>) {
+  listeners[scope].forEach((fn) => fn(state));
+}
+
 // ---------- Hook ----------
-export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
+export function useSupplierNotes(scope: Scope) {
   const [entries, setEntries] = useState<Record<string, SupplierNoteEntry>>({});
   const [loaded, setLoaded] = useState(false);
 
@@ -249,8 +262,14 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
         setLoaded(true);
       }
     });
+    // Escuta mudanças feitas por outras instâncias do hook.
+    const sub = (state: Record<string, SupplierNoteEntry>) => {
+      if (mounted) setEntries(state);
+    };
+    listeners[scope].add(sub);
     return () => {
       mounted = false;
+      listeners[scope].delete(sub);
     };
   }, [scope]);
 
@@ -277,7 +296,9 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           updatedAt: nowDate(),
         };
         dbPut(scope, updated);
-        return { ...prev, [supplierId]: updated };
+        const next = { ...prev, [supplierId]: updated };
+        notify(scope, next);
+        return next;
       });
     },
     [scope]
@@ -316,7 +337,9 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           updatedAt: nowDate(),
         };
         dbPut(scope, updated);
-        return { ...prev, [supplierId]: updated };
+        const next = { ...prev, [supplierId]: updated };
+        notify(scope, next);
+        return next;
       });
       return att;
     },
@@ -339,7 +362,9 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           updatedAt: nowDate(),
         };
         dbPut(scope, updated);
-        return { ...prev, [supplierId]: updated };
+        const next = { ...prev, [supplierId]: updated };
+        notify(scope, next);
+        return next;
       });
     },
     [scope]
@@ -356,7 +381,9 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           updatedAt: nowDate(),
         };
         dbPut(scope, updated);
-        return { ...prev, [supplierId]: updated };
+        const next = { ...prev, [supplierId]: updated };
+        notify(scope, next);
+        return next;
       });
     },
     [scope]
@@ -368,6 +395,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
         const next = { ...prev };
         delete next[supplierId];
         dbDelete(scope, supplierId);
+        notify(scope, next);
         return next;
       });
     },
@@ -395,7 +423,9 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           updatedAt: nowDate(),
         };
         dbPut(scope, updated);
-        return { ...prev, [supplierId]: updated };
+        const next = { ...prev, [supplierId]: updated };
+        notify(scope, next);
+        return next;
       });
     },
     [scope]

@@ -153,6 +153,7 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
             scope={supplier.scope}
             prefilledFields={prefilled}
             editableFields={DEFAULT_EDITABLE_FIELDS}
+            onSaved={() => setExpanded(false)}
           />
         </div>
       )}

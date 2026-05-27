@@ -17,6 +17,7 @@ import {
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
@@ -194,6 +195,11 @@ export default function YiwuAnotacoes() {
         {/* Proteção de dados (backup) */}
         <div className="mb-5">
           <BackupPanel tone="dark" />
+        </div>
+
+        {/* Métricas de uploads */}
+        <div className="mb-5">
+          <UploadMetrics scope="yiwu" tone="dark" accent="#0891b2" />
         </div>
 
         {/* Gerenciar grupos */}
@@ -502,6 +508,7 @@ export default function YiwuAnotacoes() {
                         compact
                         prefilledFields={buildYiwuPrefilledFields(s)}
                         editableFields={DEFAULT_EDITABLE_FIELDS}
+                        onSaved={() => setExpandedId(null)}
                       />
                     </div>
                   )}

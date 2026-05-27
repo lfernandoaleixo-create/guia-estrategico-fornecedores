@@ -75,6 +75,8 @@ interface Props {
   prefilledFields?: PrefilledField[];
   /** Campos editáveis pelo operador (formulário rápido) */
   editableFields?: EditableField[];
+  /** Callback chamado após salvar (usado para fechar o painel automaticamente) */
+  onSaved?: () => void;
 }
 
 function isImage(att: SupplierAttachment) {
@@ -106,6 +108,7 @@ export default function SupplierNotesPanel({
   compact = false,
   prefilledFields = [],
   editableFields = [],
+  onSaved,
 }: Props) {
   const {
     getEntry,
@@ -158,6 +161,10 @@ export default function SupplierNotesPanel({
     upsertEntry(supplierId, { status, observacoes, fields });
     upsertQuoteRows(supplierId, quoteRows);
     flashSaved();
+    // Fecha o painel automaticamente ~600ms depois (tempo do toast "salvo").
+    if (onSaved) {
+      window.setTimeout(() => onSaved(), 600);
+    }
   };
 
   // -------- Tabela de cotação --------

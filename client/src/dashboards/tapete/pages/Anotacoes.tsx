@@ -17,6 +17,7 @@ import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
@@ -123,6 +124,7 @@ function tipoParaCategoria(tipo: TipoEmpresa): "fabrica" | "trader" | "materia_p
 interface DiarioSectionProps {
   empresaId: string;
   nomeEmpresa: string;
+  onSaved?: () => void;
   categoria: "fabrica" | "trader" | "materia_prima";
   neg: Negociacao | undefined;
   onNegUpdated: () => void;
@@ -192,6 +194,7 @@ function DiarioSection({
   onNegUpdated,
   contato,
   tipoEmpresa,
+  onSaved,
 }: DiarioSectionProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _unused = { categoria, neg, onNegUpdated };
@@ -204,6 +207,7 @@ function DiarioSection({
         accent="#dc2626"
         prefilledFields={buildTapetePrefilledFields(nomeEmpresa, contato, tipoEmpresa)}
         editableFields={DEFAULT_EDITABLE_FIELDS}
+        onSaved={onSaved}
       />
     </div>
   );
@@ -592,6 +596,11 @@ export default function Anotacoes() {
         <BackupPanel tone="light" />
       </div>
 
+      {/* Métricas de uploads */}
+      <div className="mb-4">
+        <UploadMetrics scope="tapete" tone="light" accent="#0891b2" />
+      </div>
+
       {/* Gerenciar grupos */}
       <div className="mb-4">
         <GroupsManager tone="light" />
@@ -788,6 +797,7 @@ export default function Anotacoes() {
                         <DiarioSection
                           empresaId={fab.nome}
                           nomeEmpresa={c?.nomeOficial || fab.nome}
+                          onSaved={() => setExpandedId(null)}
                           categoria={fab.classificacao ? tipoParaCategoria(fab.classificacao.tipo) : "fabrica"}
                           neg={neg}
                           onNegUpdated={() => refetch()}
@@ -1030,6 +1040,7 @@ export default function Anotacoes() {
                   <DiarioSection
                     empresaId={fab.nome}
                     nomeEmpresa={c?.nomeOficial || fab.nome}
+                    onSaved={() => setExpandedId(null)}
                     categoria={cl ? tipoParaCategoria(cl.tipo) : "fabrica"}
                     neg={neg}
                     onNegUpdated={() => refetch()}

@@ -84,13 +84,12 @@ export default function GrupoDashboard() {
         <p className="mb-6" style={{ color: TEXT_MUTED }}>
           O grupo solicitado não existe ou ainda não foi criado.
         </p>
-        <Link href="/">
-          <a
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.10 0.02 250)" }}
-          >
-            <ArrowLeft className="w-4 h-4" /> Voltar à home
-          </a>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+          style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.10 0.02 250)" }}
+        >
+          <ArrowLeft className="w-4 h-4" /> Voltar à home
         </Link>
       </div>
     );
@@ -128,14 +127,13 @@ export default function GrupoDashboard() {
     >
       <header className="relative z-10 border-b" style={{ borderColor: BORDER }}>
         <div className="container flex items-center justify-between py-5">
-          <Link href="/">
-            <a
-              className="flex items-center gap-2 text-sm hover:opacity-80"
-              style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Home
-            </a>
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm hover:opacity-80"
+            style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Home
           </Link>
           <div
             className="flex items-center gap-2 text-xs"
@@ -231,17 +229,16 @@ export default function GrupoDashboard() {
             </div>
           </div>
           <div className="flex-1" />
-          <Link href="/adicionar">
-            <a
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
-              style={{
-                background: `${accent}`,
-                color: "oklch(0.10 0.02 250)",
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Adicionar fornecedor
-            </a>
+          <Link
+            href="/adicionar"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+            style={{
+              background: `${accent}`,
+              color: "oklch(0.10 0.02 250)",
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar fornecedor
           </Link>
           <button
             onClick={handleDemote}
@@ -289,14 +286,13 @@ export default function GrupoDashboard() {
               style={{ color: accent }}
             />
             <p className="mb-3">Nenhum fornecedor encontrado neste dashboard ainda.</p>
-            <Link href="/adicionar">
-              <a
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
-              >
-                <Plus className="w-4 h-4" />
-                Cadastrar primeiro fornecedor
-              </a>
+            <Link
+              href="/adicionar"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+              style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
+            >
+              <Plus className="w-4 h-4" />
+              Cadastrar primeiro fornecedor
             </Link>
           </div>
         ) : (

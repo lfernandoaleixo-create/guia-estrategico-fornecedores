@@ -408,11 +408,9 @@ export default function Suppliers() {
                   <option value="district">Distrito (D1 → D6)</option>
                 </select>
 
-                <Link href="/metodologia">
-                  <a className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-primary/30 text-primary hover:bg-primary/10 transition-all">
-                    <Info className="w-3 h-3" />
-                    Método de Avaliação
-                  </a>
+                <Link href="/metodologia" className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-primary/30 text-primary hover:bg-primary/10 transition-all">
+                  <Info className="w-3 h-3" />
+                  Método de Avaliação
                 </Link>
               </div>
             </div>
@@ -429,7 +427,7 @@ export default function Suppliers() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Score de 0 a 100 baseado em 5 critérios objetivos: presença no Alibaba (30), anos de operação (25), categoria premium (20), distrito estratégico (15) e andar conhecido (10).
                   Recomendamos visitar primeiro os <span className="text-emerald-400 font-mono font-bold">{stats.alta} fornecedores de prioridade alta</span>.
-                  {" "}<Link href="/metodologia"><a className="text-emerald-400 underline hover:no-underline">Ver metodologia completa →</a></Link>
+                  {" "}<Link href="/metodologia" className="text-emerald-400 underline hover:no-underline">Ver metodologia completa →</Link>
                 </p>
               </div>
             </div>

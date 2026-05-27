@@ -233,6 +233,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             accent="#dc2626"
             prefilledFields={buildAquarioPrefilledFields(supplier)}
             editableFields={DEFAULT_EDITABLE_FIELDS}
+            onSaved={() => setExpanded(false)}
           />
         </div>
       )}

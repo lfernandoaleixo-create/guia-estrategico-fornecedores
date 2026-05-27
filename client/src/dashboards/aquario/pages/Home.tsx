@@ -13,6 +13,7 @@ import { useNotes, statusConfig, type Note } from "@aquario/hooks/useNotes";
 import { useDiary } from "@aquario/hooks/useDiary";
 import DiaryCard from "@aquario/components/DiaryCard";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
@@ -780,6 +781,11 @@ export default function Home() {
               {/* Proteção de dados (backup) */}
               <div className="mb-5">
                 <BackupPanel tone="light" />
+              </div>
+
+              {/* Métricas de uploads */}
+              <div className="mb-5">
+                <UploadMetrics scope="aquario" tone="light" accent="#dc2626" />
               </div>
 
               {/* Gerenciar grupos */}

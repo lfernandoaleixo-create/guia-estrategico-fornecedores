@@ -283,14 +283,13 @@ export default function AdicionarPage() {
         style={{ borderColor: BORDER }}
       >
         <div className="container flex items-center justify-between py-5">
-          <Link href="/">
-            <a
-              className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
-              style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar à home
-            </a>
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
+            style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar à home
           </Link>
           <div
             className="flex items-center gap-2 text-xs"
