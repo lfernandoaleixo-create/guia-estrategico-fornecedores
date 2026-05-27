@@ -18,6 +18,7 @@ import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
+import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
@@ -589,6 +590,11 @@ export default function Anotacoes() {
       {/* Proteção de dados (backup) */}
       <div className="mb-4">
         <BackupPanel tone="light" />
+      </div>
+
+      {/* Gerenciar grupos */}
+      <div className="mb-4">
+        <GroupsManager tone="light" />
       </div>
 
       {/* Cadastro manual */}

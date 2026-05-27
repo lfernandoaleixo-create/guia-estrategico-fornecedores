@@ -23,6 +23,11 @@ import {
   importCustomSuppliers,
   type CustomSupplier,
 } from "./useCustomSuppliers";
+import {
+  readAllGroups,
+  writeAllGroups,
+  type SupplierGroup,
+} from "./useSupplierGroups";
 
 export type NoteScope = "aquario" | "tapete" | "yiwu";
 
@@ -146,6 +151,9 @@ export interface BackupFile {
   /** v2+: fornecedores cadastrados manualmente */
   customSuppliers?: CustomSupplier[];
   totalCustomSuppliers?: number;
+  /** v3+: grupos de fornecedores compartilhados */
+  groups?: SupplierGroup[];
+  totalGroups?: number;
 }
 
 export async function exportAllNotes(): Promise<BackupFile> {
@@ -171,6 +179,12 @@ export async function exportAllNotes(): Promise<BackupFile> {
   } catch {
     customSuppliers = [];
   }
+  let groupList: SupplierGroup[] = [];
+  try {
+    groupList = await readAllGroups();
+  } catch {
+    groupList = [];
+  }
   const now = new Date();
   return {
     format: "guia-fornecedores-backup",
@@ -183,6 +197,8 @@ export async function exportAllNotes(): Promise<BackupFile> {
     totalAttachments,
     customSuppliers,
     totalCustomSuppliers: customSuppliers.length,
+    groups: groupList,
+    totalGroups: groupList.length,
   };
 }
 
@@ -208,6 +224,7 @@ export interface ImportResult {
   total: number;
   customSuppliersAdded?: number;
   customSuppliersUpdated?: number;
+  groupsImported?: number;
 }
 
 /**
@@ -237,6 +254,16 @@ export async function importAllNotes(json: unknown): Promise<ImportResult> {
       const csRes = await importCustomSuppliers(backup.customSuppliers);
       result.customSuppliersAdded = csRes.added;
       result.customSuppliersUpdated = csRes.updated;
+    } catch {
+      // ignora
+    }
+  }
+
+  // v3+: importa grupos compartilhados
+  if (Array.isArray(backup.groups) && backup.groups.length > 0) {
+    try {
+      await writeAllGroups(backup.groups);
+      result.groupsImported = backup.groups.length;
     } catch {
       // ignora
     }

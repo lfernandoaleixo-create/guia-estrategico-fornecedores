@@ -58,6 +58,8 @@ export interface SupplierNoteEntry {
   fields: Record<string, string>;
   attachments: SupplierAttachment[];
   quoteRows?: QuoteRow[];
+  /** IDs dos grupos aos quais o fornecedor pertence (gerenciados em useSupplierGroups). */
+  groupIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -234,7 +236,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
   const upsertEntry = useCallback(
     (
       supplierId: string,
-      patch: { status?: SupplierStatus; observacoes?: string; fields?: Record<string, string> }
+      patch: { status?: SupplierStatus; observacoes?: string; fields?: Record<string, string>; groupIds?: string[] }
     ) => {
       setEntries((prev) => {
         const existing = prev[supplierId];
@@ -248,6 +250,8 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           observacoes: patch.observacoes ?? existing?.observacoes ?? "",
           fields: patch.fields ? mergedFields : existing?.fields ?? {},
           attachments: existing?.attachments ?? [],
+          quoteRows: existing?.quoteRows,
+          groupIds: patch.groupIds ?? existing?.groupIds ?? [],
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),
         };
@@ -286,6 +290,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           fields: existing?.fields ?? {},
           attachments: [...(existing?.attachments ?? []), att],
           quoteRows: existing?.quoteRows,
+          groupIds: existing?.groupIds ?? [],
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),
         };
@@ -308,6 +313,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           fields: existing?.fields ?? {},
           attachments: existing?.attachments ?? [],
           quoteRows: rows,
+          groupIds: existing?.groupIds ?? [],
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),
         };
@@ -352,6 +358,28 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
     [entries]
   );
 
+  const setSupplierGroups = useCallback(
+    (supplierId: string, groupIds: string[]) => {
+      setEntries((prev) => {
+        const existing = prev[supplierId];
+        const updated: SupplierNoteEntry = {
+          supplierId,
+          status: existing?.status ?? "nao-visitado",
+          observacoes: existing?.observacoes ?? "",
+          fields: existing?.fields ?? {},
+          attachments: existing?.attachments ?? [],
+          quoteRows: existing?.quoteRows,
+          groupIds: Array.from(new Set(groupIds)),
+          createdAt: existing?.createdAt ?? nowDate(),
+          updatedAt: nowDate(),
+        };
+        dbPut(scope, updated);
+        return { ...prev, [supplierId]: updated };
+      });
+    },
+    [scope]
+  );
+
   return {
     entries,
     loaded,
@@ -361,6 +389,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
     upsertQuoteRows,
     deleteEntry,
     getEntry,
+    setSupplierGroups,
     total: Object.keys(entries).length,
   };
 }

@@ -11,6 +11,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from "react";
+import { GroupPicker } from "./GroupPicker";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
@@ -112,6 +113,7 @@ export default function SupplierNotesPanel({
     removeAttachment,
     upsertQuoteRows,
     deleteEntry,
+    setSupplierGroups,
   } = useSupplierNotes(scope);
 
   const entry = getEntry(supplierId);
@@ -120,6 +122,7 @@ export default function SupplierNotesPanel({
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
+  const [groupIds, setGroupIdsState] = useState<string[]>(entry?.groupIds ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -133,7 +136,8 @@ export default function SupplierNotesPanel({
     setObservacoes(entry?.observacoes ?? "");
     setFields(entry?.fields ?? {});
     setQuoteRows(entry?.quoteRows ?? []);
-  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
+    setGroupIdsState(entry?.groupIds ?? []);
+  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows, entry?.groupIds]);
 
   const attachments = entry?.attachments ?? [];
   const groupAttachments = (cat: AttachmentCategory) =>
@@ -265,6 +269,19 @@ export default function SupplierNotesPanel({
           )}
         </div>
       )}
+
+      {/* GRUPOS DO FORNECEDOR */}
+      <div className="mb-4">
+        <GroupPicker
+          tone="light"
+          selectedIds={groupIds}
+          onChange={(ids) => {
+            setGroupIdsState(ids);
+            setSupplierGroups(supplierId, ids);
+            flashSaved();
+          }}
+        />
+      </div>
 
       {/* STATUS DO FORNECEDOR */}
       <div className="mb-4">

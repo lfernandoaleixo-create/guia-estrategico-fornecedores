@@ -14,6 +14,7 @@ import { useDiary } from "@aquario/hooks/useDiary";
 import DiaryCard from "@aquario/components/DiaryCard";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
+import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -779,6 +780,11 @@ export default function Home() {
               {/* Proteção de dados (backup) */}
               <div className="mb-5">
                 <BackupPanel tone="light" />
+              </div>
+
+              {/* Gerenciar grupos */}
+              <div className="mb-5">
+                <GroupsManager tone="light" />
               </div>
 
               {/* Cadastro manual de fornecedores */}

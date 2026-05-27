@@ -18,6 +18,8 @@ import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
+import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
+import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 
 interface YiwuSupplier {
   id: number;
@@ -96,8 +98,10 @@ function buildYiwuPrefilledFields(s: YiwuSupplier): PrefilledField[] {
 
 export default function YiwuAnotacoes() {
   const { entries, loaded } = useSupplierNotes("yiwu");
+  const { groups: allGroups } = useSupplierGroups();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | "all" | "with-notes">("all");
+  const [groupFilter, setGroupFilter] = useState<string | "all">("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -120,6 +124,13 @@ export default function YiwuAnotacoes() {
         if (status !== statusFilter) return false;
       }
 
+      // Filtro por grupo
+      if (groupFilter !== "all") {
+        const supEntry = entries[String(s.id)];
+        const groupIds = supEntry?.groupIds ?? [];
+        if (!groupIds.includes(groupFilter)) return false;
+      }
+
       // Busca
       if (q) {
         const hay = `${s.name} ${s.category} ${s.district ?? ""} ${s.floor ?? ""} ${s.booth ?? ""} ${s.address ?? ""}`.toLowerCase();
@@ -128,12 +139,12 @@ export default function YiwuAnotacoes() {
       }
       return true;
     });
-  }, [allSuppliers, query, statusFilter, entries]);
+  }, [allSuppliers, query, statusFilter, groupFilter, entries]);
 
   // Paginação
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, statusFilter]);
+  }, [query, statusFilter, groupFilter]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
@@ -183,6 +194,11 @@ export default function YiwuAnotacoes() {
         {/* Proteção de dados (backup) */}
         <div className="mb-5">
           <BackupPanel tone="dark" />
+        </div>
+
+        {/* Gerenciar grupos */}
+        <div className="mb-5">
+          <GroupsManager tone="dark" />
         </div>
 
         {/* Cadastro manual */}
@@ -245,6 +261,41 @@ export default function YiwuAnotacoes() {
             <Filter className="w-3 h-3" />
             Só com anotações
           </button>
+          {allGroups.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Grupos:</span>
+              <button
+                onClick={() => setGroupFilter("all")}
+                className="text-xs px-2.5 py-1 rounded-md transition-colors"
+                style={{
+                  background: groupFilter === "all" ? "#0891b2" : "var(--secondary)",
+                  color: groupFilter === "all" ? "#fff" : undefined,
+                }}
+              >
+                Todos
+              </button>
+              {allGroups.map((g) => {
+                const active = groupFilter === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setGroupFilter(active ? "all" : g.id)}
+                    title={g.legend || g.name}
+                    className="text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5"
+                    style={{
+                      background: active ? g.color : "transparent",
+                      border: `1.5px solid ${g.color}`,
+                      color: active ? "#fff" : undefined,
+                      fontWeight: active ? 600 : 500,
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? "#fff" : g.color }} />
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="ml-auto text-xs text-muted-foreground font-mono">
             Mostrando {visible.length} de {filtered.length}
           </div>
