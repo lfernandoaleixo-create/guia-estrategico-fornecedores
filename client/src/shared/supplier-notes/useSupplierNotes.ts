@@ -22,6 +22,14 @@ export type SupplierStatus =
   | "fornecedor-aprovado"
   | "descartado";
 
+export type AttachmentCategory = "catalogos" | "cotacoes" | "outros";
+
+export const ATTACHMENT_CATEGORY_LABEL: Record<AttachmentCategory, string> = {
+  catalogos: "Catálogos & Fotos",
+  cotacoes: "Cotações",
+  outros: "Outros documentos",
+};
+
 export interface SupplierAttachment {
   id: string;
   name: string;
@@ -29,6 +37,18 @@ export interface SupplierAttachment {
   size: number; // bytes
   dataUrl: string; // base64
   addedAt: string; // dd/mm/yyyy
+  category?: AttachmentCategory; // default "outros" para entradas legadas
+}
+
+export interface QuoteRow {
+  id: string;
+  produto: string;
+  qtd: string;
+  moq: string;
+  precoFob: string;
+  leadTime: string;
+  pagamento: string;
+  observacao: string;
 }
 
 export interface SupplierNoteEntry {
@@ -37,6 +57,7 @@ export interface SupplierNoteEntry {
   observacoes: string;
   fields: Record<string, string>;
   attachments: SupplierAttachment[];
+  quoteRows?: QuoteRow[];
   createdAt: string;
   updatedAt: string;
 }
@@ -238,7 +259,11 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
   );
 
   const addAttachment = useCallback(
-    async (supplierId: string, file: File) => {
+    async (
+      supplierId: string,
+      file: File,
+      category: AttachmentCategory = "outros"
+    ) => {
       if (file.size > 8 * 1024 * 1024) {
         throw new Error("Arquivo maior que 8 MB. Compacte ou reduza antes de anexar.");
       }
@@ -250,6 +275,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
         size: file.size,
         dataUrl,
         addedAt: nowDate(),
+        category,
       };
       setEntries((prev) => {
         const existing = prev[supplierId];
@@ -259,6 +285,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
           observacoes: existing?.observacoes ?? "",
           fields: existing?.fields ?? {},
           attachments: [...(existing?.attachments ?? []), att],
+          quoteRows: existing?.quoteRows,
           createdAt: existing?.createdAt ?? nowDate(),
           updatedAt: nowDate(),
         };
@@ -266,6 +293,27 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
         return { ...prev, [supplierId]: updated };
       });
       return att;
+    },
+    [scope]
+  );
+
+  const upsertQuoteRows = useCallback(
+    (supplierId: string, rows: QuoteRow[]) => {
+      setEntries((prev) => {
+        const existing = prev[supplierId];
+        const updated: SupplierNoteEntry = {
+          supplierId,
+          status: existing?.status ?? "nao-visitado",
+          observacoes: existing?.observacoes ?? "",
+          fields: existing?.fields ?? {},
+          attachments: existing?.attachments ?? [],
+          quoteRows: rows,
+          createdAt: existing?.createdAt ?? nowDate(),
+          updatedAt: nowDate(),
+        };
+        dbPut(scope, updated);
+        return { ...prev, [supplierId]: updated };
+      });
     },
     [scope]
   );
@@ -310,6 +358,7 @@ export function useSupplierNotes(scope: "aquario" | "tapete" | "yiwu") {
     upsertEntry,
     addAttachment,
     removeAttachment,
+    upsertQuoteRows,
     deleteEntry,
     getEntry,
     total: Object.keys(entries).length,

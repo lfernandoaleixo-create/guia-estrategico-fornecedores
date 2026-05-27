@@ -14,8 +14,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
+  ATTACHMENT_CATEGORY_LABEL,
   formatBytes,
   useSupplierNotes,
+  type AttachmentCategory,
+  type QuoteRow,
   type SupplierAttachment,
   type SupplierStatus,
 } from "./useSupplierNotes";
@@ -31,6 +34,10 @@ import {
   CheckCircle2,
   Check,
   FileSpreadsheet,
+  Camera,
+  DollarSign,
+  Folder,
+  Plus,
 } from "lucide-react";
 
 /** Campo apenas leitura (vem do cadastro do fornecedor) */
@@ -103,6 +110,7 @@ export default function SupplierNotesPanel({
     upsertEntry,
     addAttachment,
     removeAttachment,
+    upsertQuoteRows,
     deleteEntry,
   } = useSupplierNotes(scope);
 
@@ -111,19 +119,29 @@ export default function SupplierNotesPanel({
   const [status, setStatus] = useState<SupplierStatus>(entry?.status ?? "nao-visitado");
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
+  const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const catalogosRef = useRef<HTMLInputElement>(null);
+  const cotacoesRef = useRef<HTMLInputElement>(null);
+  const outrosRef = useRef<HTMLInputElement>(null);
 
   // Sync quando entry chega async do IndexedDB ou troca o supplier
   useEffect(() => {
     setStatus(entry?.status ?? "nao-visitado");
     setObservacoes(entry?.observacoes ?? "");
     setFields(entry?.fields ?? {});
-  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields]);
+    setQuoteRows(entry?.quoteRows ?? []);
+  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
 
   const attachments = entry?.attachments ?? [];
+  const groupAttachments = (cat: AttachmentCategory) =>
+    attachments.filter((a) =>
+      cat === "outros"
+        ? !a.category || a.category === "outros"
+        : a.category === cat
+    );
 
   const handleStatusClick = (s: SupplierStatus) => {
     setStatus(s);
@@ -133,7 +151,40 @@ export default function SupplierNotesPanel({
 
   const handleSave = () => {
     upsertEntry(supplierId, { status, observacoes, fields });
+    upsertQuoteRows(supplierId, quoteRows);
     flashSaved();
+  };
+
+  // -------- Tabela de cotação --------
+  const newQuoteRow = (): QuoteRow => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    produto: "",
+    qtd: "",
+    moq: "",
+    precoFob: "",
+    leadTime: "",
+    pagamento: "",
+    observacao: "",
+  });
+
+  const handleQuoteAdd = () => {
+    const next = [...quoteRows, newQuoteRow()];
+    setQuoteRows(next);
+    upsertQuoteRows(supplierId, next);
+  };
+
+  const handleQuoteChange = (id: string, key: keyof QuoteRow, value: string) => {
+    setQuoteRows((prev) => prev.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
+  };
+
+  const handleQuoteBlur = () => {
+    upsertQuoteRows(supplierId, quoteRows);
+  };
+
+  const handleQuoteRemove = (id: string) => {
+    const next = quoteRows.filter((r) => r.id !== id);
+    setQuoteRows(next);
+    upsertQuoteRows(supplierId, next);
   };
 
   const handleFieldChange = (key: string, value: string) => {
@@ -155,17 +206,26 @@ export default function SupplierNotesPanel({
     window.setTimeout(() => setSavedHint(false), 1600);
   };
 
-  const handleFiles = async (files: FileList | null) => {
+  const handleFiles = async (
+    files: FileList | null,
+    category: AttachmentCategory
+  ) => {
     if (!files) return;
     setUploadError(null);
     for (const f of Array.from(files)) {
       try {
-        await addAttachment(supplierId, f);
+        await addAttachment(supplierId, f, category);
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : "Erro ao anexar arquivo");
       }
     }
-    if (fileRef.current) fileRef.current.value = "";
+    const refs: Record<AttachmentCategory, React.RefObject<HTMLInputElement | null>> = {
+      catalogos: catalogosRef,
+      cotacoes: cotacoesRef,
+      outros: outrosRef,
+    };
+    const r = refs[category];
+    if (r.current) r.current.value = "";
   };
 
   const handleClear = () => {
@@ -180,6 +240,7 @@ export default function SupplierNotesPanel({
   const hasContent =
     observacoes.trim().length > 0 ||
     attachments.length > 0 ||
+    quoteRows.length > 0 ||
     status !== "nao-visitado" ||
     Object.values(fields).some((v) => v && v.trim().length > 0);
 
@@ -359,101 +420,149 @@ export default function SupplierNotesPanel({
         </p>
       </div>
 
-      {/* ANEXOS */}
+      {uploadError && (
+        <div
+          className="mb-3 px-3 py-2 rounded-md text-xs"
+          style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}
+        >
+          {uploadError}
+        </div>
+      )}
+
+      {/* CATÁLOGOS & FOTOS */}
+      <AttachmentBucket
+        title={ATTACHMENT_CATEGORY_LABEL.catalogos}
+        subtitle="Catálogos, brochuras e fotos do showroom (PDF, JPG, PNG)"
+        icon={<Camera size={14} />}
+        accent="#0ea5e9"
+        items={groupAttachments("catalogos")}
+        accept="image/*,application/pdf"
+        onPick={() => catalogosRef.current?.click()}
+        onRemove={(id) => removeAttachment(supplierId, id)}
+        inputRef={catalogosRef}
+        onFiles={(files) => handleFiles(files, "catalogos")}
+      />
+
+      {/* COTAÇÕES — tabela editável + arquivos */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500">
-            Anexos · {attachments.length}
+          <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 inline-flex items-center gap-1.5">
+            <DollarSign size={13} style={{ color: "#16a34a" }} /> {ATTACHMENT_CATEGORY_LABEL.cotacoes}
           </label>
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
+            onClick={() => cotacoesRef.current?.click()}
             className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-zinc-100 active:scale-[0.97] border bg-white"
             style={{ borderColor: "#e4e4e7", color: "#3f3f46" }}
           >
-            <Paperclip size={13} /> Anexar arquivo
+            <Paperclip size={13} /> Anexar planilha/PDF
           </button>
           <input
-            ref={fileRef}
+            ref={cotacoesRef}
             type="file"
             multiple
-            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.ods"
-            onChange={(e) => handleFiles(e.target.files)}
+            accept=".xls,.xlsx,.csv,.ods,application/pdf,image/*"
+            onChange={(e) => handleFiles(e.target.files, "cotacoes")}
             className="hidden"
           />
         </div>
+        <p className="text-xs text-zinc-500 mb-2">
+          Preencha a tabela abaixo conforme o fornecedor for cotando, e/ou anexe planilhas e PDFs de cotação que ele enviar.
+        </p>
 
-        {uploadError && (
-          <div
-            className="mb-2 px-3 py-2 rounded-md text-xs"
-            style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}
-          >
-            {uploadError}
-          </div>
-        )}
+        {/* TABELA EDITÁVEL */}
+        <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: "#e4e4e7" }}>
+          <table className="w-full text-xs">
+            <thead style={{ background: "#f4f4f5" }}>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
+                <th className="px-2 py-2 font-bold">Produto</th>
+                <th className="px-2 py-2 font-bold">Qtd</th>
+                <th className="px-2 py-2 font-bold">MOQ</th>
+                <th className="px-2 py-2 font-bold">Preço FOB</th>
+                <th className="px-2 py-2 font-bold">Lead time</th>
+                <th className="px-2 py-2 font-bold">Pagamento</th>
+                <th className="px-2 py-2 font-bold">Observação</th>
+                <th className="px-2 py-2 w-8" aria-label="ações"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {quoteRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-3 py-4 text-center text-zinc-400 text-xs">
+                    Nenhuma linha. Clique em <strong>+ adicionar linha</strong> para começar a registrar a cotação.
+                  </td>
+                </tr>
+              ) : (
+                quoteRows.map((row) => (
+                  <tr key={row.id} className="border-t" style={{ borderColor: "#f4f4f5" }}>
+                    {(["produto", "qtd", "moq", "precoFob", "leadTime", "pagamento", "observacao"] as Array<keyof QuoteRow>).map((k) => (
+                      <td key={k} className="px-1 py-1">
+                        <input
+                          value={row[k] as string}
+                          onChange={(e) => handleQuoteChange(row.id, k, e.target.value)}
+                          onBlur={handleQuoteBlur}
+                          placeholder={
+                            k === "produto" ? "Ex.: Aquário 60L" :
+                            k === "qtd" ? "100" :
+                            k === "moq" ? "50" :
+                            k === "precoFob" ? "USD 4,20" :
+                            k === "leadTime" ? "30 dias" :
+                            k === "pagamento" ? "30/70 TT" :
+                            "Detalhes…"
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs bg-transparent border border-transparent hover:border-zinc-200 focus:border-zinc-400 focus:bg-white focus:outline-none transition-colors"
+                        />
+                      </td>
+                    ))}
+                    <td className="px-1 py-1 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleQuoteRemove(row.id)}
+                        className="p-1 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Remover linha"
+                      >
+                        <X size={12} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {attachments.length === 0 ? (
-          <div
-            className="text-center py-5 rounded-lg border border-dashed text-xs text-zinc-500"
-            style={{ borderColor: "#e4e4e7", background: "#fafafa" }}
-          >
-            Anexe fotos, PDFs, planilhas e contratos. Os arquivos ficam salvos no seu navegador (limite 8 MB por arquivo).
-          </div>
-        ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {attachments.map((att) => (
-              <li
-                key={att.id}
-                className="group flex items-center gap-3 px-3 py-2 rounded-lg border bg-white"
-                style={{ borderColor: "#e4e4e7" }}
-              >
-                <div
-                  className="flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center overflow-hidden"
-                  style={{ background: "#f4f4f5" }}
-                >
-                  {isImage(att) ? (
-                    <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
-                  ) : att.type === "application/pdf" ? (
-                    <FileText size={18} style={{ color: "#dc2626" }} />
-                  ) : isSpreadsheet(att) ? (
-                    <FileSpreadsheet size={18} style={{ color: "#16a34a" }} />
-                  ) : att.type.startsWith("image/") ? (
-                    <ImageIcon size={18} style={{ color: "#2563eb" }} />
-                  ) : (
-                    <FileText size={18} style={{ color: "#52525b" }} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate text-zinc-800">{att.name}</div>
-                  <div className="text-xs text-zinc-500">
-                    {formatBytes(att.size)} · {att.addedAt}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={() => downloadDataURL(att.dataUrl, att.name)}
-                    className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
-                    aria-label="Baixar"
-                    title="Baixar"
-                  >
-                    <Download size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(supplierId, att.id)}
-                    className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-600"
-                    aria-label="Remover"
-                    title="Remover"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <button
+          type="button"
+          onClick={handleQuoteAdd}
+          className="mt-2 px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-emerald-50 active:scale-[0.97] border"
+          style={{ borderColor: "#bbf7d0", color: "#15803d", background: "#f0fdf4" }}
+        >
+          <Plus size={12} /> Adicionar linha
+        </button>
+
+        {/* Arquivos de cotação */}
+        <div className="mt-3">
+          <AttachmentList
+            items={groupAttachments("cotacoes")}
+            onRemove={(id) => removeAttachment(supplierId, id)}
+            emptyText="Nenhuma planilha ou PDF de cotação anexado."
+          />
+        </div>
       </div>
+
+      {/* OUTROS DOCUMENTOS */}
+      <AttachmentBucket
+        title={ATTACHMENT_CATEGORY_LABEL.outros}
+        subtitle="Contratos, faturas, certificados, prints de conversa e quaisquer outros arquivos"
+        icon={<Folder size={14} />}
+        accent="#a16207"
+        items={groupAttachments("outros")}
+        accept="*/*"
+        onPick={() => outrosRef.current?.click()}
+        onRemove={(id) => removeAttachment(supplierId, id)}
+        inputRef={outrosRef}
+        onFiles={(files) => handleFiles(files, "outros")}
+      />
 
       {/* AÇÕES */}
       <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "#e4e4e7" }}>
@@ -485,5 +594,140 @@ export default function SupplierNotesPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// Componentes auxiliares: AttachmentBucket / AttachmentList
+// ============================================================================
+
+interface AttachmentBucketProps {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  accent: string;
+  items: SupplierAttachment[];
+  accept: string;
+  onPick: () => void;
+  onRemove: (id: string) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onFiles: (files: FileList | null) => void;
+}
+
+function AttachmentBucket({
+  title,
+  subtitle,
+  icon,
+  accent,
+  items,
+  accept,
+  onPick,
+  onRemove,
+  inputRef,
+  onFiles,
+}: AttachmentBucketProps) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 inline-flex items-center gap-1.5">
+          <span style={{ color: accent }}>{icon}</span>
+          {title}
+          <span className="text-zinc-400 font-normal normal-case tracking-normal">
+            · {items.length}
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={onPick}
+          className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-zinc-100 active:scale-[0.97] border bg-white"
+          style={{ borderColor: "#e4e4e7", color: "#3f3f46" }}
+        >
+          <Paperclip size={13} /> Anexar arquivo
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={accept}
+          onChange={(e) => onFiles(e.target.files)}
+          className="hidden"
+        />
+      </div>
+      <p className="text-xs text-zinc-500 mb-2">{subtitle}</p>
+      <AttachmentList items={items} onRemove={onRemove} />
+    </div>
+  );
+}
+
+interface AttachmentListProps {
+  items: SupplierAttachment[];
+  onRemove: (id: string) => void;
+  emptyText?: string;
+}
+
+function AttachmentList({ items, onRemove, emptyText }: AttachmentListProps) {
+  if (items.length === 0) {
+    return (
+      <div
+        className="text-center py-4 rounded-lg border border-dashed text-xs text-zinc-500"
+        style={{ borderColor: "#e4e4e7", background: "#fafafa" }}
+      >
+        {emptyText ?? "Nenhum arquivo anexado nesta categoria. (Limite 8 MB por arquivo, salvos no navegador.)"}
+      </div>
+    );
+  }
+  return (
+    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {items.map((att) => (
+        <li
+          key={att.id}
+          className="group flex items-center gap-3 px-3 py-2 rounded-lg border bg-white"
+          style={{ borderColor: "#e4e4e7" }}
+        >
+          <div
+            className="flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center overflow-hidden"
+            style={{ background: "#f4f4f5" }}
+          >
+            {isImage(att) ? (
+              <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
+            ) : att.type === "application/pdf" ? (
+              <FileText size={18} style={{ color: "#dc2626" }} />
+            ) : isSpreadsheet(att) ? (
+              <FileSpreadsheet size={18} style={{ color: "#16a34a" }} />
+            ) : att.type.startsWith("image/") ? (
+              <ImageIcon size={18} style={{ color: "#2563eb" }} />
+            ) : (
+              <FileText size={18} style={{ color: "#52525b" }} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate text-zinc-800">{att.name}</div>
+            <div className="text-xs text-zinc-500">
+              {formatBytes(att.size)} · {att.addedAt}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => downloadDataURL(att.dataUrl, att.name)}
+              className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
+              aria-label="Baixar"
+              title="Baixar"
+            >
+              <Download size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(att.id)}
+              className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-600"
+              aria-label="Remover"
+              title="Remover"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
