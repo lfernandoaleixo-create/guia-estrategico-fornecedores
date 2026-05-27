@@ -5,8 +5,8 @@ type ScopeName = "aquario" | "tapete" | "yiwu" | "capa";
 /**
  * Aplica a classe `scope-X` no <html> enquanto este componente está montado,
  * garantindo que as variáveis CSS específicas de cada dashboard fiquem ativas.
- * Ao desmontar, restaura o estado anterior. Adiciona também um botão
- * flutuante "Voltar ao Guia" no canto inferior direito.
+ * Adiciona um botão flutuante "Voltar ao Guia" posicionado de forma inteligente
+ * para não conflitar com sidebars/menus de cada dashboard.
  */
 export default function ScopeWrapper({
   scope,
@@ -30,13 +30,17 @@ export default function ScopeWrapper({
     };
   }, [scope]);
 
+  // Posicionamento unificado: todos os dashboards têm sidebar/header no lado esquerdo,
+  // então o botão fica sempre no canto superior direito da viewport.
+  const positionClass = "fixed top-3 right-6 z-[9999]";
+
   return (
     <>
       {children}
       {scope !== "capa" && (
         <a
           href="/"
-          className="fixed bottom-6 right-6 z-[9999] inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-bold tracking-wide shadow-2xl shadow-amber-900/40 ring-2 ring-white/20 transition-all hover:scale-105 active:scale-95"
+          className={`${positionClass} inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-sm font-bold tracking-wide shadow-2xl shadow-amber-900/40 ring-2 ring-white/20 transition-all hover:scale-105 active:scale-95`}
           style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
           title="Voltar ao Guia Estratégico"
         >
