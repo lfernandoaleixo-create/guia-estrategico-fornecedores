@@ -17,6 +17,7 @@ import {
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 
 interface YiwuSupplier {
   id: number;
@@ -183,6 +184,9 @@ export default function YiwuAnotacoes() {
         <div className="mb-5">
           <BackupPanel tone="dark" />
         </div>
+
+        {/* Cadastro manual */}
+        <CustomSuppliersSection scope="yiwu" tone="dark" />
 
         {/* Resumo + filtro por status */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">

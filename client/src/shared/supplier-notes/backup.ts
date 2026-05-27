@@ -18,6 +18,11 @@
 // =============================================================================
 
 import type { SupplierNoteEntry } from "./useSupplierNotes";
+import {
+  exportAllCustomSuppliers,
+  importCustomSuppliers,
+  type CustomSupplier,
+} from "./useCustomSuppliers";
 
 export type NoteScope = "aquario" | "tapete" | "yiwu";
 
@@ -131,13 +136,16 @@ export async function estimateStorage(): Promise<StorageEstimate | null> {
 
 export interface BackupFile {
   format: "guia-fornecedores-backup";
-  version: 1;
+  version: 1 | 2;
   exportedAt: string; // ISO
-  exportedAtBR: string; // dd/mm/aaaa hh:mm
+  exportedAtBR: string; // dd/mm/aaaa
   scopes: Record<NoteScope, SupplierNoteEntry[]>;
   totals: Record<NoteScope, number>;
   totalEntries: number;
   totalAttachments: number;
+  /** v2+: fornecedores cadastrados manualmente */
+  customSuppliers?: CustomSupplier[];
+  totalCustomSuppliers?: number;
 }
 
 export async function exportAllNotes(): Promise<BackupFile> {
@@ -157,16 +165,24 @@ export async function exportAllNotes(): Promise<BackupFile> {
     totalEntries += entries.length;
     totalAttachments += entries.reduce((acc, e) => acc + e.attachments.length, 0);
   }
+  let customSuppliers: CustomSupplier[] = [];
+  try {
+    customSuppliers = await exportAllCustomSuppliers();
+  } catch {
+    customSuppliers = [];
+  }
   const now = new Date();
   return {
     format: "guia-fornecedores-backup",
-    version: 1,
+    version: 2,
     exportedAt: now.toISOString(),
     exportedAtBR: now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }),
     scopes,
     totals,
     totalEntries,
     totalAttachments,
+    customSuppliers,
+    totalCustomSuppliers: customSuppliers.length,
   };
 }
 
@@ -190,6 +206,8 @@ export interface ImportResult {
   updated: Record<NoteScope, number>;
   skipped: Record<NoteScope, number>;
   total: number;
+  customSuppliersAdded?: number;
+  customSuppliersUpdated?: number;
 }
 
 /**
@@ -209,7 +227,20 @@ export async function importAllNotes(json: unknown): Promise<ImportResult> {
     updated: { aquario: 0, tapete: 0, yiwu: 0 },
     skipped: { aquario: 0, tapete: 0, yiwu: 0 },
     total: 0,
+    customSuppliersAdded: 0,
+    customSuppliersUpdated: 0,
   };
+
+  // v2+: importa fornecedores customizados
+  if (Array.isArray(backup.customSuppliers) && backup.customSuppliers.length > 0) {
+    try {
+      const csRes = await importCustomSuppliers(backup.customSuppliers);
+      result.customSuppliersAdded = csRes.added;
+      result.customSuppliersUpdated = csRes.updated;
+    } catch {
+      // ignora
+    }
+  }
 
   for (const scope of SCOPES) {
     const incoming = backup.scopes[scope] ?? [];

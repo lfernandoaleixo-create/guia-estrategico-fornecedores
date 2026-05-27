@@ -17,6 +17,7 @@ import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
@@ -589,6 +590,9 @@ export default function Anotacoes() {
       <div className="mb-4">
         <BackupPanel tone="light" />
       </div>
+
+      {/* Cadastro manual */}
+      <CustomSuppliersSection scope="tapete" tone="light" />
 
       {/* Summary Cards — clicáveis para ver Top 5 da categoria */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
