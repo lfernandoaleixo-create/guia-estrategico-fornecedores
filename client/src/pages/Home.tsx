@@ -137,6 +137,9 @@ export default function Home() {
               backgroundClip: "text",
               fontStyle: "italic",
               fontWeight: 500,
+              display: "inline-block",
+              paddingRight: "0.18em",
+              marginRight: "-0.18em",
             }}>
               de Fornecedores
             </span>
