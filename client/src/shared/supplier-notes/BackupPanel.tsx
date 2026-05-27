@@ -110,11 +110,11 @@ export function BackupPanel({ tone = "dark" }: { tone?: "dark" | "light" }) {
               Proteção das anotações
             </h3>
             {persist.persisted ? (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/40 font-medium">
                 Armazenamento persistente ativo
               </span>
             ) : (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/40 font-medium">
                 Sem persistência garantida
               </span>
             )}
