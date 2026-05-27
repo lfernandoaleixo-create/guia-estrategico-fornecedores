@@ -763,38 +763,70 @@ export default function AdicionarPage() {
               const items = suppliersByGroup[g.id] ?? [];
               if (items.length === 0) return null;
               return (
-                <div key={g.id}>
-                  <div className="flex items-center gap-2 mb-3">
+                <div
+                  key={g.id}
+                  className="rounded-2xl border overflow-hidden"
+                  style={{
+                    borderColor: `${g.color}55`,
+                    background: `linear-gradient(180deg, ${g.color}10 0%, transparent 60%)`,
+                  }}
+                >
+                  <div
+                    className="flex items-center gap-3 px-5 py-4 border-b"
+                    style={{
+                      borderColor: `${g.color}33`,
+                      background: `linear-gradient(90deg, ${g.color}22, transparent 70%)`,
+                    }}
+                  >
                     <span
+                      className="font-mono font-bold text-xs px-2 py-0.5 rounded"
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 999,
                         background: g.color,
+                        color: "oklch(0.10 0.02 250)",
+                        letterSpacing: "0.1em",
                       }}
-                    />
+                    >
+                      Nº {String(g.number ?? 0).padStart(2, "0")}
+                    </span>
                     <h3
-                      className="text-sm font-bold uppercase tracking-[0.15em]"
-                      style={{ color: TEXT_PRIMARY, fontFamily: "'Inter', sans-serif" }}
+                      className="text-lg font-semibold"
+                      style={{
+                        color: TEXT_PRIMARY,
+                        fontFamily: "'Fraunces', serif",
+                      }}
                     >
                       {g.name}
                     </h3>
+                    {g.branch && (
+                      <span
+                        className="text-[11px] uppercase tracking-[0.15em] px-2 py-0.5 rounded"
+                        style={{
+                          color: g.color,
+                          background: `${g.color}1a`,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        {g.branch}
+                      </span>
+                    )}
                     <span
-                      className="text-[11px]"
-                      style={{
-                        color: TEXT_MUTED,
-                        fontFamily: "'JetBrains Mono', monospace",
-                      }}
+                      className="ml-auto text-[11px] font-mono"
+                      style={{ color: TEXT_MUTED }}
                     >
-                      · {items.length} fornecedor{items.length === 1 ? "" : "es"}
+                      {items.length} fornecedor{items.length === 1 ? "" : "es"}
                     </span>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="px-5 pt-4" />
+                  <div className="grid sm:grid-cols-2 gap-3 px-5 pb-5">
                     {items.map((s) => (
                       <div
                         key={s.id}
                         className="rounded-xl p-4 border"
-                        style={{ background: SURFACE, borderColor: BORDER }}
+                        style={{
+                          background: SURFACE,
+                          borderColor: BORDER,
+                          borderLeft: `3px solid ${g.color}`,
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>

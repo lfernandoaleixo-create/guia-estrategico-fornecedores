@@ -72,7 +72,9 @@ export function MigrateButton({
     if (t.kind === "dashboard") {
       return DASHBOARDS.find((d) => d.scope === t.scope)?.label ?? t.scope;
     }
-    return groups.find((g) => g.id === t.groupId)?.name ?? "grupo";
+    const g = groups.find((gg) => gg.id === t.groupId);
+    if (!g) return "grupo";
+    return `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.name}`;
   }
 
   async function confirmMigration() {
@@ -183,8 +185,9 @@ export function MigrateButton({
                           target?.kind === "custom-group" && target.groupId === g.id
                         }
                         color={g.color}
+                        number={g.number ?? 0}
                         label={g.name}
-                        sub={`Grupo · ${g.branch || "Sem ramo"}`}
+                        sub={`Grupo promovido · ${g.branch || "Sem ramo"}`}
                         onClick={() =>
                           setTarget({ kind: "custom-group", groupId: g.id })
                         }
@@ -203,6 +206,7 @@ export function MigrateButton({
                           target?.kind === "custom-group" && target.groupId === g.id
                         }
                         color={g.color}
+                        number={g.number ?? 0}
                         label={g.name}
                         sub={`Ramo: ${g.branch || "—"}`}
                         onClick={() =>
@@ -293,12 +297,14 @@ function TargetRow({
   color,
   label,
   sub,
+  number,
   onClick,
 }: {
   active: boolean;
   color: string;
   label: string;
   sub: string;
+  number?: number;
   onClick: () => void;
 }) {
   return (
@@ -320,6 +326,20 @@ function TargetRow({
           flexShrink: 0,
         }}
       />
+      {typeof number === "number" && number > 0 && (
+        <span
+          className="font-mono text-[10px] font-bold flex-shrink-0"
+          style={{
+            background: `${color}22`,
+            color,
+            padding: "2px 6px",
+            borderRadius: 4,
+            border: `1px solid ${color}55`,
+          }}
+        >
+          Nº {String(number).padStart(2, "0")}
+        </span>
+      )}
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold text-zinc-800 truncate">
           {label}
