@@ -29,6 +29,7 @@ import {
   Trash2,
   Calendar,
   CheckCircle2,
+  Check,
   FileSpreadsheet,
 } from "lucide-react";
 
@@ -170,19 +171,31 @@ export default function SupplierNotesPanel({
                 key={s}
                 type="button"
                 onClick={() => handleStatusClick(s)}
-                className="text-left rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
+                className="relative text-left rounded-lg px-3 py-2.5 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
                 style={{
                   background: active ? cfg.bg : "#fafafa",
-                  borderWidth: "1.5px",
+                  borderWidth: active ? "2px" : "1.5px",
                   borderStyle: "solid",
                   borderColor: active ? cfg.border : "#e4e4e7",
                   color: active ? cfg.color : "#3f3f46",
-                  boxShadow: active ? `0 0 0 3px ${cfg.bg}` : "none",
+                  fontWeight: active ? 700 : 500,
+                  boxShadow: active
+                    ? `0 0 0 3px ${cfg.bg}, 0 1px 2px rgba(0,0,0,0.05)`
+                    : "none",
                 }}
                 aria-pressed={active}
               >
                 <span className="text-lg leading-none">{cfg.emoji}</span>
-                <span>{cfg.label}</span>
+                <span className="flex-1">{cfg.label}</span>
+                {active && (
+                  <span
+                    className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full"
+                    style={{ background: cfg.color, color: "#fff" }}
+                    aria-hidden
+                  >
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                )}
               </button>
             );
           })}

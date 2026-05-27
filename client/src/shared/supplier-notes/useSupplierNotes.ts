@@ -47,9 +47,9 @@ export const STATUS_CONFIG: Record<
   "nao-visitado": {
     label: "Não visitado",
     emoji: "⬜",
-    color: "#52525b",
-    bg: "#f4f4f5",
-    border: "#d4d4d8",
+    color: "#27272a",
+    bg: "#d4d4d8",
+    border: "#52525b",
   },
   "contato-feito": {
     label: "Contato feito",

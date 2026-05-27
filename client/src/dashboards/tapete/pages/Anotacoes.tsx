@@ -14,6 +14,7 @@ import { getClassificacao, tipoLabel, type TipoEmpresa } from "@tapete/lib/class
 import { contatosFabricas } from "@tapete/lib/contatos";
 import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
+import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
   Mail, Phone, MessageCircle, Globe, Copy, CheckCheck, MapPin,
@@ -126,6 +127,23 @@ interface DiarioSectionProps {
 }
 
 function DiarioSection({ empresaId, nomeEmpresa, categoria, neg, onNegUpdated }: DiarioSectionProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unused = { categoria, neg, onNegUpdated };
+  return (
+    <div className="mt-4 border-t border-slate-200 pt-4">
+      <SupplierNotesPanel
+        scope="tapete"
+        supplierId={empresaId}
+        supplierName={nomeEmpresa}
+        accent="#dc2626"
+      />
+    </div>
+  );
+}
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Implementação legada (desativada) — mantida apenas para referência
+function DiarioSectionLegacy({ empresaId, nomeEmpresa, categoria, neg, onNegUpdated }: DiarioSectionProps) {
   const utils = trpc.useUtils();
   const [showForm, setShowForm] = useState(false);
   const [salvando, setSalvando] = useState(false);
