@@ -51,7 +51,7 @@ const categoryEmoji: Record<string, string> = {
 };
 
 // GeoJSON público da China (províncias)
-const CHINA_GEO_URL = "/manus-storage/china-provinces-final_92946b26.json";
+const CHINA_GEO_URL = "/china-provinces.json";
 
 export default function ChinaMap({ suppliers, onSelectSupplier }: Props) {
   const [zoom, setZoom] = useState(1);

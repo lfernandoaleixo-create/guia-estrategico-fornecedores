@@ -145,7 +145,7 @@ export default function Materiais() {
               {/* Diagrama visual */}
               <div className="hidden md:block w-48 flex-shrink-0">
                 <img
-                  src="/manus-storage/layers-6layer-diagram_f4a65703.jpg"
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/tapete_diagram_6layer-nCi4HoANLFj9YbXqHKmY4q.webp"
                   alt="Diagrama das camadas do tapete higiênico"
                   className="w-full rounded-lg border border-slate-200 shadow-sm"
                 />
@@ -223,7 +223,7 @@ export default function Materiais() {
             <div className="mt-6 grid grid-cols-2 gap-4">
               <div>
                 <img
-                  src="/manus-storage/layers-5layer-structure_1f438e20.jpg"
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/tapete_5layer-mFQoNcab8jgx5iXsD9MnLS.webp"
                   alt="Estrutura de 5 camadas do tapete higiênico"
                   className="w-full rounded-lg border border-slate-200 shadow-sm"
                 />
@@ -231,7 +231,7 @@ export default function Materiais() {
               </div>
               <div>
                 <img
-                  src="/manus-storage/layers-6layer-nezo_4fb2ff43.jpg"
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/tapete_6layer_premium-6sZk66L8dgkn8Z7j7UTudK.webp"
                   alt="Tapete higiênico premium 6 camadas"
                   className="w-full rounded-lg border border-slate-200 shadow-sm"
                 />

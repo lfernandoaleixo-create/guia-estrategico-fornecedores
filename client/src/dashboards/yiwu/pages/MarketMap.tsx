@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Header from "@yiwu/components/Header";
+import SafeImage from "@/components/SafeImage";
 import {
   MapPin, ChevronRight, Layers, Navigation,
   Info, Building2, Map, Camera, ZoomIn, ChevronLeft, X
@@ -11,14 +12,14 @@ const marketPhotos = [
     id: "aerial3d",
     title: "Vista Aérea 3D — Futian Market com Distritos Sinalizados",
     description: "Vista aérea em perspectiva 3D do Futian Market com os 5 distritos identificados em português. Distritos 2 (âmbar) e 4 (verde) são os prioritários para Vidraria e Plásticos.",
-    src: "/manus-storage/futian_aerial_pt_final_d6f008e7.jpg",
+    src: "/manus-storage/yiwu_aerial_3d_5d37ad35.png",
     badge: "Vista 3D",
   },
   {
     id: "cidade",
     title: "Localização na Cidade de Yiwu — Mapa dos Distritos",
     description: "Mapa aéreo da cidade de Yiwu mostrando a localização geográfica de cada distrito do Futian Market. Útil para planejar deslocamentos entre distritos.",
-    src: "/manus-storage/futian_cidade_pt_final_000ffb26.jpg",
+    src: "/manus-storage/yiwu_city_map_bd5ab31f.png",
     badge: "Mapa Cidade",
   },
 ];
@@ -61,16 +62,16 @@ const districts = [
     tip: "PRIORIDADE MÁXIMA — Concentre 2 dias aqui. Vidraria no 2º e 3º andares. Garrafas térmicas no 3º andar. É aqui que a Yiwu Furui (fornecedora da Flashgoods) opera.",
     svgX: 230, svgY: 200,
     photos: [
-      { src: "/manus-storage/d2_corredor1_4f2b3fdb.jpg", caption: "Corredor principal do Distrito 2 — Artigos domésticos e utilidades" },
-      { src: "/manus-storage/d2_corredor2_c9e602a2.jpg", caption: "Estandes de produtos variados — Seção de utilidades do D2" },
-      { src: "/manus-storage/d2_corredor3_2d559e7b.jpg", caption: "Corredor amplo do Distrito 2 — Vidraria e cerâmica" },
-      { src: "/manus-storage/d2_corredor4_4b013e38.jpg", caption: "Exposição de garrafas e copos coloridos — 2º/3º Andar" },
-      { src: "/manus-storage/d2_corredor5_ad8a5781.jpg", caption: "Variedade de garrafas e squeezes — Seção de garrafas térmicas" },
-      { src: "/manus-storage/d2_vidraria1_96aecd64.jpg", caption: "Artigos de mesa e utilidades domésticas — Estandes do D2" },
-      { src: "/manus-storage/d2_vidraria2_08b992b6.jpg", caption: "Vidraria decorativa colorida — Copos e taças de vidro" },
-      { src: "/manus-storage/d2_vidraria3_55cffa46.jpg", caption: "Taças e copos de cristal colorido — 2º Andar do D2" },
-      { src: "/manus-storage/d2_termos1_37c3697a.webp", caption: "Garrafas térmicas com display digital — Fornecedores do D2" },
-      { src: "/manus-storage/d2_termos2_8a849482.jpg", caption: "Garrafas térmicas inox em atacado — 3º Andar do D2" },
+      { src: "/manus-storage/yiwu_d2_corridor_cf43e715.png", caption: "Corredor principal do Distrito 2 — Artigos domésticos e utilidades" },
+      { src: "/manus-storage/yiwu_d2_corridor_cf43e715.png", caption: "Estandes de produtos variados — Seção de utilidades do D2" },
+      { src: "/manus-storage/yiwu_glassware_1c06fd4d.png", caption: "Corredor amplo do Distrito 2 — Vidraria e cerâmica" },
+      { src: "/manus-storage/yiwu_thermos_d57ca122.png", caption: "Exposição de garrafas e copos coloridos — 2º/3º Andar" },
+      { src: "/manus-storage/yiwu_thermos_d57ca122.png", caption: "Variedade de garrafas e squeezes — Seção de garrafas térmicas" },
+      { src: "/manus-storage/yiwu_glassware_1c06fd4d.png", caption: "Artigos de mesa e utilidades domésticas — Estandes do D2" },
+      { src: "/manus-storage/yiwu_glassware_1c06fd4d.png", caption: "Vidraria decorativa colorida — Copos e taças de vidro" },
+      { src: "/manus-storage/yiwu_glassware_1c06fd4d.png", caption: "Taças e copos de cristal colorido — 2º Andar do D2" },
+      { src: "/manus-storage/yiwu_thermos_d57ca122.png", caption: "Garrafas térmicas com display digital — Fornecedores do D2" },
+      { src: "/manus-storage/yiwu_thermos_d57ca122.png", caption: "Garrafas térmicas inox em atacado — 3º Andar do D2" },
     ],
     floorGuide: [
       { floor: "1º Andar", content: "Cerâmica básica, porcelana e artigos de mesa de baixo custo", highlight: false },
@@ -117,14 +118,14 @@ const districts = [
     tip: "PRIORIDADE ALTA — Reserve 1 dia completo. Plásticos e organização doméstica no 2º andar. Aqui estão os fornecedores da marca ECOCO (estande 20728-1).",
     svgX: 510, svgY: 200,
     photos: [
-      { src: "/manus-storage/d4_plasticos1_24c0d179.jpg", caption: "Estandes de artigos domésticos — Entrada do Distrito 4" },
-      { src: "/manus-storage/d4_plasticos2_12e6c2c7.jpg", caption: "Variedade de produtos de organização doméstica — D4" },
-      { src: "/manus-storage/d4_plasticos3_19b6d5bc.jpg", caption: "Corredor de artigos de utilidades — Distrito 4" },
-      { src: "/manus-storage/d4_plasticos4_b697bd35.jpg", caption: "Produtos de organização e limpeza — 1º Andar do D4" },
-      { src: "/manus-storage/d4_plasticos5_cf9acd42.jpg", caption: "Artigos domésticos variados — Corredor do D4" },
-      { src: "/manus-storage/d4_plasticos6_dce1b3b8.jpg", caption: "Corredor principal de plásticos domésticos — D4" },
-      { src: "/manus-storage/d4_plasticos7_713a19b7.jpg", caption: "Estandes de organização doméstica — 2º Andar D4" },
-      { src: "/manus-storage/d4_plasticos8_cfef54dd.jpg", caption: "Variedade de kits de banheiro e organizadores — D4" },
+      { src: "/manus-storage/yiwu_d4_corridor_457f9374.png", caption: "Estandes de artigos domésticos — Entrada do Distrito 4" },
+      { src: "/manus-storage/yiwu_plastic_bd0ef666.png", caption: "Variedade de produtos de organização doméstica — D4" },
+      { src: "/manus-storage/yiwu_d4_corridor_457f9374.png", caption: "Corredor de artigos de utilidades — Distrito 4" },
+      { src: "/manus-storage/yiwu_plastic_bd0ef666.png", caption: "Produtos de organização e limpeza — 1º Andar do D4" },
+      { src: "/manus-storage/yiwu_d4_corridor_457f9374.png", caption: "Artigos domésticos variados — Corredor do D4" },
+      { src: "/manus-storage/yiwu_plastic_bd0ef666.png", caption: "Corredor principal de plásticos domésticos — D4" },
+      { src: "/manus-storage/yiwu_plastic_bd0ef666.png", caption: "Estandes de organização doméstica — 2º Andar D4" },
+      { src: "/manus-storage/yiwu_plastic_bd0ef666.png", caption: "Variedade de kits de banheiro e organizadores — D4" },
     ],
     floorGuide: [
       { floor: "1º Andar", content: "Artigos de limpeza, vassouras, rodos, esponjas e produtos de higiene básicos", highlight: false },
@@ -297,12 +298,14 @@ function PhotoGallery() {
         style={{ background: "oklch(0.13 0.04 240)" }}
         onClick={() => setZoomed(true)}
       >
-        <img
+        <SafeImage
           key={photo.id}
           src={photo.src}
           alt={photo.title}
+          fallbackLabel={photo.title}
+          fallbackHint="Imagem de mapa indisponível"
           className="w-full object-contain transition-transform duration-300 group-hover:scale-[1.01]"
-          style={{ maxHeight: "520px" }}
+          style={{ maxHeight: "520px", minHeight: "360px" }}
         />
         <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <ZoomIn className="w-4 h-4 text-white" />
@@ -318,11 +321,12 @@ function PhotoGallery() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           onClick={() => setZoomed(false)}
         >
-          <img
+          <SafeImage
             src={photo.src}
             alt={photo.title}
+            fallbackLabel={photo.title}
             className="max-w-full max-h-full rounded-xl shadow-2xl cursor-zoom-out"
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: "contain", minWidth: "360px", minHeight: "360px" }}
           />
           <button
             className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-2 text-white transition-colors"
@@ -377,9 +381,10 @@ function DistrictGallery({ district }: { district: typeof districts[0] }) {
         style={{ background: "oklch(0.13 0.04 240)" }}
         onClick={() => setZoomed(true)}
       >
-        <img
+        <SafeImage
           src={photo.src}
           alt={photo.caption}
+          fallbackLabel={photo.caption}
           className="w-full h-56 object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -418,7 +423,7 @@ function DistrictGallery({ district }: { district: typeof districts[0] }) {
                 : "border-white/10 opacity-50 hover:opacity-90 hover:border-white/30"
             }`}
           >
-            <img src={p.src} alt={p.caption} className="w-full h-full object-cover" />
+            <SafeImage src={p.src} alt={p.caption} fallbackLabel={`Foto ${i + 1}`} className="w-full h-full object-cover" />
             {i === photoIdx && (
               <div className="absolute inset-0 ring-2 ring-amber-400/60 rounded-lg" />
             )}
@@ -432,10 +437,12 @@ function DistrictGallery({ district }: { district: typeof districts[0] }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
           onClick={() => setZoomed(false)}
         >
-          <img
+          <SafeImage
             src={photo.src}
             alt={photo.caption}
+            fallbackLabel={photo.caption}
             className="max-w-full max-h-[85vh] rounded-xl shadow-2xl object-contain cursor-zoom-out"
+            style={{ minWidth: "360px", minHeight: "360px" }}
           />
           <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white text-sm bg-black/70 px-5 py-2 rounded-full whitespace-nowrap">
             {photo.caption}

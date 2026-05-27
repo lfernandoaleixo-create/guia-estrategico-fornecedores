@@ -2,8 +2,13 @@
  * Stub local do trpc.diario.* — replica fielmente a API original do tRPC,
  * mas persiste tudo em localStorage. Permite que a UI de Anotações funcione
  * sem servidor / login.
+ *
+ * IMPORTANTE: Para evitar loop infinito com useSyncExternalStore,
+ * mantemos referências CACHEADAS dos arrays de Negociacoes/Entradas e só as
+ * substituímos quando há mutação real. Isso garante que getSnapshot retorne
+ * a mesma referência entre chamadas se nada mudou.
  */
-import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
+import { useEffect, useState, useCallback, useSyncExternalStore, useMemo } from "react";
 import type { Negociacao, EntradaDiario } from "./types";
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -13,11 +18,12 @@ const ENT_KEY = "tapete-entradas-diario-v1";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-function emit() {
-  listeners.forEach(l => l());
-}
 
-function loadNegs(): Negociacao[] {
+// Caches estáveis — só mudam quando há mutação
+let cachedNegs: Negociacao[] | null = null;
+let cachedEnts: EntradaDiario[] | null = null;
+
+function loadNegsRaw(): Negociacao[] {
   try {
     const raw = localStorage.getItem(NEG_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -25,14 +31,8 @@ function loadNegs(): Negociacao[] {
     return [];
   }
 }
-function saveNegs(arr: Negociacao[]) {
-  try {
-    localStorage.setItem(NEG_KEY, JSON.stringify(arr));
-  } catch {
-    /* ignore */
-  }
-}
-function loadEnts(): EntradaDiario[] {
+
+function loadEntsRaw(): EntradaDiario[] {
   try {
     const raw = localStorage.getItem(ENT_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -40,7 +40,32 @@ function loadEnts(): EntradaDiario[] {
     return [];
   }
 }
+
+function getNegs(): Negociacao[] {
+  if (cachedNegs === null) {
+    cachedNegs = loadNegsRaw();
+  }
+  return cachedNegs;
+}
+
+function getEnts(): EntradaDiario[] {
+  if (cachedEnts === null) {
+    cachedEnts = loadEntsRaw();
+  }
+  return cachedEnts;
+}
+
+function saveNegs(arr: Negociacao[]) {
+  cachedNegs = arr;
+  try {
+    localStorage.setItem(NEG_KEY, JSON.stringify(arr));
+  } catch {
+    /* ignore */
+  }
+}
+
 function saveEnts(arr: EntradaDiario[]) {
+  cachedEnts = arr;
   try {
     localStorage.setItem(ENT_KEY, JSON.stringify(arr));
   } catch {
@@ -48,10 +73,20 @@ function saveEnts(arr: EntradaDiario[]) {
   }
 }
 
+function emit() {
+  listeners.forEach(l => l());
+}
+
 // Storage cross-tab sync
 if (typeof window !== "undefined") {
   window.addEventListener("storage", e => {
-    if (e.key === NEG_KEY || e.key === ENT_KEY) emit();
+    if (e.key === NEG_KEY) {
+      cachedNegs = null; // força re-load
+      emit();
+    } else if (e.key === ENT_KEY) {
+      cachedEnts = null;
+      emit();
+    }
   });
 }
 
@@ -74,17 +109,16 @@ type QueryResult<T> = {
   refetch: () => void;
 };
 
-function useStore<T>(read: () => T): T {
-  // Re-render quando muda (subscription) e re-lê value
-  return useSyncExternalStore(
-    subscribe,
-    read,
-    read,
-  );
+function useNegs(): Negociacao[] {
+  return useSyncExternalStore(subscribe, getNegs, getNegs);
+}
+
+function useEnts(): EntradaDiario[] {
+  return useSyncExternalStore(subscribe, getEnts, getEnts);
 }
 
 function useListarNegociacoes(): QueryResult<Negociacao[]> {
-  const data = useStore(loadNegs);
+  const data = useNegs();
   return {
     data,
     isLoading: false,
@@ -97,14 +131,16 @@ function useListarEntradas(
   opts: { enabled?: boolean } = {},
 ): QueryResult<EntradaDiario[]> {
   const enabled = opts.enabled ?? true;
-  const data = useStore(() => {
+  const allEnts = useEnts();
+  // Filtrar/sort de forma memoizada — referência estável
+  const data = useMemo(() => {
     if (!enabled) return undefined;
-    return loadEnts()
+    return allEnts
       .filter(e => e.negociacaoId === input.negociacaoId)
       .sort((a, b) => b.dataEntrada - a.dataEntrada);
-  });
+  }, [allEnts, enabled, input.negociacaoId]);
   return {
-    data: enabled ? data : undefined,
+    data,
     isLoading: false,
     refetch: () => emit(),
   };
@@ -142,7 +178,10 @@ function useMutation<TInput, TOutput>(
         setPending(false);
       }
     },
-    [fn, opts],
+    // fn e opts geralmente são novos a cada render — não os incluímos
+    // para manter a referência estável (callback latest pattern)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
   const mutate = useCallback(
     (vars: TInput, localOpts?: { onSuccess?: (d: TOutput) => void }) => {
@@ -155,7 +194,7 @@ function useMutation<TInput, TOutput>(
   return { mutate, mutateAsync, isPending };
 }
 
-// ─── API trpc-stub ────────────────────────────────────────────────────────────
+// ─── Mutation logic (impl) ────────────────────────────────────────────────────
 
 function salvarNegociacao(input: {
   empresaId: string;
@@ -164,22 +203,22 @@ function salvarNegociacao(input: {
   status: string;
   prioridade: "alta" | "media" | "baixa";
 }): Negociacao {
-  const arr = loadNegs();
+  const arr = [...getNegs()];
   const idx = arr.findIndex(n => n.empresaId === input.empresaId);
   const now = Date.now();
+  let item: Negociacao;
   if (idx >= 0) {
-    arr[idx] = { ...arr[idx], ...input, updatedAt: now };
-    saveNegs(arr);
-    emit();
-    return arr[idx];
+    item = { ...arr[idx], ...input, updatedAt: now };
+    arr[idx] = item;
+  } else {
+    item = {
+      id: nextId(arr),
+      ...input,
+      createdAt: now,
+      updatedAt: now,
+    };
+    arr.unshift(item);
   }
-  const item: Negociacao = {
-    id: nextId(arr),
-    ...input,
-    createdAt: now,
-    updatedAt: now,
-  };
-  arr.unshift(item);
   saveNegs(arr);
   emit();
   return item;
@@ -195,7 +234,7 @@ function criarEntrada(input: {
   anexos?: string;
   dataEntrada: number;
 }): EntradaDiario {
-  const arr = loadEnts();
+  const arr = [...getEnts()];
   const item: EntradaDiario = {
     id: nextId(arr),
     ...input,
@@ -213,14 +252,13 @@ function uploadAnexo(input: {
   base64: string;
   empresaId: string;
 }): { nome: string; url: string; key: string } {
-  // No backend real, faria upload S3. Aqui mantemos como dataURL local.
   const dataUrl = `data:${input.mimeType};base64,${input.base64}`;
   const key = `${input.empresaId}-${Date.now()}-${input.fileName}`;
   return { nome: input.fileName, url: dataUrl, key };
 }
 
 function deletarEntrada(input: { id: number }) {
-  const arr = loadEnts().filter(e => e.id !== input.id);
+  const arr = getEnts().filter(e => e.id !== input.id);
   saveEnts(arr);
   emit();
   return { ok: true };
@@ -232,11 +270,13 @@ const utils = {
   diario: {
     listarNegociacoes: {
       invalidate: async () => {
+        cachedNegs = null;
         emit();
       },
     },
     listarEntradas: {
       invalidate: async (_input?: { negociacaoId: number }) => {
+        cachedEnts = null;
         emit();
       },
     },

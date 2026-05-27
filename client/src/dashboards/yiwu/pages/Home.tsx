@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import Header from "@yiwu/components/Header";
 import { ArrowRight, BarChart3, Building2, Globe, MapPin, Package, TrendingUp } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 
 const HERO_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/fVKWEm8u2i7QfqAdFtxLtp/hero_yiwu_market-Cef2KRhBtVXGAvZe2d24xv.webp";
-const GLASS_IMG = "/manus-storage/glassware_yiwu_9964e484.png";
-const PLASTIC_IMG = "/manus-storage/plastic_household_514ed902.png";
-const THERMOS_IMG = "/manus-storage/thermos_bottles_97f200e6.png";
+const GLASS_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/yiwu_glassware-eVR5XVMkRSut7voNwN26XM.webp";
+const PLASTIC_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/yiwu_plastic-RReDuuh5LXVn5sRjqy8SYP.webp";
+const THERMOS_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/yiwu_thermos-VUqPsnmHZaCxDMgQ376pTx.webp";
 
 function AnimatedCounter({ target, duration = 1500, suffix = "" }: { target: number; duration?: number; suffix?: string }) {
   const [count, setCount] = useState(0);
@@ -88,9 +89,10 @@ export default function Home() {
       <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img
+          <SafeImage
             src={HERO_IMG}
             alt="Mercado Internacional de Yiwu"
+            fallbackLabel="Mercado Internacional de Yiwu"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0" style={{
@@ -180,7 +182,7 @@ export default function Home() {
               <Link key={cat.title} href="/fornecedores">
                 <div className={`rounded-xl overflow-hidden border ${cat.border} supplier-card cursor-pointer`}>
                   <div className="relative h-48 overflow-hidden">
-                    <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                    <SafeImage src={cat.img} alt={cat.title} fallbackLabel={cat.title} className="w-full h-full object-cover" />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, oklch(0.13 0.04 240) 0%, transparent 60%)' }} />
                     <div className="absolute bottom-3 left-3">
                       <span className={`text-xs font-mono px-2 py-1 rounded-full border ${cat.border} bg-black/40 ${cat.color}`}>{cat.ncm}</span>
