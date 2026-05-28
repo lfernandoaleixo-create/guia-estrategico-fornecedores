@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@yiwu/components/Header";
 import SafeImage from "@/components/SafeImage";
 import {
   MapPin, ChevronRight, Layers, Navigation,
-  Info, Building2, Map, Camera, ZoomIn, ChevronLeft, X
+  Info, Building2, Map, Camera, ZoomIn, ChevronLeft, X, Star
 } from "lucide-react";
+
+// Chave do localStorage onde guardamos os destaques manuais por (distrito|andar)
+const FLOOR_HIGHLIGHTS_KEY = "yiwu:floorHighlights:v1";
 
 // ─── Fotos panorâmicas do mercado ────────────────────────────────────────────
 const marketPhotos = [
@@ -481,6 +484,33 @@ export default function MarketMap() {
   const [selected, setSelected] = useState<number>(2);
   const selectedDistrict = districts.find(d => d.id === selected)!;
 
+  // ─── Destaques manuais de andares (persistidos em localStorage) ──────────
+  const [manualHighlights, setManualHighlights] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(FLOOR_HIGHLIGHTS_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(FLOOR_HIGHLIGHTS_KEY, JSON.stringify(manualHighlights));
+    } catch {
+      /* sem espaço/permissão — ignora */
+    }
+  }, [manualHighlights]);
+  const toggleFloorHighlight = (key: string) => {
+    setManualHighlights((prev) => {
+      const next = { ...prev };
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -697,49 +727,67 @@ export default function MarketMap() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Guia por Andar */}
                   <div>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
                       <Layers className="w-4 h-4" />
                       Guia por Andar — {selectedDistrict.name}
                     </h4>
+                    <p className="text-[11px] text-muted-foreground mb-3 italic">
+                      Clique em qualquer andar para marcá-lo como destaque (★). Suas marcações ficam salvas.
+                    </p>
                     <div className="space-y-2">
-                      {selectedDistrict.floorGuide.map((item, i) => (
-                        <div
-                          key={item.floor}
-                          className="rounded-xl border p-4 flex items-start gap-3 transition-all"
-                          style={item.highlight ? {
-                            borderColor: selectedDistrict.color + "50",
-                            background: selectedDistrict.color + "08",
-                          } : {
-                            borderColor: "oklch(0.92 0.004 286.32 / 0.2)",
-                            background: "oklch(0.967 0.001 286.375 / 0.03)",
-                          }}
-                        >
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-mono font-bold"
-                            style={item.highlight ? {
-                              background: selectedDistrict.color + "20",
-                              color: selectedDistrict.color,
-                              border: `1px solid ${selectedDistrict.color}40`,
+                      {selectedDistrict.floorGuide.map((item, i) => {
+                        const key = `${selectedDistrict.id}|${item.floor}`;
+                        const isManual = !!manualHighlights[key];
+                        const isHighlighted = item.highlight || isManual;
+                        return (
+                          <button
+                            key={item.floor}
+                            type="button"
+                            onClick={() => toggleFloorHighlight(key)}
+                            className="w-full text-left rounded-xl border p-4 flex items-start gap-3 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                            style={isHighlighted ? {
+                              borderColor: selectedDistrict.color + "50",
+                              background: selectedDistrict.color + "08",
                             } : {
-                              background: "oklch(0.967 0.001 286.375 / 0.08)",
-                              color: "oklch(0.552 0.016 285.938)",
+                              borderColor: "oklch(0.92 0.004 286.32 / 0.2)",
+                              background: "oklch(0.967 0.001 286.375 / 0.03)",
                             }}
+                            aria-pressed={isHighlighted}
+                            title={isHighlighted ? "Clique para remover destaque" : "Clique para destacar este andar"}
                           >
-                            {i + 1}
-                          </div>
-                          <div>
                             <div
-                              className="text-xs font-semibold mb-0.5"
-                              style={item.highlight ? { color: selectedDistrict.color } : { color: "oklch(0.552 0.016 285.938)" }}
+                              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-mono font-bold"
+                              style={isHighlighted ? {
+                                background: selectedDistrict.color + "20",
+                                color: selectedDistrict.color,
+                                border: `1px solid ${selectedDistrict.color}40`,
+                              } : {
+                                background: "oklch(0.967 0.001 286.375 / 0.08)",
+                                color: "oklch(0.552 0.016 285.938)",
+                              }}
                             >
-                              {item.floor}
+                              {i + 1}
                             </div>
-                            <div className={`text-sm ${item.highlight ? "text-foreground font-medium" : "text-foreground/80"}`}>
-                              {item.content}
+                            <div className="flex-1 min-w-0">
+                              <div
+                                className="text-xs font-semibold mb-0.5 flex items-center gap-1.5"
+                                style={isHighlighted ? { color: selectedDistrict.color } : { color: "oklch(0.552 0.016 285.938)" }}
+                              >
+                                {item.floor}
+                                {isManual && (
+                                  <Star
+                                    className="w-3 h-3 fill-current"
+                                    aria-label="Destaque manual"
+                                  />
+                                )}
+                              </div>
+                              <div className={`text-sm ${isHighlighted ? "text-foreground font-medium" : "text-foreground/80"}`}>
+                                {item.content}
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
