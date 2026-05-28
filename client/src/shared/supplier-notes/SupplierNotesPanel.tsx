@@ -10,7 +10,7 @@
 //   - Data atualizada automaticamente (sem hora)
 // =============================================================================
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GroupPicker } from "./GroupPicker";
 import { MigrateButton } from "./MigrateButton";
 import {
@@ -131,6 +131,7 @@ export default function SupplierNotesPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const catalogosRef = useRef<HTMLInputElement>(null);
   const fotosRef = useRef<HTMLInputElement>(null);
   const cotacoesRef = useRef<HTMLInputElement>(null);
@@ -163,11 +164,40 @@ export default function SupplierNotesPanel({
     upsertEntry(supplierId, { status, observacoes, fields });
     upsertQuoteRows(supplierId, quoteRows);
     flashSaved();
-    // Fecha o painel automaticamente ~600ms depois (tempo do toast "salvo").
     if (onSaved) {
-      window.setTimeout(() => onSaved(), 600);
+      // Estratégia: ancorar visualmente o card pai (cabeçalho colapsável)
+      // à mesma posição do viewport antes/depois do recolhimento.
+      // 1) Captura o card pai (ancestral mais próximo do painel).
+      const root = rootRef.current;
+      const card =
+        (root?.closest("[data-supplier-card]") as HTMLElement | null) ??
+        (root?.parentElement?.parentElement as HTMLElement | null);
+      const prevTop = card?.getBoundingClientRect().top ?? null;
+      const prevScrollY = window.scrollY;
+      window.setTimeout(() => {
+        onSaved();
+        // Após o DOM atualizar, recoloca o card na mesma altura visual.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (card && prevTop !== null) {
+              const newTop = card.getBoundingClientRect().top;
+              const delta = newTop - prevTop;
+              window.scrollTo({ top: window.scrollY + delta, left: 0, behavior: "auto" });
+            } else {
+              window.scrollTo({ top: prevScrollY, left: 0, behavior: "auto" });
+            }
+          });
+        });
+      }, 600);
     }
   };
+
+  // Garante que, ao desmontar/recolher o painel, não haja jump.
+  useLayoutEffect(() => {
+    return () => {
+      // no-op: a restauração explícita acontece em handleSave
+    };
+  }, []);
 
   // -------- Tabela de cotação --------
   const newQuoteRow = (): QuoteRow => ({
@@ -261,6 +291,7 @@ export default function SupplierNotesPanel({
 
   return (
     <div
+      ref={rootRef}
       className="rounded-xl border bg-white p-4 sm:p-5 text-zinc-800"
       style={{ borderColor: "#e4e4e7" }}
     >
