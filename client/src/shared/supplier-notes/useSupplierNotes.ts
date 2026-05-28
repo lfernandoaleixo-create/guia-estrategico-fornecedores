@@ -22,10 +22,11 @@ export type SupplierStatus =
   | "fornecedor-aprovado"
   | "descartado";
 
-export type AttachmentCategory = "catalogos" | "cotacoes" | "outros";
+export type AttachmentCategory = "catalogos" | "fotos" | "cotacoes" | "outros";
 
 export const ATTACHMENT_CATEGORY_LABEL: Record<AttachmentCategory, string> = {
-  catalogos: "Catálogos & Fotos",
+  catalogos: "Catálogos",
+  fotos: "Fotos",
   cotacoes: "Cotações",
   outros: "Outros documentos",
 };

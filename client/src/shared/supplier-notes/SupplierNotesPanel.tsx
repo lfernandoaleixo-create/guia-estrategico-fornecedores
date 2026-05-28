@@ -37,6 +37,7 @@ import {
   Check,
   FileSpreadsheet,
   Camera,
+  BookOpen,
   DollarSign,
   Folder,
   Plus,
@@ -131,6 +132,7 @@ export default function SupplierNotesPanel({
   const [savedHint, setSavedHint] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const catalogosRef = useRef<HTMLInputElement>(null);
+  const fotosRef = useRef<HTMLInputElement>(null);
   const cotacoesRef = useRef<HTMLInputElement>(null);
   const outrosRef = useRef<HTMLInputElement>(null);
 
@@ -233,6 +235,7 @@ export default function SupplierNotesPanel({
     }
     const refs: Record<AttachmentCategory, React.RefObject<HTMLInputElement | null>> = {
       catalogos: catalogosRef,
+      fotos: fotosRef,
       cotacoes: cotacoesRef,
       outros: outrosRef,
     };
@@ -477,11 +480,11 @@ export default function SupplierNotesPanel({
         </div>
       )}
 
-      {/* CATÁLOGOS & FOTOS */}
+      {/* CATÁLOGOS */}
       <AttachmentBucket
         title={ATTACHMENT_CATEGORY_LABEL.catalogos}
-        subtitle="Catálogos, brochuras e fotos do showroom (PDF, JPG, PNG)"
-        icon={<Camera size={14} />}
+        subtitle="Catálogos, brochuras, line sheets e folders do fornecedor (PDF, JPG, PNG)"
+        icon={<BookOpen size={14} />}
         accent="#0ea5e9"
         items={groupAttachments("catalogos")}
         accept="image/*,application/pdf"
@@ -489,6 +492,20 @@ export default function SupplierNotesPanel({
         onRemove={(id) => removeAttachment(supplierId, id)}
         inputRef={catalogosRef}
         onFiles={(files) => handleFiles(files, "catalogos")}
+      />
+
+      {/* FOTOS */}
+      <AttachmentBucket
+        title={ATTACHMENT_CATEGORY_LABEL.fotos}
+        subtitle="Fotos do showroom, fábrica, embalagens e produtos avulsos (JPG, PNG)"
+        icon={<Camera size={14} />}
+        accent="#db2777"
+        items={groupAttachments("fotos")}
+        accept="image/*"
+        onPick={() => fotosRef.current?.click()}
+        onRemove={(id) => removeAttachment(supplierId, id)}
+        inputRef={fotosRef}
+        onFiles={(files) => handleFiles(files, "fotos")}
       />
 
       {/* COTAÇÕES — tabela editável + arquivos */}

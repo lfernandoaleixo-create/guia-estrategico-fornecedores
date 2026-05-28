@@ -14,7 +14,7 @@ import {
   ATTACHMENT_CATEGORY_LABEL,
   type AttachmentCategory,
 } from "./useSupplierNotes";
-import { Camera, DollarSign, Folder, Calendar, Filter } from "lucide-react";
+import { Camera, BookOpen, DollarSign, Folder, Calendar, Filter } from "lucide-react";
 
 interface Props {
   scope: "aquario" | "tapete" | "yiwu";
@@ -92,7 +92,7 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
   }, [range, today, customFrom, customTo]);
 
   const counts = useMemo(() => {
-    const c: Record<AttachmentCategory, number> = { catalogos: 0, cotacoes: 0, outros: 0 };
+    const c: Record<AttachmentCategory, number> = { catalogos: 0, fotos: 0, cotacoes: 0, outros: 0 };
     Object.values(entries).forEach((e) => {
       e.attachments.forEach((a) => {
         const d = parseAddedAt(a.addedAt);
@@ -106,7 +106,7 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
     return c;
   }, [entries, from, to]);
 
-  const total = counts.catalogos + counts.cotacoes + counts.outros;
+  const total = counts.catalogos + counts.fotos + counts.cotacoes + counts.outros;
   const isDark = tone === "dark";
 
   const containerClass = isDark
@@ -129,7 +129,8 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
     }`;
 
   const kpis: { key: AttachmentCategory; icon: React.ElementType; color: string }[] = [
-    { key: "catalogos", icon: Camera, color: "#0891b2" },
+    { key: "catalogos", icon: BookOpen, color: "#0891b2" },
+    { key: "fotos", icon: Camera, color: "#db2777" },
     { key: "cotacoes", icon: DollarSign, color: "#16a34a" },
     { key: "outros", icon: Folder, color: "#a855f7" },
   ];
@@ -177,7 +178,7 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         {kpis.map(({ key, icon: Icon, color }) => (
           <div
             key={key}
