@@ -19,6 +19,7 @@ const baseDashboards = [
     icon: Fish,
     chips: ["Aquários", "Terrários", "Equipamentos", "Mercado Atacado"],
     badge: "中国",
+    groupNumber: 1,
   },
   {
     href: "/tapete",
@@ -34,6 +35,7 @@ const baseDashboards = [
     icon: PawPrint,
     chips: ["Exportadores", "Importadores", "NCM 4818", "Diário"],
     badge: "BR×CN",
+    groupNumber: 2,
   },
   {
     href: "/yiwu",
@@ -107,6 +109,7 @@ export default function Home() {
       return {
         href: `/grupo/${g.id}`,
         eyebrow: `DASHBOARD ${String(3 + idx + 1).padStart(2, "0")}`,
+        groupNumber: g.number,
         title: g.name,
         subtitle: `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
         description:
@@ -336,10 +339,28 @@ export default function Home() {
                     {d.badge}
                   </div>
 
-                  {/* Eyebrow */}
-                  <div className="text-[10px] tracking-[0.25em] font-semibold mb-5"
-                       style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}>
-                    {d.eyebrow}
+                  {/* Eyebrow + número do grupo */}
+                  <div className="flex items-center gap-2 mb-5">
+                    <span
+                      className="text-[10px] tracking-[0.25em] font-semibold"
+                      style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {d.eyebrow}
+                    </span>
+                    {("groupNumber" in d && typeof d.groupNumber === "number") && (
+                      <span
+                        className="text-[10px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-full uppercase"
+                        style={{
+                          color: d.accent,
+                          background: d.accentBg,
+                          border: `1px solid ${d.accentBorder}`,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                        title={`Grupo número ${d.groupNumber}`}
+                      >
+                        Grupo · Nº {String(d.groupNumber).padStart(2, "0")}
+                      </span>
+                    )}
                   </div>
 
                   {/* Icon */}
