@@ -10,6 +10,7 @@ import {
   type SupplierScope,
   genContactId,
 } from "./useCustomSuppliers";
+import { GroupPicker } from "./GroupPicker";
 
 interface Props {
   open: boolean;
@@ -47,6 +48,7 @@ interface FormState {
   paymentTerms: string;
   incoterm: string;
   notes: string;
+  groupIds: string[];
 }
 
 function emptyState(): FormState {
@@ -73,6 +75,7 @@ function emptyState(): FormState {
     paymentTerms: "",
     incoterm: "",
     notes: "",
+    groupIds: [],
   };
 }
 
@@ -100,6 +103,7 @@ function fromSupplier(s: CustomSupplier): FormState {
     paymentTerms: s.paymentTerms ?? "",
     incoterm: s.incoterm ?? "",
     notes: s.notes ?? "",
+    groupIds: s.groupIds ?? [],
   };
 }
 
@@ -213,6 +217,7 @@ export default function CustomSupplierFormDialog({
         paymentTerms: state.paymentTerms.trim() || undefined,
         incoterm: state.incoterm.trim() || undefined,
         notes: state.notes.trim() || undefined,
+        groupIds: state.groupIds.length > 0 ? state.groupIds : undefined,
       });
       onClose();
     } catch (e) {
@@ -294,6 +299,19 @@ export default function CustomSupplierFormDialog({
                 palette={palette}
               />
             </Grid>
+          </Section>
+
+          {/* Grupos */}
+          <Section title="Grupos" palette={palette}>
+            <p className={`text-xs mb-2 ${palette.label}`}>
+              Marque os grupos a que este fornecedor pertence. Você pode escolher entre os já criados
+              ou clicar em “+ novo grupo” para criar uma nova categoria.
+            </p>
+            <GroupPicker
+              tone={isDark ? "dark" : "light"}
+              selectedIds={state.groupIds}
+              onChange={(ids) => setField("groupIds", ids)}
+            />
           </Section>
 
           {/* Localização */}

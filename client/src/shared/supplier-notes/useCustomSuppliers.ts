@@ -53,6 +53,9 @@ export interface CustomSupplier {
 
   // Texto livre
   notes?: string;
+
+  // Grupos atribuídos a este fornecedor manual (IDs do useSupplierGroups)
+  groupIds?: string[];
 }
 
 // ─── Persistência IndexedDB ──────────────────────────────────────────────────
