@@ -111,7 +111,40 @@ export function useSupplierGroups() {
 
   const reload = useCallback(async () => {
     try {
-      const all = await dbReadAll();
+      let all = await dbReadAll();
+      // Seed inicial: garante que existam os grupos fixos do portal
+      // (Nº 01 = Aquários & Terrários, Nº 02 = Tapete Higiênico Pet).
+      // Só cria se ainda não houver nenhum grupo no IndexedDB.
+      if (all.length === 0) {
+        const seeds: SupplierGroup[] = [
+          {
+            id: "grp_seed_aquario_terrario",
+            number: 1,
+            name: "Aquários & Terrários",
+            legend: "Aquariofilia, terrários e equipamentos",
+            color: "#ef4444",
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          },
+          {
+            id: "grp_seed_tapete_higienico",
+            number: 2,
+            name: "Tapete Higiênico Pet",
+            legend: "Importação de tapetes higiênicos (NCM 4818)",
+            color: "#06b6d4",
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          },
+        ];
+        for (const s of seeds) {
+          try {
+            await dbPut(s);
+          } catch (err) {
+            console.warn("[useSupplierGroups seed]", err);
+          }
+        }
+        all = await dbReadAll();
+      }
       // Migração leve: garante number atribuído.
       const used = new Set<number>();
       all.forEach((g) => {

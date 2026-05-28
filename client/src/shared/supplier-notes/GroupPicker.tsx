@@ -56,7 +56,7 @@ export function GroupPicker({ selectedIds, onChange, tone = "light" }: Props) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {groups.length === 0 && (
           <div style={{ fontSize: 13, color: hintColor, fontStyle: "italic" }}>
-            Nenhum grupo criado ainda. Use &quot;+ novo grupo&quot; ao lado para criar a primeira categoria.
+            Selecione um grupo abaixo para classificar este fornecedor, ou clique em &quot;+ novo grupo&quot; para criar uma categoria.
           </div>
         )}
         {groups.map((g) => {
