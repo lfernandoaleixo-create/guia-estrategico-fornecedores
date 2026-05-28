@@ -339,17 +339,25 @@ export default function Home() {
                     {d.badge}
                   </div>
 
-                  {/* Eyebrow + número do grupo */}
-                  <div className="flex items-center gap-2 mb-5">
-                    <span
-                      className="text-[10px] tracking-[0.25em] font-semibold"
-                      style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {d.eyebrow}
-                    </span>
+                  {/* Eyebrow */}
+                  <div className="text-[10px] tracking-[0.25em] font-semibold mb-5"
+                       style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    {d.eyebrow}
+                  </div>
+
+                  {/* Icon + badge do grupo (lado a lado, sem colidir com o ideograma) */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
+                         style={{
+                           background: d.accentBg,
+                           border: `1px solid ${d.accentBorder}`,
+                           color: d.accent,
+                         }}>
+                      <Icon className="w-5 h-5" />
+                    </div>
                     {("groupNumber" in d && typeof d.groupNumber === "number") && (
                       <span
-                        className="text-[10px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-full uppercase"
+                        className="text-[10px] tracking-[0.18em] font-bold px-2.5 py-1 rounded-full uppercase"
                         style={{
                           color: d.accent,
                           background: d.accentBg,
@@ -361,16 +369,6 @@ export default function Home() {
                         Grupo · Nº {String(d.groupNumber).padStart(2, "0")}
                       </span>
                     )}
-                  </div>
-
-                  {/* Icon */}
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                       style={{
-                         background: d.accentBg,
-                         border: `1px solid ${d.accentBorder}`,
-                         color: d.accent,
-                       }}>
-                    <Icon className="w-5 h-5" />
                   </div>
 
                   {/* Title */}
