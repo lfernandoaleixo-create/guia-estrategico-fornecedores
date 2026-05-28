@@ -21,6 +21,7 @@ import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
+import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
@@ -606,6 +607,23 @@ export default function Anotacoes() {
       {/* Gerenciar grupos */}
       <div className="mb-4">
         <GroupsManager tone="light" />
+
+        {/* Cards agregadores por grupo (atualiza conforme fábricas são marcadas) */}
+        <div className="mt-5">
+          <GroupSummaryCards
+            scope="tapete"
+            tone="light"
+            accent="#dc2626"
+            resolveSupplierName={(sid) => {
+              const found = todosExportadores.find((e) => e.nome === sid);
+              if (found) {
+                const c = contatosFabricas[found.nome as keyof typeof contatosFabricas] as ContatoFabrica | undefined;
+                return c?.nomeOficial ?? found.nome;
+              }
+              return sid;
+            }}
+          />
+        </div>
       </div>
 
       {/* Cadastro manual */}

@@ -21,6 +21,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
+import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 
 interface YiwuSupplier {
   id: number;
@@ -205,6 +206,19 @@ export default function YiwuAnotacoes() {
         {/* Gerenciar grupos */}
         <div className="mb-5">
           <GroupsManager tone="dark" />
+        </div>
+
+        {/* Cards agregadores por grupo (atualiza conforme fornecedores são marcados) */}
+        <div className="mb-5">
+          <GroupSummaryCards
+            scope="yiwu"
+            tone="dark"
+            accent="#0891b2"
+            resolveSupplierName={(sid) => {
+              const found = allSuppliers.find((s) => String(s.id) === sid);
+              return found?.name ?? sid;
+            }}
+          />
         </div>
 
         {/* Cadastro manual */}

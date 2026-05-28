@@ -16,6 +16,7 @@ import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
+import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -756,6 +757,19 @@ export default function Home() {
               {/* Gerenciar grupos */}
               <div className="mb-5">
                 <GroupsManager tone="light" />
+              </div>
+
+              {/* Cards agregadores por grupo (atualiza conforme fornecedores são marcados) */}
+              <div className="mb-5">
+                <GroupSummaryCards
+                  scope="aquario"
+                  tone="light"
+                  accent="#dc2626"
+                  resolveSupplierName={(sid) => {
+                    const found = suppliers.find((s) => s.id === sid);
+                    return found?.name ?? sid;
+                  }}
+                />
               </div>
 
               {/* Cadastro manual de fornecedores */}
