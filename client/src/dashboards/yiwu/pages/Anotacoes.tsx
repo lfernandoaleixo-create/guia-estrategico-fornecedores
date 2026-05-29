@@ -155,6 +155,7 @@ export default function YiwuAnotacoes() {
     const c: Record<string, number> = {
       "nao-visitado": 0,
       "contato-feito": 0,
+      "sem-retorno": 0,
       "amostra-solicitada": 0,
       negociando: 0,
       "fornecedor-aprovado": 0,

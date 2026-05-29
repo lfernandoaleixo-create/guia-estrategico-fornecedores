@@ -17,6 +17,7 @@ import { useState, useCallback, useEffect } from "react";
 export type SupplierStatus =
   | "nao-visitado"
   | "contato-feito"
+  | "sem-retorno"
   | "amostra-solicitada"
   | "negociando"
   | "fornecedor-aprovado"
@@ -83,6 +84,13 @@ export const STATUS_CONFIG: Record<
     bg: "#dbeafe",
     border: "#93c5fd",
   },
+  "sem-retorno": {
+    label: "Não deu retorno",
+    emoji: "📵",
+    color: "#7c2d12",
+    bg: "#fed7aa",
+    border: "#fb923c",
+  },
   "amostra-solicitada": {
     label: "Amostra solicitada",
     emoji: "📦",
@@ -116,6 +124,7 @@ export const STATUS_CONFIG: Record<
 export const STATUS_ORDER: SupplierStatus[] = [
   "nao-visitado",
   "contato-feito",
+  "sem-retorno",
   "amostra-solicitada",
   "negociando",
   "fornecedor-aprovado",

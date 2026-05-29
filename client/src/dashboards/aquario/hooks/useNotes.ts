@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect } from "react";
 export interface Note {
   supplierId: string;
   text: string;
-  status: "nao-visitado" | "contato-feito" | "amostra-solicitada" | "negociando" | "fornecedor-aprovado" | "descartado";
+  status: "nao-visitado" | "contato-feito" | "sem-retorno" | "amostra-solicitada" | "negociando" | "fornecedor-aprovado" | "descartado";
   updatedAt: string;
 }
 
@@ -90,6 +90,12 @@ export const statusConfig: Record<
     color: "oklch(0.35 0.12 220)",
     bg: "oklch(0.92 0.04 220)",
     emoji: "📧",
+  },
+  "sem-retorno": {
+    label: "Não deu retorno",
+    color: "oklch(0.45 0.15 45)",
+    bg: "oklch(0.92 0.06 45)",
+    emoji: "📵",
   },
   "amostra-solicitada": {
     label: "Amostra solicitada",
