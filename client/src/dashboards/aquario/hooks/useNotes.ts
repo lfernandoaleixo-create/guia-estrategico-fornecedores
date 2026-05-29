@@ -93,8 +93,8 @@ export const statusConfig: Record<
   },
   "sem-retorno": {
     label: "Não deu retorno",
-    color: "oklch(0.98 0 0)",
-    bg: "oklch(0.32 0.04 40)",
+    color: "oklch(0.28 0.03 40)",
+    bg: "oklch(0.86 0.02 40)",
     emoji: "📵",
   },
   "amostra-solicitada": {

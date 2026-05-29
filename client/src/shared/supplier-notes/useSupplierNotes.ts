@@ -87,9 +87,9 @@ export const STATUS_CONFIG: Record<
   "sem-retorno": {
     label: "Não deu retorno",
     emoji: "📵",
-    color: "#ffffff",
-    bg: "#5d4037",
-    border: "#3e2723",
+    color: "#3e2723",
+    bg: "#d7ccc8",
+    border: "#8d6e63",
   },
   "amostra-solicitada": {
     label: "Amostra solicitada",
