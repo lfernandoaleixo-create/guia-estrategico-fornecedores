@@ -22,6 +22,7 @@ import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSecti
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
+import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 
 interface YiwuSupplier {
   id: number;
@@ -215,6 +216,19 @@ export default function YiwuAnotacoes() {
             scope="yiwu"
             tone="dark"
             accent="#0891b2"
+            resolveSupplierName={(sid) => {
+              const found = allSuppliers.find((s) => String(s.id) === sid);
+              return found?.name ?? sid;
+            }}
+          />
+        </div>
+
+        {/* Relatório de Atividades */}
+        <div className="mb-5 p-5 rounded-xl border border-zinc-700/50 bg-zinc-900/40">
+          <ReportPanel
+            scope="yiwu"
+            scopeLabel="Yiwu Intel · Mercado Internacional"
+            entries={entries}
             resolveSupplierName={(sid) => {
               const found = allSuppliers.find((s) => String(s.id) === sid);
               return found?.name ?? sid;

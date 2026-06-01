@@ -22,6 +22,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
+import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
 import {
   Search, Factory, ChevronDown, ChevronUp, ExternalLink, Award,
@@ -624,6 +625,23 @@ export default function Anotacoes() {
             }}
           />
         </div>
+      </div>
+
+      {/* Relatório de Atividades */}
+      <div className="mb-4 p-5 rounded-xl border border-zinc-200 bg-white/80">
+        <ReportPanel
+          scope="tapete"
+          scopeLabel="Tapete Higiênico Pet · Importação"
+          entries={tapeteEntries}
+          resolveSupplierName={(sid) => {
+            const found = todosExportadores.find((e) => e.nome === sid);
+            if (found) {
+              const c = contatosFabricas[found.nome as keyof typeof contatosFabricas] as ContatoFabrica | undefined;
+              return c?.nomeOficial ?? found.nome;
+            }
+            return sid;
+          }}
+        />
       </div>
 
       {/* Cadastro manual */}

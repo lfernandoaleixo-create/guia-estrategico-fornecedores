@@ -17,6 +17,8 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
+import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -46,6 +48,23 @@ const subCategoryGroups = {
 const priorityOrder = { high: 0, medium: 1, low: 2 };
 
 type ViewMode = "lista" | "mapa" | "notas" | "diario" | "guia";
+
+function AquarioReportSection() {
+  const { entries } = useSupplierNotes("aquario");
+  return (
+    <div className="mb-5 p-5 rounded-xl border border-zinc-200 bg-white/80">
+      <ReportPanel
+        scope="aquario"
+        scopeLabel="Fornecedores Aquários & Terrários"
+        entries={entries}
+        resolveSupplierName={(sid) => {
+          const found = suppliers.find((s) => s.id === sid);
+          return found?.name ?? sid;
+        }}
+      />
+    </div>
+  );
+}
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -771,6 +790,9 @@ export default function Home() {
                   }}
                 />
               </div>
+
+              {/* Relatório de Atividades */}
+              <AquarioReportSection />
 
               {/* Cadastro manual de fornecedores */}
               <CustomSuppliersSection scope="aquario" />
