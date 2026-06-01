@@ -633,6 +633,7 @@ export default function Anotacoes() {
           scope="tapete"
           scopeLabel="Tapete Higiênico Pet · Importação"
           entries={tapeteEntries}
+          allSupplierIds={todosExportadores.filter(e => e.pais === "China" || e.pais === "Hong Kong").map(e => e.nome)}
           resolveSupplierName={(sid) => {
             const found = todosExportadores.find((e) => e.nome === sid);
             if (found) {

@@ -229,6 +229,7 @@ export default function YiwuAnotacoes() {
             scope="yiwu"
             scopeLabel="Yiwu Intel · Mercado Internacional"
             entries={entries}
+            allSupplierIds={allSuppliers.map((s) => String(s.id))}
             resolveSupplierName={(sid) => {
               const found = allSuppliers.find((s) => String(s.id) === sid);
               return found?.name ?? sid;

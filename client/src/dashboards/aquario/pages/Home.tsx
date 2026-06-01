@@ -57,6 +57,7 @@ function AquarioReportSection() {
         scope="aquario"
         scopeLabel="Fornecedores Aquários & Terrários"
         entries={entries}
+        allSupplierIds={suppliers.map((s) => s.id)}
         resolveSupplierName={(sid) => {
           const found = suppliers.find((s) => s.id === sid);
           return found?.name ?? sid;

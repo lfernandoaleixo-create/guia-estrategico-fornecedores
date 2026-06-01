@@ -20,6 +20,8 @@ interface ReportPanelProps {
   entries: Record<string, SupplierNoteEntry>;
   resolveSupplierName: (supplierId: string) => string;
   onDeleteEntry?: (supplierId: string) => void;
+  /** IDs de todos os fornecedores do dataset — os que não têm entry contam como "Não visitado" */
+  allSupplierIds?: string[];
   tone?: "dark" | "light";
 }
 
@@ -93,6 +95,7 @@ export default function ReportPanel({
   entries,
   resolveSupplierName,
   onDeleteEntry,
+  allSupplierIds,
 }: ReportPanelProps) {
   const dark = (scope === "yiwu");
   const [period, setPeriod] = useState<PeriodFilter>("todos");
@@ -101,12 +104,34 @@ export default function ReportPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
+  // Build virtual entries: fornecedores sem entry = "nao-visitado"
+  const allEntries = useMemo(() => {
+    const real = Object.values(entries);
+    if (!allSupplierIds || allSupplierIds.length === 0) return real;
+    const existingIds = new Set(real.map((e) => e.supplierId));
+    const today = new Date().toLocaleDateString("pt-BR");
+    const virtual: SupplierNoteEntry[] = allSupplierIds
+      .filter((id) => !existingIds.has(id))
+      .map((id) => ({
+        supplierId: id,
+        status: "nao-visitado" as SupplierStatus,
+        observacoes: "",
+        fields: {} as Record<string, string>,
+        attachments: [],
+        quoteRows: [],
+        groupIds: [],
+        createdAt: today,
+        updatedAt: today,
+      }));
+    return [...real, ...virtual];
+  }, [entries, allSupplierIds]);
+
   // Filter entries by period (based on updatedAt)
   const filteredEntries = useMemo(() => {
-    return Object.values(entries).filter((e) =>
+    return allEntries.filter((e) =>
       isWithinPeriod(e.updatedAt, period, customStart, customEnd)
     );
-  }, [entries, period, customStart, customEnd]);
+  }, [allEntries, period, customStart, customEnd]);
 
   // Summary by status
   const statusSummary = useMemo(() => {
