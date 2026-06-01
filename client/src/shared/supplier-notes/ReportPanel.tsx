@@ -171,120 +171,257 @@ export default function ReportPanel({
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-
-      // Header
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Relatório de Fornecedores — ${scopeLabel}`, 14, 18);
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
       const periodLabel = formatPeriodLabel(period, customStart, customEnd);
-      doc.text(
-        `Período: ${periodLabel}  |  Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-        14,
-        25
-      );
-      doc.setTextColor(0);
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("pt-BR");
+      const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-      // Summary table
-      doc.setFontSize(11);
+      // Color palette per scope
+      const palette: Record<string, { primary: number[]; secondary: number[]; accent: number[] }> = {
+        aquario: { primary: [234, 88, 12], secondary: [255, 237, 213], accent: [194, 65, 12] },
+        tapete: { primary: [8, 145, 178], secondary: [207, 250, 254], accent: [14, 116, 144] },
+        yiwu: { primary: [202, 138, 4], secondary: [254, 249, 195], accent: [161, 98, 7] },
+      };
+      const colors = palette[scope] || palette.yiwu;
+
+      // Status color map (RGB)
+      const statusColors: Record<string, number[]> = {
+        "nao-visitado": [158, 158, 158],
+        "contato-feito": [33, 150, 243],
+        "sem-retorno": [121, 85, 72],
+        "amostra-solicitada": [255, 152, 0],
+        "negociando": [255, 193, 7],
+        "aprovado": [76, 175, 80],
+        "descartado": [244, 67, 54],
+      };
+
+      // ===== PAGE 1: Cover + Summary =====
+      // Header band
+      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.rect(0, 0, pageWidth, 32, "F");
+
+      // Title
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text("Resumo por Status", 14, 34);
+      doc.setTextColor(255, 255, 255);
+      doc.text("RELAT\u00d3RIO DE ATIVIDADES", pageWidth / 2, 14, { align: "center" });
 
+      // Subtitle
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(scopeLabel, pageWidth / 2, 22, { align: "center" });
+
+      // Period + date line
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Per\u00edodo: ${periodLabel}  \u2022  Gerado em ${dateStr} \u00e0s ${timeStr}`, pageWidth / 2, 29, { align: "center" });
+
+      doc.setTextColor(0, 0, 0);
+
+      // Section: Resumo por Status
+      let y = 40;
+      doc.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+      doc.roundedRect(12, y - 4, pageWidth - 24, 10, 2, 2, "F");
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
+      doc.text("\u25cf  RESUMO POR STATUS", 16, y + 3);
+      doc.setTextColor(0, 0, 0);
+      y += 12;
+
+      // Status cards as colored table
       const summaryRows = STATUS_ORDER.map((s) => [
         STATUS_CONFIG[s].label,
         String(statusSummary[s]),
       ]);
-      summaryRows.push(["TOTAL", String(filteredEntries.length)]);
 
       autoTable(doc, {
-        startY: 37,
-        head: [["Status", "Qtd"]],
-        body: summaryRows,
+        startY: y,
+        head: [["Status", "Quantidade", "% do Total"]],
+        body: STATUS_ORDER.map((s) => [
+          STATUS_CONFIG[s].label,
+          String(statusSummary[s]),
+          filteredEntries.length > 0 ? `${((statusSummary[s] / filteredEntries.length) * 100).toFixed(1)}%` : "0%",
+        ]).concat([["TOTAL GERAL", String(filteredEntries.length), "100%"]]),
         theme: "grid",
-        headStyles: { fillColor: [55, 55, 55], fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 20, halign: "center" } },
-        margin: { left: 14 },
-        tableWidth: 70,
+        headStyles: {
+          fillColor: [colors.primary[0], colors.primary[1], colors.primary[2]],
+          fontSize: 9,
+          fontStyle: "bold",
+          textColor: [255, 255, 255],
+          halign: "center",
+        },
+        bodyStyles: { fontSize: 9, cellPadding: 3 },
+        columnStyles: {
+          0: { cellWidth: 55, fontStyle: "bold" },
+          1: { cellWidth: 30, halign: "center" },
+          2: { cellWidth: 30, halign: "center" },
+        },
+        margin: { left: 14, right: 14 },
+        tableWidth: 115,
+        didParseCell: (data: any) => {
+          if (data.section === "body" && data.row.index < STATUS_ORDER.length) {
+            const statusKey = STATUS_ORDER[data.row.index];
+            const sc = statusColors[statusKey] || [200, 200, 200];
+            if (data.column.index === 0) {
+              data.cell.styles.textColor = sc;
+            }
+            if (data.column.index === 1) {
+              data.cell.styles.fillColor = [...sc.map((c: number) => Math.min(255, c + 180))];
+              data.cell.styles.textColor = sc;
+              data.cell.styles.fontStyle = "bold";
+            }
+          }
+          // Total row bold
+          if (data.section === "body" && data.row.index === STATUS_ORDER.length) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [colors.secondary[0], colors.secondary[1], colors.secondary[2]];
+          }
+        },
       });
 
-      // Attachments summary
-      const attY = (doc as any).lastAutoTable.finalY + 6;
-      doc.setFontSize(9);
+      // Attachments summary - visual cards
+      const attY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+      doc.roundedRect(12, attY - 4, pageWidth - 24, 10, 2, 2, "F");
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Anexos no período:", 14, attY);
-      doc.setFont("helvetica", "normal");
-      doc.text(
-        `Catálogos: ${attachmentCounts.catalogos}  |  Fotos: ${attachmentCounts.fotos}  |  Cotações: ${attachmentCounts.cotacoes}  |  Outros: ${attachmentCounts.outros}`,
-        14,
-        attY + 5
-      );
+      doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
+      doc.text("\u25cf  ANEXOS COLETADOS", 16, attY + 3);
+      doc.setTextColor(0, 0, 0);
 
-      // Detailed table - new page
+      const attData = [
+        { label: "Cat\u00e1logos", value: attachmentCounts.catalogos, color: [234, 88, 12] },
+        { label: "Fotos", value: attachmentCounts.fotos, color: [124, 58, 237] },
+        { label: "Cota\u00e7\u00f5es", value: attachmentCounts.cotacoes, color: [5, 150, 105] },
+        { label: "Outros", value: attachmentCounts.outros, color: [107, 114, 128] },
+      ];
+
+      const cardW = 45;
+      const cardH = 20;
+      const cardGap = 8;
+      const cardsStartX = (pageWidth - (cardW * 4 + cardGap * 3)) / 2;
+      const cardsY = attY + 10;
+
+      attData.forEach((item, i) => {
+        const cx = cardsStartX + i * (cardW + cardGap);
+        // Card background
+        doc.setFillColor(item.color[0], item.color[1], item.color[2]);
+        doc.roundedRect(cx, cardsY, cardW, cardH, 3, 3, "F");
+        // Value
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(item.value), cx + cardW / 2, cardsY + 10, { align: "center" });
+        // Label
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(item.label, cx + cardW / 2, cardsY + 16, { align: "center" });
+      });
+
+      doc.setTextColor(0, 0, 0);
+
+      // ===== PAGE 2+: Detailed table =====
       doc.addPage();
-      doc.setFontSize(11);
+
+      // Mini header band on detail pages
+      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.rect(0, 0, pageWidth, 16, "F");
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Detalhamento por Fornecedor", 14, 18);
+      doc.setTextColor(255, 255, 255);
+      doc.text("DETALHAMENTO POR FORNECEDOR", pageWidth / 2, 10, { align: "center" });
+      doc.setTextColor(0, 0, 0);
 
       const detailRows = filteredEntries.map((e) => {
         const name = resolveSupplierName(e.supplierId);
         const status = STATUS_CONFIG[e.status]?.label || e.status;
-        const obs = (e.observacoes || "—").slice(0, 120);
+        const obs = (e.observacoes || "\u2014").slice(0, 100);
         const catCount = e.attachments.filter((a) => (a.category || "outros") === "catalogos").length;
         const fotoCount = e.attachments.filter((a) => (a.category || "outros") === "fotos").length;
         const cotCount = e.attachments.filter((a) => (a.category || "outros") === "cotacoes").length;
         const quotes = e.quoteRows?.length || 0;
-        return [
-          name,
-          status,
-          obs,
-          `${catCount}`,
-          `${fotoCount}`,
-          `${cotCount}`,
-          `${quotes}`,
-          e.updatedAt,
-        ];
+        return [name, status, obs, `${catCount}`, `${fotoCount}`, `${cotCount}`, `${quotes}`, e.updatedAt];
       });
 
       autoTable(doc, {
-        startY: 22,
-        head: [["Fornecedor", "Status", "Observações", "Cat.", "Fotos", "Cot.", "Quotes", "Atualizado"]],
+        startY: 20,
+        head: [["Fornecedor", "Status", "Observa\u00e7\u00f5es", "Cat.", "Fotos", "Cot.", "Quotes", "Atualizado"]],
         body: detailRows,
-        theme: "striped",
-        headStyles: { fillColor: [55, 55, 55], fontSize: 7 },
-        bodyStyles: { fontSize: 7 },
+        theme: "grid",
+        headStyles: {
+          fillColor: [colors.primary[0], colors.primary[1], colors.primary[2]],
+          fontSize: 8,
+          fontStyle: "bold",
+          textColor: [255, 255, 255],
+          halign: "center",
+        },
+        bodyStyles: { fontSize: 7, cellPadding: 2.5 },
+        alternateRowStyles: {
+          fillColor: [colors.secondary[0], colors.secondary[1], colors.secondary[2]],
+        },
         columnStyles: {
-          0: { cellWidth: 45 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 95 },
+          0: { cellWidth: 50, fontStyle: "bold" },
+          1: { cellWidth: 30, halign: "center" },
+          2: { cellWidth: 85 },
           3: { cellWidth: 12, halign: "center" },
           4: { cellWidth: 12, halign: "center" },
           5: { cellWidth: 12, halign: "center" },
           6: { cellWidth: 14, halign: "center" },
-          7: { cellWidth: 22, halign: "center" },
+          7: { cellWidth: 24, halign: "center" },
         },
-        margin: { left: 14, right: 14 },
+        margin: { left: 12, right: 12 },
+        didParseCell: (data: any) => {
+          // Color status column
+          if (data.section === "body" && data.column.index === 1) {
+            const rowIdx = data.row.index;
+            if (rowIdx < filteredEntries.length) {
+              const entry = filteredEntries[rowIdx];
+              const sc = statusColors[entry.status] || [100, 100, 100];
+              data.cell.styles.textColor = [255, 255, 255];
+              data.cell.styles.fillColor = sc;
+              data.cell.styles.fontStyle = "bold";
+            }
+          }
+        },
+        didDrawPage: () => {
+          // Repeat mini header on new pages
+          doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+          doc.rect(0, 0, pageWidth, 16, "F");
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(255, 255, 255);
+          doc.text("DETALHAMENTO POR FORNECEDOR", pageWidth / 2, 10, { align: "center" });
+          doc.setTextColor(0, 0, 0);
+        },
       });
 
       // Footer on all pages
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
+        // Footer line
+        doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        doc.setLineWidth(0.3);
+        doc.line(12, pageHeight - 10, pageWidth - 12, pageHeight - 10);
+        // Footer text
         doc.setFontSize(7);
-        doc.setTextColor(150);
+        doc.setTextColor(120, 120, 120);
         doc.text(
-          `Guia Estratégico de Fornecedores — ${scopeLabel} — Página ${i}/${totalPages}`,
-          pageWidth / 2,
-          pageHeight - 6,
-          { align: "center" }
+          `Guia Estrat\u00e9gico de Fornecedores  \u2022  ${scopeLabel}`,
+          14,
+          pageHeight - 5
         );
-        doc.setTextColor(0);
+        doc.text(
+          `P\u00e1gina ${i} de ${totalPages}`,
+          pageWidth - 14,
+          pageHeight - 5,
+          { align: "right" }
+        );
+        doc.setTextColor(0, 0, 0);
       }
 
-      const filename = `relatorio-${scope}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `relatorio-${scope}-${now.toISOString().slice(0, 10)}.pdf`;
       doc.save(filename);
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);
