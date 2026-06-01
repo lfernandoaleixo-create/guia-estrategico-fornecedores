@@ -11,7 +11,7 @@ import {
   STATUS_ORDER,
   AttachmentCategory,
 } from "./useSupplierNotes";
-import { FileText, Download, Filter, BarChart3, Calendar } from "lucide-react";
+import { FileText, Download, Filter, BarChart3, Calendar, Trash2 } from "lucide-react";
 
 // ---------- Types ----------
 interface ReportPanelProps {
@@ -19,6 +19,7 @@ interface ReportPanelProps {
   scopeLabel: string;
   entries: Record<string, SupplierNoteEntry>;
   resolveSupplierName: (supplierId: string) => string;
+  onDeleteEntry?: (supplierId: string) => void;
   tone?: "dark" | "light";
 }
 
@@ -91,6 +92,7 @@ export default function ReportPanel({
   scopeLabel,
   entries,
   resolveSupplierName,
+  onDeleteEntry,
 }: ReportPanelProps) {
   const dark = (scope === "yiwu");
   const [period, setPeriod] = useState<PeriodFilter>("todos");
@@ -467,6 +469,20 @@ export default function ReportPanel({
                       <span className="text-zinc-500 text-xs">
                         {isExpanded ? "▲" : "▼"}
                       </span>
+                      {onDeleteEntry && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Excluir anotação de "${name}"?`)) {
+                              onDeleteEntry(entry.supplierId);
+                            }
+                          }}
+                          className={`ml-1 p-1.5 rounded-md transition-colors ${dark ? 'hover:bg-red-900/40 text-zinc-500 hover:text-red-400' : 'hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                          title="Excluir anotação"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </button>
 
                     {/* Expanded details */}

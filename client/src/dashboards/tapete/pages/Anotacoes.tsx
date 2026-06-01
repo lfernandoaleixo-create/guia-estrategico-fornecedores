@@ -513,7 +513,7 @@ export default function Anotacoes() {
   const [activeCategory, setActiveCategory] = useState<TipoEmpresa | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const { entries: tapeteEntries } = useSupplierNotes("tapete");
+  const { entries: tapeteEntries, deleteEntry: deleteTapeteEntry } = useSupplierNotes("tapete");
 
   // Carregar negociações do banco
   const { data: negociacoesList, refetch } = trpc.diario.listarNegociacoes.useQuery();
@@ -641,6 +641,7 @@ export default function Anotacoes() {
             }
             return sid;
           }}
+          onDeleteEntry={deleteTapeteEntry}
         />
       </div>
 

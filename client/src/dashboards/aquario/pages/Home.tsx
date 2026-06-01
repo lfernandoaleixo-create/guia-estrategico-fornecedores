@@ -50,7 +50,7 @@ const priorityOrder = { high: 0, medium: 1, low: 2 };
 type ViewMode = "lista" | "mapa" | "notas" | "diario" | "guia";
 
 function AquarioReportSection() {
-  const { entries } = useSupplierNotes("aquario");
+  const { entries, deleteEntry } = useSupplierNotes("aquario");
   return (
     <div className="mb-5 p-5 rounded-xl border border-zinc-200 bg-white/80">
       <ReportPanel
@@ -61,6 +61,7 @@ function AquarioReportSection() {
           const found = suppliers.find((s) => s.id === sid);
           return found?.name ?? sid;
         }}
+        onDeleteEntry={deleteEntry}
       />
     </div>
   );

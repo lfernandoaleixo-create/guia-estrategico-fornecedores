@@ -100,7 +100,7 @@ function buildYiwuPrefilledFields(s: YiwuSupplier): PrefilledField[] {
 }
 
 export default function YiwuAnotacoes() {
-  const { entries, loaded } = useSupplierNotes("yiwu");
+  const { entries, loaded, deleteEntry } = useSupplierNotes("yiwu");
   const { groups: allGroups } = useSupplierGroups();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | "all" | "with-notes">("all");
@@ -233,6 +233,7 @@ export default function YiwuAnotacoes() {
               const found = allSuppliers.find((s) => String(s.id) === sid);
               return found?.name ?? sid;
             }}
+            onDeleteEntry={deleteEntry}
           />
         </div>
 
