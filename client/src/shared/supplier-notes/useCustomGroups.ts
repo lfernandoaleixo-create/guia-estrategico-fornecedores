@@ -1,20 +1,15 @@
 // =============================================================================
 // useCustomGroups — grupos personalizados criados na 4ª aba (Adicionar Fornecedores).
 //
-// Diferença em relação a useSupplierGroups:
-//   - useSupplierGroups: tags/categorias livres usadas DENTRO dos 3 dashboards
-//     existentes (Aquário, Tapete, Yiwu) para marcar fornecedores.
-//   - useCustomGroups: grupos "candidatos a virar dashboard". Cada um tem um
-//     ramo (Brinquedos, Vidro, Aquário, Tapete, etc.) e pode ser promovido a
-//     um dashboard independente quando ficar grande.
+// MIGRADO: agora persiste no BANCO DE DADOS COMPARTILHADO via tRPC, de modo que
+// todos os usuários com o link veem os mesmos grupos. A assinatura pública do
+// hook foi mantida idêntica à versão anterior (IndexedDB) para não quebrar a UI.
 //
-// Cada grupo tem um `number` (1, 2, 3…) único, sugerido automaticamente como
-// o próximo livre, mas editável. Reordenar os grupos via drag & drop renumera
-// automaticamente todos eles na ordem visual.
-//
-// Persistido em IndexedDB no DB "guia-fornecedores", store "custom_groups".
+// Sincronização entre usuários: refetch automático (polling) a cada 5s e após
+// cada mutação.
 // =============================================================================
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 
 export interface CustomGroup {
   id: string;
@@ -27,85 +22,6 @@ export interface CustomGroup {
   promotedAt?: string;   // ISO
   createdAt: string;     // ISO
   updatedAt: string;     // ISO
-}
-
-const DB_NAME = "guia-fornecedores";
-const DB_VERSION = 3;
-const STORE_GROUPS = "groups";
-const STORE_CUSTOM_LEGACY = "custom";
-const STORE_CUSTOM_GROUPS = "custom_groups";
-const STORE_EXTRA_SUPPLIERS = "extra_suppliers";
-
-const isBrowser = typeof window !== "undefined" && typeof indexedDB !== "undefined";
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_CUSTOM_LEGACY)) {
-        db.createObjectStore(STORE_CUSTOM_LEGACY, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(STORE_GROUPS)) {
-        db.createObjectStore(STORE_GROUPS, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(STORE_CUSTOM_GROUPS)) {
-        db.createObjectStore(STORE_CUSTOM_GROUPS, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(STORE_EXTRA_SUPPLIERS)) {
-        const store = db.createObjectStore(STORE_EXTRA_SUPPLIERS, { keyPath: "id" });
-        store.createIndex("groupId", "groupId", { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbReadAll(): Promise<CustomGroup[]> {
-  if (!isBrowser) return [];
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readonly");
-    const store = tx.objectStore(STORE_CUSTOM_GROUPS);
-    const req = store.getAll();
-    req.onsuccess = () => resolve((req.result as CustomGroup[]) ?? []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbPut(group: CustomGroup): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE_CUSTOM_GROUPS).put(group);
-  });
-}
-
-async function dbPutMany(groups: CustomGroup[]): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    const store = tx.objectStore(STORE_CUSTOM_GROUPS);
-    groups.forEach((g) => store.put(g));
-  });
-}
-
-async function dbDelete(id: string): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE_CUSTOM_GROUPS).delete(id);
-  });
 }
 
 // Sugestões de ramos comuns para autocomplete; o usuário pode digitar livre.
@@ -148,44 +64,55 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
+// Normaliza linha do banco -> CustomGroup (campos nuláveis viram defaults).
+function normalize(row: {
+  id: string;
+  number: number;
+  name: string;
+  branch: string;
+  color: string;
+  description: string | null;
+  promotedToDashboard: boolean;
+  promotedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}): CustomGroup {
+  return {
+    id: row.id,
+    number: row.number,
+    name: row.name,
+    branch: row.branch ?? "",
+    color: row.color ?? "#64748b",
+    description: row.description ?? "",
+    promotedToDashboard: !!row.promotedToDashboard,
+    promotedAt: row.promotedAt ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 export function useCustomGroups() {
-  const [groups, setGroups] = useState<CustomGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const utils = trpc.useUtils();
+  const query = trpc.data.groups.list.useQuery(undefined, {
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  });
+
+  const upsertMut = trpc.data.groups.upsert.useMutation();
+  const bulkMut = trpc.data.groups.bulkUpsert.useMutation();
+  const deleteMut = trpc.data.groups.delete.useMutation();
+
+  const groups = useMemo<CustomGroup[]>(() => {
+    const rows = (query.data ?? []).map(normalize);
+    rows.sort((a, b) => a.number - b.number);
+    return rows;
+  }, [query.data]);
+
+  const loading = query.isLoading;
 
   const reload = useCallback(async () => {
-    try {
-      const all = await dbReadAll();
-      // Migração leve: garante number atribuído para registros antigos.
-      const used = new Set<number>();
-      all.forEach((g) => {
-        if (typeof g.number === "number" && g.number > 0) used.add(g.number);
-      });
-      let next = 1;
-      const fixed = all.map((g) => {
-        if (typeof g.number === "number" && g.number > 0) return g;
-        while (used.has(next)) next += 1;
-        const withNumber = { ...g, number: next };
-        used.add(next);
-        return withNumber;
-      });
-      // Persiste correção em background.
-      fixed.forEach((g, idx) => {
-        if (g !== all[idx]) {
-          dbPut(g).catch((e) => console.warn("[useCustomGroups migrate]", e));
-        }
-      });
-      fixed.sort((a, b) => a.number - b.number);
-      setGroups(fixed);
-    } catch (err) {
-      console.error("[useCustomGroups]", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await utils.data.groups.list.invalidate();
+  }, [utils]);
 
   const createGroup = useCallback(
     async (input: {
@@ -215,11 +142,11 @@ export function useCustomGroups() {
         createdAt: nowISO(),
         updatedAt: nowISO(),
       };
-      await dbPut(group);
+      await upsertMut.mutateAsync(group);
       await reload();
       return group;
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   const updateGroup = useCallback(
@@ -235,25 +162,25 @@ export function useCustomGroups() {
           patch.description !== undefined ? patch.description.trim() : current.description,
         updatedAt: nowISO(),
       };
-      await dbPut(updated);
+      await upsertMut.mutateAsync(updated);
       await reload();
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   const deleteGroup = useCallback(
     async (id: string) => {
-      await dbDelete(id);
+      await deleteMut.mutateAsync({ id });
       await reload();
     },
-    [reload],
+    [deleteMut, reload],
   );
 
   const promoteToDashboard = useCallback(
     async (id: string) => {
       const current = groups.find((g) => g.id === id);
       if (!current) return;
-      await dbPut({
+      await upsertMut.mutateAsync({
         ...current,
         promotedToDashboard: true,
         promotedAt: nowISO(),
@@ -261,23 +188,22 @@ export function useCustomGroups() {
       });
       await reload();
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   const demoteFromDashboard = useCallback(
     async (id: string) => {
       const current = groups.find((g) => g.id === id);
       if (!current) return;
-      const next: CustomGroup = {
+      await upsertMut.mutateAsync({
         ...current,
         promotedToDashboard: false,
         promotedAt: undefined,
         updatedAt: nowISO(),
-      };
-      await dbPut(next);
+      });
       await reload();
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   /**
@@ -292,16 +218,17 @@ export function useCustomGroups() {
         const g = byId.get(id);
         if (g) reordered.push({ ...g, number: idx + 1, updatedAt: nowISO() });
       });
-      // Anexa quaisquer grupos não citados (defesa) no final, mantendo unicidade.
       groups.forEach((g) => {
         if (!orderedIds.includes(g.id)) {
           reordered.push({ ...g, number: reordered.length + 1, updatedAt: nowISO() });
         }
       });
-      await dbPutMany(reordered);
+      if (reordered.length > 0) {
+        await bulkMut.mutateAsync(reordered);
+      }
       await reload();
     },
-    [groups, reload],
+    [groups, bulkMut, reload],
   );
 
   return {
@@ -317,21 +244,38 @@ export function useCustomGroups() {
   };
 }
 
-// Helpers para backup
+// -----------------------------------------------------------------------------
+// Helpers para backup (usados fora do React). Mantidos por compatibilidade.
+// Agora chamam a API via fetch direto ao endpoint tRPC.
+// -----------------------------------------------------------------------------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, {
+      credentials: "include",
+    });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
+  });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
+}
+
 export async function readAllCustomGroups(): Promise<CustomGroup[]> {
-  return dbReadAll();
+  const rows = await trpcFetch<ReturnType<typeof normalize>[]>("data.groups.list", "query");
+  return (rows ?? []).map((r) => normalize(r as never));
 }
 
 export async function writeAllCustomGroups(groups: CustomGroup[]): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    const store = tx.objectStore(STORE_CUSTOM_GROUPS);
-    groups.forEach((g) => {
-      if (g && g.id && g.name) store.put(g);
-    });
-  });
+  const valid = groups.filter((g) => g && g.id && g.name);
+  if (valid.length === 0) return;
+  await trpcFetch("data.groups.bulkUpsert", "mutation", valid);
 }

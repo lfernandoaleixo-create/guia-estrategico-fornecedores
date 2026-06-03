@@ -10,8 +10,8 @@ import GrupoDashboard from "./pages/GrupoDashboard";
 import AquarioApp from "@aquario/AquarioApp";
 import TapeteApp from "@tapete/TapeteApp";
 import YiwuApp from "@yiwu/YiwuApp";
-
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={Home} />

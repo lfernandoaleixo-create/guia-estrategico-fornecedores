@@ -18,6 +18,7 @@
 // =============================================================================
 
 import type { SupplierNoteEntry } from "./useSupplierNotes";
+import { readEntryDirect, writeEntryDirect } from "./useSupplierNotes";
 import {
   exportAllCustomSuppliers,
   importCustomSuppliers,
@@ -32,50 +33,65 @@ import {
 export type NoteScope = "aquario" | "tapete" | "yiwu";
 
 const SCOPES: NoteScope[] = ["aquario", "tapete", "yiwu"];
-const DB_VERSION = 1;
-const STORE = "notes";
 
-function dbName(scope: NoteScope): string {
-  return `guia-estrategico-notes-${scope}`;
-}
-
-function openDB(scope: NoteScope): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName(scope), DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "supplierId" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+// ---------- Acesso às notas (agora via API do banco compartilhado) ----------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, { credentials: "include" });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
   });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
 }
 
-function getAll(scope: NoteScope): Promise<SupplierNoteEntry[]> {
-  return openDB(scope).then(
-    (db) =>
-      new Promise<SupplierNoteEntry[]>((resolve, reject) => {
-        const tx = db.transaction(STORE, "readonly");
-        const req = tx.objectStore(STORE).getAll();
-        req.onsuccess = () => resolve((req.result || []) as SupplierNoteEntry[]);
-        req.onerror = () => reject(req.error);
-      })
-  );
+function parseAttachments(raw: unknown): SupplierNoteEntry["attachments"] {
+  if (Array.isArray(raw)) return raw as SupplierNoteEntry["attachments"];
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
-function putEntry(scope: NoteScope, entry: SupplierNoteEntry): Promise<void> {
-  return openDB(scope).then(
-    (db) =>
-      new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE, "readwrite");
-        tx.objectStore(STORE).put(entry);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      })
+async function getAll(scope: NoteScope): Promise<SupplierNoteEntry[]> {
+  const rows = await trpcFetch<Record<string, unknown>[]>(
+    "data.notes.listByScope",
+    "query",
+    { scope },
   );
+  return (rows ?? []).map((row) => ({
+    supplierId: String(row.supplierId),
+    status: (row.status as SupplierNoteEntry["status"]) ?? "nao-visitado",
+    observacoes: (row.observacoes as string) ?? "",
+    fields: (row.fields as Record<string, string>) ?? {},
+    attachments: parseAttachments(row.attachments),
+    quoteRows: (row.quoteRows as SupplierNoteEntry["quoteRows"]) ?? undefined,
+    groupIds: (row.groupIds as string[]) ?? [],
+    createdAt: (row.createdAt as string) ?? "",
+    updatedAt: (row.updatedAt as string) ?? "",
+  }));
 }
+
+async function putEntry(scope: NoteScope, entry: SupplierNoteEntry): Promise<void> {
+  await writeEntryDirect(scope, entry);
+}
+
+// Marca readEntryDirect como usado (evita warning de import não utilizado)
+void readEntryDirect;
 
 // ---------- Persistent Storage ----------
 

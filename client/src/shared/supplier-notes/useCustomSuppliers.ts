@@ -1,16 +1,21 @@
 // =============================================================================
-// useCustomSuppliers — gerenciamento de fornecedores cadastrados manualmente
-// pelo operador em cada dashboard (aquario, tapete, yiwu). Persistido em
-// IndexedDB no mesmo banco usado pelas anotações; entra no backup/restore.
+// useCustomSuppliers — fornecedores cadastrados manualmente dentro de cada
+// dashboard principal (aquario, tapete, yiwu).
+//
+// MIGRADO: agora persiste no BANCO DE DADOS COMPARTILHADO via tRPC. A assinatura
+// pública foi mantida idêntica à versão IndexedDB para não quebrar a UI.
+// O objeto CustomSupplier é serializado como JSON no campo `data` do banco.
+// Sincronização entre usuários: polling a cada 5s e refetch após mutações.
 // =============================================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 
 export type SupplierScope = "aquario" | "tapete" | "yiwu";
 
 export interface CustomSupplierContact {
   id: string;
-  label?: string; // ex: "Comercial BR", "Whatsapp Mr. Wang"
+  label?: string;
   value: string;
 }
 
@@ -23,7 +28,7 @@ export interface CustomSupplier {
   // Identificação
   name: string;
   chineseName?: string;
-  category?: string; // Categoria/NCM
+  category?: string;
   ncm?: string;
 
   // Localização
@@ -37,9 +42,9 @@ export interface CustomSupplier {
   // Contatos múltiplos
   phones: CustomSupplierContact[];
   emails: CustomSupplierContact[];
-  links: CustomSupplierContact[]; // site, alibaba, yiwugo, made-in-china, etc.
+  links: CustomSupplierContact[];
 
-  // Contato principal (responsável)
+  // Contato principal
   contactName?: string;
   contactRole?: string;
   contactLanguage?: string;
@@ -54,94 +59,11 @@ export interface CustomSupplier {
   // Texto livre
   notes?: string;
 
-  // Grupos atribuídos a este fornecedor manual (IDs do useSupplierGroups)
+  // Grupos atribuídos
   groupIds?: string[];
 }
 
-// ─── Persistência IndexedDB ──────────────────────────────────────────────────
-const DB_NAME = "guia-custom-suppliers";
-const STORE = "custom_suppliers";
-const DB_VERSION = 1;
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: "id" });
-        store.createIndex("scope", "scope", { unique: false });
-        store.createIndex("updatedAt", "updatedAt", { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function getAll(scope: SupplierScope): Promise<CustomSupplier[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const store = tx.objectStore(STORE);
-    const idx = store.index("scope");
-    const req = idx.getAll(scope);
-    req.onsuccess = () => {
-      const list = (req.result as CustomSupplier[]) ?? [];
-      list.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(list);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function putOne(s: CustomSupplier): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(s);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function deleteOne(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-// API global usada também pelo backup/restore
-export async function exportAllCustomSuppliers(): Promise<CustomSupplier[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve((req.result as CustomSupplier[]) ?? []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-export async function importCustomSuppliers(list: CustomSupplier[]): Promise<{ added: number; updated: number }> {
-  if (!Array.isArray(list)) return { added: 0, updated: 0 };
-  const existing = new Set(
-    (await exportAllCustomSuppliers()).map((s) => s.id)
-  );
-  let added = 0;
-  let updated = 0;
-  for (const s of list) {
-    if (existing.has(s.id)) updated++;
-    else added++;
-    await putOne(s);
-  }
-  return { added, updated };
-}
-
-// ─── ID generator ────────────────────────────────────────────────────────────
+// ─── ID generators ───────────────────────────────────────────────────────────
 function genId(scope: SupplierScope) {
   return `custom-${scope}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -150,23 +72,63 @@ function genContactId() {
 }
 export { genContactId };
 
+// ─── Normalização: linha do banco -> CustomSupplier ──────────────────────────
+function normalize(row: Record<string, unknown>): CustomSupplier | null {
+  try {
+    const raw = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+    if (!raw || typeof raw !== "object") return null;
+    const s = raw as CustomSupplier;
+    return {
+      ...s,
+      id: String(row.id ?? s.id),
+      scope: (row.scope as SupplierScope) ?? s.scope,
+      name: String(row.name ?? s.name ?? ""),
+      phones: Array.isArray(s.phones) ? s.phones : [],
+      emails: Array.isArray(s.emails) ? s.emails : [],
+      links: Array.isArray(s.links) ? s.links : [],
+      createdAt: typeof s.createdAt === "number" ? s.createdAt : Number(s.createdAt) || Date.now(),
+      updatedAt: typeof s.updatedAt === "number" ? s.updatedAt : Number(s.updatedAt) || Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── CustomSupplier (UI) -> payload da API ───────────────────────────────────
+function toPayload(s: CustomSupplier) {
+  return {
+    id: s.id,
+    scope: s.scope,
+    name: s.name,
+    data: JSON.stringify(s),
+    createdAt: String(s.createdAt),
+    updatedAt: String(s.updatedAt),
+  };
+}
+
 // ─── React hook ──────────────────────────────────────────────────────────────
 export function useCustomSuppliers(scope: SupplierScope) {
-  const [list, setList] = useState<CustomSupplier[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const utils = trpc.useUtils();
+  const query = trpc.data.customSuppliers.list.useQuery(
+    { scope },
+    { refetchInterval: 5000, refetchOnWindowFocus: true },
+  );
+  const upsertMut = trpc.data.customSuppliers.upsert.useMutation();
+  const deleteMut = trpc.data.customSuppliers.delete.useMutation();
+
+  const list = useMemo<CustomSupplier[]>(() => {
+    const rows = (query.data ?? [])
+      .map((r) => normalize(r as Record<string, unknown>))
+      .filter((s): s is CustomSupplier => s !== null);
+    rows.sort((a, b) => b.updatedAt - a.updatedAt);
+    return rows;
+  }, [query.data]);
+
+  const loaded = !query.isLoading;
 
   const reload = useCallback(async () => {
-    try {
-      const data = await getAll(scope);
-      setList(data);
-    } finally {
-      setLoaded(true);
-    }
-  }, [scope]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await utils.data.customSuppliers.list.invalidate();
+  }, [utils]);
 
   const create = useCallback(
     async (input: Omit<CustomSupplier, "id" | "scope" | "createdAt" | "updatedAt">) => {
@@ -181,11 +143,11 @@ export function useCustomSuppliers(scope: SupplierScope) {
         emails: input.emails ?? [],
         links: input.links ?? [],
       };
-      await putOne(supplier);
+      await upsertMut.mutateAsync(toPayload(supplier));
       await reload();
       return supplier;
     },
-    [scope, reload]
+    [scope, upsertMut, reload],
   );
 
   const update = useCallback(
@@ -197,18 +159,18 @@ export function useCustomSuppliers(scope: SupplierScope) {
         ...patch,
         updatedAt: Date.now(),
       };
-      await putOne(updated);
+      await upsertMut.mutateAsync(toPayload(updated));
       await reload();
     },
-    [list, reload]
+    [list, upsertMut, reload],
   );
 
   const remove = useCallback(
     async (id: string) => {
-      await deleteOne(id);
+      await deleteMut.mutateAsync({ id });
       await reload();
     },
-    [reload]
+    [deleteMut, reload],
   );
 
   return { list, loaded, reload, create, update, remove };
@@ -220,4 +182,49 @@ export function formatCreatedDateBR(ts: number): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+// -----------------------------------------------------------------------------
+// Helpers para backup (fora do React).
+// -----------------------------------------------------------------------------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, { credentials: "include" });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
+  });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
+}
+
+export async function exportAllCustomSuppliers(): Promise<CustomSupplier[]> {
+  const rows = await trpcFetch<Record<string, unknown>[]>("data.customSuppliers.list", "query", {});
+  return (rows ?? [])
+    .map(normalize)
+    .filter((s): s is CustomSupplier => s !== null);
+}
+
+export async function importCustomSuppliers(
+  list: CustomSupplier[],
+): Promise<{ added: number; updated: number }> {
+  if (!Array.isArray(list)) return { added: 0, updated: 0 };
+  const existing = new Set((await exportAllCustomSuppliers()).map((s) => s.id));
+  let added = 0;
+  let updated = 0;
+  for (const s of list) {
+    if (!s || !s.id) continue;
+    if (existing.has(s.id)) updated++;
+    else added++;
+    await trpcFetch("data.customSuppliers.upsert", "mutation", toPayload(s));
+  }
+  return { added, updated };
 }

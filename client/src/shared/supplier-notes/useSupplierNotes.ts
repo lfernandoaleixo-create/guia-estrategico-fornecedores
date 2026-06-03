@@ -1,18 +1,17 @@
 // =============================================================================
 // useSupplierNotes — Hook unificado de anotações por fornecedor
-// Compartilhado pelos 3 dashboards (Aquário, Tapete, Yiwu).
+// Compartilhado pelos dashboards (Aquário, Tapete, Yiwu, grupos promovidos).
 //
-// Cada entrada contém:
-//   - status: do fornecedor (lista padronizada e editável)
-//   - observacoes: texto livre
-//   - anexos: arquivos (PDF, planilhas, imagens, etc.) como dataURL
-//   - createdAt / updatedAt: data automática
+// MIGRADO: agora persiste no BANCO DE DADOS COMPARTILHADO via tRPC, por escopo
+// (scope), para que todos os usuários com o link vejam os mesmos status,
+// observações, anexos, cotações e grupos. A assinatura pública do hook foi
+// mantida idêntica à versão IndexedDB para não quebrar a UI.
 //
-// Persistência: IndexedDB, com namespace por scope (aquario/tapete/yiwu),
-// permitindo que cada dashboard tenha sua própria base sem colidir.
+// Sincronização entre usuários: polling a cada 5s e refetch após cada mutação.
 // =============================================================================
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 
 export type SupplierStatus =
   | "nao-visitado"
@@ -60,7 +59,7 @@ export interface SupplierNoteEntry {
   fields: Record<string, string>;
   attachments: SupplierAttachment[];
   quoteRows?: QuoteRow[];
-  /** IDs dos grupos aos quais o fornecedor pertence (gerenciados em useSupplierGroups). */
+  /** IDs dos grupos aos quais o fornecedor pertence. */
   groupIds?: string[];
   createdAt: string;
   updatedAt: string;
@@ -131,76 +130,6 @@ export const STATUS_ORDER: SupplierStatus[] = [
   "descartado",
 ];
 
-// ---------- IndexedDB helpers (1 DB por scope) ----------
-const DB_VERSION = 1;
-const STORE = "notes";
-
-function dbName(scope: string): string {
-  return `guia-estrategico-notes-${scope}`;
-}
-
-function openDB(scope: string): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName(scope), DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "supplierId" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbGetAll(scope: string): Promise<Record<string, SupplierNoteEntry>> {
-  try {
-    const db = await openDB(scope);
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const store = tx.objectStore(STORE);
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const entries: SupplierNoteEntry[] = req.result || [];
-        const map: Record<string, SupplierNoteEntry> = {};
-        entries.forEach((e) => (map[e.supplierId] = e));
-        resolve(map);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    return {};
-  }
-}
-
-async function dbPut(scope: string, entry: SupplierNoteEntry): Promise<void> {
-  try {
-    const db = await openDB(scope);
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(entry);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    /* silent */
-  }
-}
-
-async function dbDelete(scope: string, supplierId: string): Promise<void> {
-  try {
-    const db = await openDB(scope);
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(supplierId);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    /* silent */
-  }
-}
-
 // ---------- Utilidades ----------
 function nowDate(): string {
   return new Date().toLocaleDateString("pt-BR", {
@@ -219,108 +148,176 @@ function fileToDataURL(file: File): Promise<string> {
   });
 }
 
-// ---------- API direta (usada por migração e backup) ----------
-export async function readEntryDirect(
-  scope: string,
-  supplierId: string,
-): Promise<SupplierNoteEntry | null> {
-  const all = await dbGetAll(scope);
-  return all[supplierId] ?? null;
-}
-export async function writeEntryDirect(
-  scope: string,
-  entry: SupplierNoteEntry,
-): Promise<void> {
-  await dbPut(scope, entry);
-}
-export async function deleteEntryDirect(
-  scope: string,
-  supplierId: string,
-): Promise<void> {
-  await dbDelete(scope, supplierId);
-}
-
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-// ---------- Pub/Sub global para sincronizar instâncias do hook ----------
-// Cada instância (lista, painel, etc.) registra um listener; quando uma escreve,
-// todas recebem o estado atualizado e re-renderizam.
-type Scope = string;
-const listeners = new Map<string, Set<(state: Record<string, SupplierNoteEntry>) => void>>();
-function getListenerSet(scope: string) {
-  let s = listeners.get(scope);
-  if (!s) { s = new Set(); listeners.set(scope, s); }
-  return s;
+// ---------- Serialização (DB row <-> SupplierNoteEntry) ----------
+function parseAttachments(raw: unknown): SupplierAttachment[] {
+  if (Array.isArray(raw)) return raw as SupplierAttachment[];
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as SupplierAttachment[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
-function notify(scope: string, state: Record<string, SupplierNoteEntry>) {
-  getListenerSet(scope).forEach((fn) => fn(state));
+
+function rowToEntry(row: Record<string, unknown>): SupplierNoteEntry {
+  return {
+    supplierId: String(row.supplierId),
+    status: (row.status as SupplierStatus) ?? "nao-visitado",
+    observacoes: (row.observacoes as string) ?? "",
+    fields: (row.fields as Record<string, string>) ?? {},
+    attachments: parseAttachments(row.attachments),
+    quoteRows: (row.quoteRows as QuoteRow[]) ?? undefined,
+    groupIds: (row.groupIds as string[]) ?? [],
+    createdAt: (row.createdAt as string) ?? nowDate(),
+    updatedAt: (row.updatedAt as string) ?? nowDate(),
+  };
+}
+
+function entryToPayload(scope: string, e: SupplierNoteEntry) {
+  return {
+    scope,
+    supplierId: e.supplierId,
+    status: e.status,
+    observacoes: e.observacoes ?? "",
+    fields: e.fields ?? {},
+    attachments: JSON.stringify(e.attachments ?? []),
+    quoteRows: e.quoteRows ?? null,
+    groupIds: e.groupIds ?? [],
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  };
+}
+
+// ---------- API direta (usada por migração e backup) ----------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, { credentials: "include" });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
+  });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
+}
+
+export async function readEntryDirect(
+  scope: string,
+  supplierId: string,
+): Promise<SupplierNoteEntry | null> {
+  const rows = await trpcFetch<Record<string, unknown>[]>(
+    "data.notes.listByScope",
+    "query",
+    { scope },
+  );
+  const found = (rows ?? []).find((r) => String(r.supplierId) === supplierId);
+  return found ? rowToEntry(found) : null;
+}
+
+export async function writeEntryDirect(scope: string, entry: SupplierNoteEntry): Promise<void> {
+  await trpcFetch("data.notes.upsert", "mutation", entryToPayload(scope, entry));
+}
+
+export async function deleteEntryDirect(scope: string, supplierId: string): Promise<void> {
+  await trpcFetch("data.notes.delete", "mutation", { scope, supplierId });
 }
 
 // ---------- Hook ----------
-export function useSupplierNotes(scope: Scope) {
-  const [entries, setEntries] = useState<Record<string, SupplierNoteEntry>>({});
-  const [loaded, setLoaded] = useState(false);
+type Scope = string;
 
-  useEffect(() => {
-    let mounted = true;
-    dbGetAll(scope).then((all) => {
-      if (mounted) {
-        setEntries(all);
-        setLoaded(true);
-      }
+export function useSupplierNotes(scope: Scope) {
+  const utils = trpc.useUtils();
+  const query = trpc.data.notes.listByScope.useQuery(
+    { scope },
+    { refetchInterval: 5000, refetchOnWindowFocus: true },
+  );
+  const upsertMut = trpc.data.notes.upsert.useMutation();
+  const deleteMut = trpc.data.notes.delete.useMutation();
+
+  const entries = useMemo<Record<string, SupplierNoteEntry>>(() => {
+    const map: Record<string, SupplierNoteEntry> = {};
+    (query.data ?? []).forEach((row) => {
+      const e = rowToEntry(row as Record<string, unknown>);
+      map[e.supplierId] = e;
     });
-    // Escuta mudanças feitas por outras instâncias do hook.
-    const sub = (state: Record<string, SupplierNoteEntry>) => {
-      if (mounted) setEntries(state);
-    };
-    getListenerSet(scope).add(sub);
-    return () => {
-      mounted = false;
-      getListenerSet(scope).delete(sub);
-    };
-  }, [scope]);
+    return map;
+  }, [query.data]);
+
+  const loaded = !query.isLoading;
+
+  const reload = useCallback(async () => {
+    await utils.data.notes.listByScope.invalidate({ scope });
+  }, [utils, scope]);
+
+  // Salva uma entrada completa no servidor e revalida.
+  const persist = useCallback(
+    async (entry: SupplierNoteEntry) => {
+      await upsertMut.mutateAsync(entryToPayload(scope, entry));
+      await reload();
+    },
+    [scope, upsertMut, reload],
+  );
+
+  const buildBase = useCallback(
+    (supplierId: string): SupplierNoteEntry => {
+      const existing = entries[supplierId];
+      return {
+        supplierId,
+        status: existing?.status ?? "nao-visitado",
+        observacoes: existing?.observacoes ?? "",
+        fields: existing?.fields ?? {},
+        attachments: existing?.attachments ?? [],
+        quoteRows: existing?.quoteRows,
+        groupIds: existing?.groupIds ?? [],
+        createdAt: existing?.createdAt ?? nowDate(),
+        updatedAt: nowDate(),
+      };
+    },
+    [entries],
+  );
 
   const upsertEntry = useCallback(
     (
       supplierId: string,
-      patch: { status?: SupplierStatus; observacoes?: string; fields?: Record<string, string>; groupIds?: string[] }
+      patch: {
+        status?: SupplierStatus;
+        observacoes?: string;
+        fields?: Record<string, string>;
+        groupIds?: string[];
+      },
     ) => {
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        const mergedFields = {
-          ...(existing?.fields ?? {}),
-          ...(patch.fields ?? {}),
-        };
-        const updated: SupplierNoteEntry = {
-          supplierId,
-          status: patch.status ?? existing?.status ?? "nao-visitado",
-          observacoes: patch.observacoes ?? existing?.observacoes ?? "",
-          fields: patch.fields ? mergedFields : existing?.fields ?? {},
-          attachments: existing?.attachments ?? [],
-          quoteRows: existing?.quoteRows,
-          groupIds: patch.groupIds ?? existing?.groupIds ?? [],
-          createdAt: existing?.createdAt ?? nowDate(),
-          updatedAt: nowDate(),
-        };
-        dbPut(scope, updated);
-        const next = { ...prev, [supplierId]: updated };
-        notify(scope, next);
-        return next;
-      });
+      const base = buildBase(supplierId);
+      const mergedFields = { ...base.fields, ...(patch.fields ?? {}) };
+      const updated: SupplierNoteEntry = {
+        ...base,
+        status: patch.status ?? base.status,
+        observacoes: patch.observacoes ?? base.observacoes,
+        fields: patch.fields ? mergedFields : base.fields,
+        groupIds: patch.groupIds ?? base.groupIds,
+      };
+      void persist(updated);
     },
-    [scope]
+    [buildBase, persist],
   );
 
   const addAttachment = useCallback(
-    async (
-      supplierId: string,
-      file: File,
-      category: AttachmentCategory = "outros"
-    ) => {
+    async (supplierId: string, file: File, category: AttachmentCategory = "outros") => {
       if (file.size > 8 * 1024 * 1024) {
         throw new Error("Arquivo maior que 8 MB. Compacte ou reduza antes de anexar.");
       }
@@ -334,112 +331,60 @@ export function useSupplierNotes(scope: Scope) {
         addedAt: nowDate(),
         category,
       };
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        const updated: SupplierNoteEntry = {
-          supplierId,
-          status: existing?.status ?? "nao-visitado",
-          observacoes: existing?.observacoes ?? "",
-          fields: existing?.fields ?? {},
-          attachments: [...(existing?.attachments ?? []), att],
-          quoteRows: existing?.quoteRows,
-          groupIds: existing?.groupIds ?? [],
-          createdAt: existing?.createdAt ?? nowDate(),
-          updatedAt: nowDate(),
-        };
-        dbPut(scope, updated);
-        const next = { ...prev, [supplierId]: updated };
-        notify(scope, next);
-        return next;
-      });
+      const base = buildBase(supplierId);
+      const updated: SupplierNoteEntry = {
+        ...base,
+        attachments: [...base.attachments, att],
+      };
+      await persist(updated);
       return att;
     },
-    [scope]
+    [buildBase, persist],
   );
 
   const upsertQuoteRows = useCallback(
     (supplierId: string, rows: QuoteRow[]) => {
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        const updated: SupplierNoteEntry = {
-          supplierId,
-          status: existing?.status ?? "nao-visitado",
-          observacoes: existing?.observacoes ?? "",
-          fields: existing?.fields ?? {},
-          attachments: existing?.attachments ?? [],
-          quoteRows: rows,
-          groupIds: existing?.groupIds ?? [],
-          createdAt: existing?.createdAt ?? nowDate(),
-          updatedAt: nowDate(),
-        };
-        dbPut(scope, updated);
-        const next = { ...prev, [supplierId]: updated };
-        notify(scope, next);
-        return next;
-      });
+      const base = buildBase(supplierId);
+      void persist({ ...base, quoteRows: rows });
     },
-    [scope]
+    [buildBase, persist],
   );
 
   const removeAttachment = useCallback(
     (supplierId: string, attachmentId: string) => {
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        if (!existing) return prev;
-        const updated: SupplierNoteEntry = {
-          ...existing,
-          attachments: existing.attachments.filter((a) => a.id !== attachmentId),
-          updatedAt: nowDate(),
-        };
-        dbPut(scope, updated);
-        const next = { ...prev, [supplierId]: updated };
-        notify(scope, next);
-        return next;
-      });
+      const existing = entries[supplierId];
+      if (!existing) return;
+      const updated: SupplierNoteEntry = {
+        ...existing,
+        attachments: existing.attachments.filter((a) => a.id !== attachmentId),
+        updatedAt: nowDate(),
+      };
+      void persist(updated);
     },
-    [scope]
+    [entries, persist],
   );
 
   const deleteEntry = useCallback(
     (supplierId: string) => {
-      setEntries((prev) => {
-        const next = { ...prev };
-        delete next[supplierId];
-        dbDelete(scope, supplierId);
-        notify(scope, next);
-        return next;
-      });
+      void (async () => {
+        await deleteMut.mutateAsync({ scope, supplierId });
+        await reload();
+      })();
     },
-    [scope]
+    [scope, deleteMut, reload],
   );
 
   const getEntry = useCallback(
     (supplierId: string): SupplierNoteEntry | undefined => entries[supplierId],
-    [entries]
+    [entries],
   );
 
   const setSupplierGroups = useCallback(
     (supplierId: string, groupIds: string[]) => {
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        const updated: SupplierNoteEntry = {
-          supplierId,
-          status: existing?.status ?? "nao-visitado",
-          observacoes: existing?.observacoes ?? "",
-          fields: existing?.fields ?? {},
-          attachments: existing?.attachments ?? [],
-          quoteRows: existing?.quoteRows,
-          groupIds: Array.from(new Set(groupIds)),
-          createdAt: existing?.createdAt ?? nowDate(),
-          updatedAt: nowDate(),
-        };
-        dbPut(scope, updated);
-        const next = { ...prev, [supplierId]: updated };
-        notify(scope, next);
-        return next;
-      });
+      const base = buildBase(supplierId);
+      void persist({ ...base, groupIds: Array.from(new Set(groupIds)) });
     },
-    [scope]
+    [buildBase, persist],
   );
 
   return {

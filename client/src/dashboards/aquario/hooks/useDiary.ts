@@ -1,17 +1,31 @@
 // =============================================================================
-// Hook: useDiary
-// Gerencia diário de campo por fornecedor com entradas de texto, datas e anexos
-// Persistência: IndexedDB (suporta arquivos grandes; fallback silencioso se indisponível)
+// Hook: useDiary (LEGADO / COMPATIBILIDADE)
+//
+// Antes este hook persistia o "diário de campo" do dashboard Aquário no
+// IndexedDB local (por navegador). Agora a persistência foi unificada no
+// BANCO DE DADOS COMPARTILHADO via tRPC, através de useSupplierNotes("aquario").
+//
+// Mantemos este wrapper para não quebrar a UI legada (Home.tsx do Aquário, que
+// usa apenas `totalEntries`). Todas as operações reais de diário/anotações
+// acontecem no SupplierNotesPanel compartilhado. A assinatura pública foi
+// preservada, mas os dados agora são globais (todos os usuários com o link
+// veem o mesmo conteúdo, em tempo real via polling).
 // =============================================================================
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useMemo } from "react";
+import {
+  useSupplierNotes,
+  type SupplierNoteEntry,
+  type SupplierAttachment,
+} from "@/shared/supplier-notes/useSupplierNotes";
 
+// Tipos legados mantidos por compatibilidade de import.
 export interface DiaryAttachment {
   id: string;
   name: string;
-  type: string; // mime
-  size: number; // bytes
-  dataUrl: string; // base64 dataURL
+  type: string;
+  size: number;
+  dataUrl: string;
   addedAt: string;
 }
 
@@ -22,204 +36,88 @@ export interface DiaryEntry {
   updatedAt: string;
 }
 
-const DB_NAME = "china-suppliers-diary";
-const DB_VERSION = 1;
-const STORE = "diary";
-
-// ---------- IndexedDB helpers ----------
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "supplierId" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function toDiaryAttachment(a: SupplierAttachment): DiaryAttachment {
+  return {
+    id: a.id,
+    name: a.name,
+    type: a.type,
+    size: a.size,
+    dataUrl: a.dataUrl,
+    addedAt: a.addedAt,
+  };
 }
 
-async function dbGetAll(): Promise<Record<string, DiaryEntry>> {
-  try {
-    const db = await openDB();
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const store = tx.objectStore(STORE);
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const entries: DiaryEntry[] = req.result || [];
-        const map: Record<string, DiaryEntry> = {};
-        entries.forEach((e) => (map[e.supplierId] = e));
-        resolve(map);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    return {};
-  }
+function toDiaryEntry(e: SupplierNoteEntry): DiaryEntry {
+  return {
+    supplierId: e.supplierId,
+    text: e.observacoes ?? "",
+    attachments: (e.attachments ?? []).map(toDiaryAttachment),
+    updatedAt: e.updatedAt,
+  };
 }
 
-async function dbPut(entry: DiaryEntry): Promise<void> {
-  try {
-    const db = await openDB();
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(entry);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    // ignore
-  }
+// Considera "com registro" qualquer fornecedor com observação, anexo ou status
+// diferente de "não visitado" — coerente com o que o usuário vê como "diário".
+function hasDiaryContent(e: SupplierNoteEntry): boolean {
+  return (
+    (e.observacoes?.trim().length ?? 0) > 0 ||
+    (e.attachments?.length ?? 0) > 0 ||
+    (e.status && e.status !== "nao-visitado")
+  );
 }
 
-async function dbDelete(supplierId: string): Promise<void> {
-  try {
-    const db = await openDB();
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(supplierId);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    // ignore
-  }
-}
-
-// ---------- Util ----------
-function nowFormatted(): string {
-  return new Date().toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function fileToDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-// ---------- Hook ----------
 export function useDiary() {
-  const [entries, setEntries] = useState<Record<string, DiaryEntry>>({});
-  const [loaded, setLoaded] = useState(false);
+  const notes = useSupplierNotes("aquario");
 
-  // Carregar do IndexedDB no mount
-  useEffect(() => {
-    let mounted = true;
-    dbGetAll().then((all) => {
-      if (mounted) {
-        setEntries(all);
-        setLoaded(true);
+  const entries = useMemo<Record<string, DiaryEntry>>(() => {
+    const map: Record<string, DiaryEntry> = {};
+    Object.values(notes.entries).forEach((e) => {
+      if (hasDiaryContent(e)) {
+        map[e.supplierId] = toDiaryEntry(e);
       }
     });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    return map;
+  }, [notes.entries]);
 
   const upsertText = useCallback(
     (supplierId: string, text: string) => {
-      setEntries((prev) => {
-        const existing = prev[supplierId];
-        const updated: DiaryEntry = {
-          supplierId,
-          text,
-          attachments: existing?.attachments ?? [],
-          updatedAt: nowFormatted(),
-        };
-        const next = { ...prev, [supplierId]: updated };
-        // se tudo vazio, removemos
-        if (!text.trim() && updated.attachments.length === 0) {
-          delete next[supplierId];
-          dbDelete(supplierId);
-        } else {
-          dbPut(updated);
-        }
-        return next;
-      });
+      notes.upsertEntry(supplierId, { observacoes: text });
     },
-    []
+    [notes],
   );
 
-  const addAttachment = useCallback(async (supplierId: string, file: File) => {
-    // Limite individual de 8 MB para evitar travar o IndexedDB
-    if (file.size > 8 * 1024 * 1024) {
-      throw new Error("Arquivo maior que 8 MB. Reduza o tamanho ou compacte antes de anexar.");
-    }
-    const dataUrl = await fileToDataURL(file);
-    const att: DiaryAttachment = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: file.name,
-      type: file.type || "application/octet-stream",
-      size: file.size,
-      dataUrl,
-      addedAt: nowFormatted(),
-    };
-    setEntries((prev) => {
-      const existing = prev[supplierId];
-      const updated: DiaryEntry = {
-        supplierId,
-        text: existing?.text ?? "",
-        attachments: [...(existing?.attachments ?? []), att],
-        updatedAt: nowFormatted(),
-      };
-      dbPut(updated);
-      return { ...prev, [supplierId]: updated };
-    });
-    return att;
-  }, []);
+  const addAttachment = useCallback(
+    async (supplierId: string, file: File) => {
+      const att = await notes.addAttachment(supplierId, file, "outros");
+      return toDiaryAttachment(att);
+    },
+    [notes],
+  );
 
-  const removeAttachment = useCallback((supplierId: string, attachmentId: string) => {
-    setEntries((prev) => {
-      const existing = prev[supplierId];
-      if (!existing) return prev;
-      const updated: DiaryEntry = {
-        ...existing,
-        attachments: existing.attachments.filter((a) => a.id !== attachmentId),
-        updatedAt: nowFormatted(),
-      };
-      const next = { ...prev };
-      if (!updated.text.trim() && updated.attachments.length === 0) {
-        delete next[supplierId];
-        dbDelete(supplierId);
-      } else {
-        next[supplierId] = updated;
-        dbPut(updated);
-      }
-      return next;
-    });
-  }, []);
+  const removeAttachment = useCallback(
+    (supplierId: string, attachmentId: string) => {
+      notes.removeAttachment(supplierId, attachmentId);
+    },
+    [notes],
+  );
 
-  const deleteEntry = useCallback((supplierId: string) => {
-    setEntries((prev) => {
-      const next = { ...prev };
-      delete next[supplierId];
-      dbDelete(supplierId);
-      return next;
-    });
-  }, []);
+  const deleteEntry = useCallback(
+    (supplierId: string) => {
+      notes.deleteEntry(supplierId);
+    },
+    [notes],
+  );
 
   const getEntry = useCallback(
     (supplierId: string): DiaryEntry | undefined => entries[supplierId],
-    [entries]
+    [entries],
   );
 
   const totalEntries = Object.keys(entries).length;
 
   return {
     entries,
-    loaded,
+    loaded: notes.loaded,
     upsertText,
     addAttachment,
     removeAttachment,

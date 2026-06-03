@@ -1,13 +1,12 @@
 // =============================================================================
 // useExtraSuppliers — fornecedores cadastrados na 4ª aba "Adicionar Fornecedores".
-// Diferentemente dos `useCustomSuppliers`, estes não pertencem aos 3 dashboards
-// (Aquário, Tapete, Yiwu) — eles ficam vinculados a um CustomGroup criado pelo
-// usuário, e podem virar dashboard próprio se o grupo for promovido.
 //
-// Persistido em IndexedDB no DB compartilhado "guia-fornecedores",
-// store "extra_suppliers".
+// MIGRADO: agora persiste no BANCO DE DADOS COMPARTILHADO via tRPC. A assinatura
+// pública foi mantida idêntica à versão IndexedDB para não quebrar a UI.
+// Sincronização entre usuários: polling a cada 5s e refetch após mutações.
 // =============================================================================
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 
 export interface ExtraSupplierContact {
   id: string;
@@ -41,96 +40,108 @@ export interface ExtraSupplier {
   updatedAt: number;
 }
 
-const DB_NAME = "guia-fornecedores";
-const STORE = "extra_suppliers";
-const DB_VERSION = 3;
-
-const isBrowser = typeof window !== "undefined" && typeof indexedDB !== "undefined";
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains("custom")) {
-        db.createObjectStore("custom", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("groups")) {
-        db.createObjectStore("groups", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("custom_groups")) {
-        db.createObjectStore("custom_groups", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: "id" });
-        store.createIndex("groupId", "groupId", { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbReadAll(): Promise<ExtraSupplier[]> {
-  if (!isBrowser) return [];
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => {
-      const list = (req.result as ExtraSupplier[]) ?? [];
-      list.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(list);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbPut(s: ExtraSupplier): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE).put(s);
-  });
-}
-
-async function dbDelete(id: string): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE).delete(id);
-  });
+export function genExtraContactId(): string {
+  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function genId(): string {
   return `extra_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
-export function genExtraContactId(): string {
-  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+// O banco guarda createdAt/updatedAt como string ISO; a UI usa number (ms).
+function toMs(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    if (!Number.isNaN(n) && v.trim() !== "") return n;
+    const d = Date.parse(v);
+    if (!Number.isNaN(d)) return d;
+  }
+  return Date.now();
+}
+
+function asContacts(v: unknown): ExtraSupplierContact[] {
+  if (Array.isArray(v)) return v as ExtraSupplierContact[];
+  return [];
+}
+
+function normalize(row: Record<string, unknown>): ExtraSupplier {
+  return {
+    id: String(row.id),
+    groupId: String(row.groupId ?? ""),
+    name: String(row.name ?? ""),
+    chineseName: (row.chineseName as string) ?? undefined,
+    category: (row.category as string) ?? undefined,
+    ncm: (row.ncm as string) ?? undefined,
+    city: (row.city as string) ?? undefined,
+    province: (row.province as string) ?? undefined,
+    address: (row.address as string) ?? undefined,
+    phones: asContacts(row.phones),
+    emails: asContacts(row.emails),
+    links: asContacts(row.links),
+    contactName: (row.contactName as string) ?? undefined,
+    contactRole: (row.contactRole as string) ?? undefined,
+    contactLanguage: (row.contactLanguage as string) ?? undefined,
+    moq: (row.moq as string) ?? undefined,
+    priceFob: (row.priceFob as string) ?? undefined,
+    leadTime: (row.leadTime as string) ?? undefined,
+    paymentTerms: (row.paymentTerms as string) ?? undefined,
+    incoterm: (row.incoterm as string) ?? undefined,
+    notes: (row.notes as string) ?? undefined,
+    createdAt: toMs(row.createdAt),
+    updatedAt: toMs(row.updatedAt),
+  };
+}
+
+// Converte ExtraSupplier (UI) -> payload aceito pela API (datas como string).
+function toPayload(s: ExtraSupplier) {
+  return {
+    id: s.id,
+    groupId: s.groupId,
+    name: s.name,
+    chineseName: s.chineseName,
+    category: s.category,
+    ncm: s.ncm,
+    city: s.city,
+    province: s.province,
+    address: s.address,
+    phones: s.phones ?? [],
+    emails: s.emails ?? [],
+    links: s.links ?? [],
+    contactName: s.contactName,
+    contactRole: s.contactRole,
+    contactLanguage: s.contactLanguage,
+    moq: s.moq,
+    priceFob: s.priceFob,
+    leadTime: s.leadTime,
+    paymentTerms: s.paymentTerms,
+    incoterm: s.incoterm,
+    notes: s.notes,
+    createdAt: String(s.createdAt),
+    updatedAt: String(s.updatedAt),
+  };
 }
 
 export function useExtraSuppliers() {
-  const [list, setList] = useState<ExtraSupplier[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const utils = trpc.useUtils();
+  const query = trpc.data.suppliers.list.useQuery(undefined, {
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  });
+  const upsertMut = trpc.data.suppliers.upsert.useMutation();
+  const deleteMut = trpc.data.suppliers.delete.useMutation();
+
+  const list = useMemo<ExtraSupplier[]>(() => {
+    const rows = (query.data ?? []).map((r) => normalize(r as Record<string, unknown>));
+    rows.sort((a, b) => b.updatedAt - a.updatedAt);
+    return rows;
+  }, [query.data]);
+
+  const loaded = !query.isLoading;
 
   const reload = useCallback(async () => {
-    try {
-      const all = await dbReadAll();
-      setList(all);
-    } finally {
-      setLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await utils.data.suppliers.list.invalidate();
+  }, [utils]);
 
   const create = useCallback(
     async (input: Omit<ExtraSupplier, "id" | "createdAt" | "updatedAt">) => {
@@ -144,11 +155,11 @@ export function useExtraSuppliers() {
         emails: input.emails ?? [],
         links: input.links ?? [],
       };
-      await dbPut(supplier);
+      await upsertMut.mutateAsync(toPayload(supplier));
       await reload();
       return supplier;
     },
-    [reload],
+    [upsertMut, reload],
   );
 
   const update = useCallback(
@@ -160,37 +171,54 @@ export function useExtraSuppliers() {
         ...patch,
         updatedAt: Date.now(),
       };
-      await dbPut(updated);
+      await upsertMut.mutateAsync(toPayload(updated));
       await reload();
     },
-    [list, reload],
+    [list, upsertMut, reload],
   );
 
   const remove = useCallback(
     async (id: string) => {
-      await dbDelete(id);
+      await deleteMut.mutateAsync({ id });
       await reload();
     },
-    [reload],
+    [deleteMut, reload],
   );
 
   return { list, loaded, reload, create, update, remove };
 }
 
+// -----------------------------------------------------------------------------
+// Helpers para backup (fora do React).
+// -----------------------------------------------------------------------------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, { credentials: "include" });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
+  });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
+}
+
 export async function readAllExtraSuppliers(): Promise<ExtraSupplier[]> {
-  return dbReadAll();
+  const rows = await trpcFetch<Record<string, unknown>[]>("data.suppliers.list", "query");
+  return (rows ?? []).map(normalize);
 }
 
 export async function writeAllExtraSuppliers(list: ExtraSupplier[]): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    const store = tx.objectStore(STORE);
-    list.forEach((s) => {
-      if (s && s.id) store.put(s);
-    });
-  });
+  for (const s of list) {
+    if (s && s.id) {
+      await trpcFetch("data.suppliers.upsert", "mutation", toPayload(s));
+    }
+  }
 }

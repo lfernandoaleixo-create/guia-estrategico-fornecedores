@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+// =============================================================================
+// useSupplierGroups — grupos de fornecedores COMPARTILHADOS entre os 3
+// dashboards principais (Aquário, Tapete, Yiwu). São os "GRUPOS DO FORNECEDOR"
+// exibidos no GroupPicker de cada fornecedor.
+//
+// MIGRADO: agora persiste no BANCO DE DADOS COMPARTILHADO via tRPC. A assinatura
+// pública foi mantida idêntica à versão IndexedDB para não quebrar a UI.
+// Sincronização entre usuários: polling a cada 5s e refetch após mutações.
+// =============================================================================
 
-/**
- * Sistema de grupos de fornecedores (compartilhado entre os 3 dashboards).
- * Cada grupo tem um id estável, um nome, uma legenda/descrição e uma cor para
- * destacar visualmente o badge.
- *
- * Persistido em IndexedDB no DB "guia-fornecedores", store "groups".
- */
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { trpc } from "@/lib/trpc";
 
 export interface SupplierGroup {
   id: string;
@@ -18,72 +21,7 @@ export interface SupplierGroup {
   updatedAt: string; // ISO
 }
 
-const DB_NAME = "guia-fornecedores";
-const DB_VERSION = 3; // bumped: adicionadas stores custom_groups e extra_suppliers
-const STORE_GROUPS = "groups";
-const STORE_CUSTOM = "custom"; // mantido para compatibilidade com useCustomSuppliers
-
-const isBrowser = typeof window !== "undefined" && typeof indexedDB !== "undefined";
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_CUSTOM)) {
-        db.createObjectStore(STORE_CUSTOM, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(STORE_GROUPS)) {
-        db.createObjectStore(STORE_GROUPS, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("custom_groups")) {
-        db.createObjectStore("custom_groups", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("extra_suppliers")) {
-        const store = db.createObjectStore("extra_suppliers", { keyPath: "id" });
-        store.createIndex("groupId", "groupId", { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbReadAll(): Promise<SupplierGroup[]> {
-  if (!isBrowser) return [];
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_GROUPS, "readonly");
-    const store = tx.objectStore(STORE_GROUPS);
-    const req = store.getAll();
-    req.onsuccess = () => resolve((req.result as SupplierGroup[]) ?? []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbPut(group: SupplierGroup): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE_GROUPS).put(group);
-  });
-}
-
-async function dbDelete(id: string): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(STORE_GROUPS).delete(id);
-  });
-}
-
-// Paleta sugerida para novos grupos (cores distintas e legíveis em fundo claro/escuro)
+// Paleta sugerida para novos grupos
 export const GROUP_COLOR_PALETTE = [
   "#f97316", // laranja
   "#ef4444", // vermelho
@@ -105,77 +43,86 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
+function normalize(row: Record<string, unknown>): SupplierGroup {
+  return {
+    id: String(row.id),
+    number: typeof row.number === "number" ? row.number : Number(row.number) || 0,
+    name: String(row.name ?? ""),
+    legend: (row.legend as string) ?? "",
+    color: (row.color as string) ?? "#64748b",
+    createdAt: String(row.createdAt ?? nowISO()),
+    updatedAt: String(row.updatedAt ?? nowISO()),
+  };
+}
+
+const SEED_GROUPS: SupplierGroup[] = [
+  {
+    id: "grp_seed_aquario_terrario",
+    number: 1,
+    name: "Aquários & Terrários",
+    legend: "Aquariofilia, terrários e equipamentos",
+    color: "#ef4444",
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  },
+  {
+    id: "grp_seed_tapete_higienico",
+    number: 2,
+    name: "Tapete Higiênico Pet",
+    legend: "Importação de tapetes higiênicos (NCM 4818)",
+    color: "#06b6d4",
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  },
+];
+
 export function useSupplierGroups() {
-  const [groups, setGroups] = useState<SupplierGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const utils = trpc.useUtils();
+  const query = trpc.data.supplierGroups.list.useQuery(undefined, {
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  });
+  const upsertMut = trpc.data.supplierGroups.upsert.useMutation();
+  const bulkUpsertMut = trpc.data.supplierGroups.bulkUpsert.useMutation();
+  const deleteMut = trpc.data.supplierGroups.delete.useMutation();
+
+  // Evita semear repetidamente.
+  const seedingRef = useRef(false);
+
+  const groups = useMemo<SupplierGroup[]>(() => {
+    const rows = (query.data ?? []).map((r) => normalize(r as Record<string, unknown>));
+    rows.sort((a, b) => a.number - b.number);
+    return rows;
+  }, [query.data]);
+
+  const loading = query.isLoading;
 
   const reload = useCallback(async () => {
-    try {
-      let all = await dbReadAll();
-      // Seed inicial: garante que existam os grupos fixos do portal
-      // (Nº 01 = Aquários & Terrários, Nº 02 = Tapete Higiênico Pet).
-      // Só cria se ainda não houver nenhum grupo no IndexedDB.
-      if (all.length === 0) {
-        const seeds: SupplierGroup[] = [
-          {
-            id: "grp_seed_aquario_terrario",
-            number: 1,
-            name: "Aquários & Terrários",
-            legend: "Aquariofilia, terrários e equipamentos",
-            color: "#ef4444",
-            createdAt: nowISO(),
-            updatedAt: nowISO(),
-          },
-          {
-            id: "grp_seed_tapete_higienico",
-            number: 2,
-            name: "Tapete Higiênico Pet",
-            legend: "Importação de tapetes higiênicos (NCM 4818)",
-            color: "#06b6d4",
-            createdAt: nowISO(),
-            updatedAt: nowISO(),
-          },
-        ];
-        for (const s of seeds) {
-          try {
-            await dbPut(s);
-          } catch (err) {
-            console.warn("[useSupplierGroups seed]", err);
-          }
-        }
-        all = await dbReadAll();
-      }
-      // Migração leve: garante number atribuído.
-      const used = new Set<number>();
-      all.forEach((g) => {
-        if (typeof g.number === "number" && g.number > 0) used.add(g.number);
-      });
-      let next = 1;
-      const fixed = all.map((g) => {
-        if (typeof g.number === "number" && g.number > 0) return g;
-        while (used.has(next)) next += 1;
-        const withNumber = { ...g, number: next };
-        used.add(next);
-        return withNumber;
-      });
-      fixed.forEach((g, idx) => {
-        if (g !== all[idx]) {
-          dbPut(g).catch((e) => console.warn("[useSupplierGroups migrate]", e));
-        }
-      });
-      // Ordena por número para exibição estável.
-      fixed.sort((a, b) => a.number - b.number);
-      setGroups(fixed);
-    } catch (err) {
-      console.error("[useSupplierGroups] reload", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await utils.data.supplierGroups.list.invalidate();
+  }, [utils]);
 
+  // Seed inicial: se o banco está vazio (após carregar), cria os 2 grupos fixos.
+  // Executado de forma idempotente; o upsert por id evita duplicação.
+  const maybeSeed = useCallback(async () => {
+    if (seedingRef.current) return;
+    if (query.isLoading) return;
+    if ((query.data ?? []).length > 0) return;
+    seedingRef.current = true;
+    try {
+      await bulkUpsertMut.mutateAsync(SEED_GROUPS);
+      await reload();
+    } catch (err) {
+      console.warn("[useSupplierGroups seed]", err);
+      seedingRef.current = false;
+    }
+  }, [query.isLoading, query.data, bulkUpsertMut, reload]);
+
+  // Dispara o seed quando detecta banco vazio.
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (!query.isLoading && (query.data ?? []).length === 0 && !seedingRef.current) {
+      void maybeSeed();
+    }
+  }, [query.isLoading, query.data, maybeSeed]);
 
   const createGroup = useCallback(
     async (input: { name: string; legend?: string; color?: string; number?: number }) => {
@@ -197,11 +144,11 @@ export function useSupplierGroups() {
         createdAt: nowISO(),
         updatedAt: nowISO(),
       };
-      await dbPut(group);
+      await upsertMut.mutateAsync(group);
       await reload();
       return group;
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   const updateGroup = useCallback(
@@ -219,43 +166,40 @@ export function useSupplierGroups() {
         color: patch.color ?? current.color,
         updatedAt: nowISO(),
       };
-      await dbPut(updated);
+      await upsertMut.mutateAsync(updated);
       await reload();
     },
-    [groups, reload],
+    [groups, upsertMut, reload],
   );
 
   const deleteGroup = useCallback(
     async (id: string) => {
-      await dbDelete(id);
+      await deleteMut.mutateAsync({ id });
       await reload();
     },
-    [reload],
+    [deleteMut, reload],
   );
 
-  // Importar/exportar para integração com backup .json
   const exportGroups = useCallback(async (): Promise<SupplierGroup[]> => {
-    return await dbReadAll();
-  }, []);
+    return groups;
+  }, [groups]);
 
   const importGroups = useCallback(
     async (incoming: SupplierGroup[]) => {
-      if (!isBrowser) return;
-      const db = await openDB();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_GROUPS, "readwrite");
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        const store = tx.objectStore(STORE_GROUPS);
-        incoming.forEach((g) => {
-          if (g && g.id && g.name) {
-            store.put(g);
-          }
-        });
-      });
+      const valid = (incoming ?? []).filter((g) => g && g.id && g.name);
+      if (valid.length === 0) return;
+      await bulkUpsertMut.mutateAsync(
+        valid.map((g) => ({
+          ...g,
+          legend: g.legend ?? "",
+          color: g.color ?? "#64748b",
+          createdAt: g.createdAt ?? nowISO(),
+          updatedAt: g.updatedAt ?? nowISO(),
+        })),
+      );
       await reload();
     },
-    [reload],
+    [bulkUpsertMut, reload],
   );
 
   return {
@@ -270,21 +214,45 @@ export function useSupplierGroups() {
   };
 }
 
-/** Helper síncrono para casos em que não dá pra usar hook (ex.: backup.ts) */
+// -----------------------------------------------------------------------------
+// Helpers fora do React (backup.ts).
+// -----------------------------------------------------------------------------
+async function trpcFetch<T>(path: string, kind: "query" | "mutation", input?: unknown): Promise<T> {
+  const base = "/api/trpc";
+  if (kind === "query") {
+    const params = new URLSearchParams();
+    params.set("input", JSON.stringify({ json: input ?? null }));
+    const res = await fetch(`${base}/${path}?${params.toString()}`, { credentials: "include" });
+    const data = await res.json();
+    return data?.result?.data?.json as T;
+  }
+  const res = await fetch(`${base}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ json: input ?? null }),
+  });
+  const data = await res.json();
+  return data?.result?.data?.json as T;
+}
+
 export async function readAllGroups(): Promise<SupplierGroup[]> {
-  return dbReadAll();
+  const rows = await trpcFetch<Record<string, unknown>[]>("data.supplierGroups.list", "query");
+  return (rows ?? []).map(normalize);
 }
 
 export async function writeAllGroups(groups: SupplierGroup[]): Promise<void> {
-  if (!isBrowser) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_GROUPS, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    const store = tx.objectStore(STORE_GROUPS);
-    groups.forEach((g) => {
-      if (g && g.id && g.name) store.put(g);
-    });
-  });
+  const valid = (groups ?? []).filter((g) => g && g.id && g.name);
+  if (valid.length === 0) return;
+  await trpcFetch(
+    "data.supplierGroups.bulkUpsert",
+    "mutation",
+    valid.map((g) => ({
+      ...g,
+      legend: g.legend ?? "",
+      color: g.color ?? "#64748b",
+      createdAt: g.createdAt ?? nowISO(),
+      updatedAt: g.updatedAt ?? nowISO(),
+    })),
+  );
 }
