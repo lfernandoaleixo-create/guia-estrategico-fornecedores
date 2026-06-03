@@ -904,13 +904,13 @@ export default function AdicionarPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
           style={{ background: "rgba(0,0,0,0.65)" }}
           onClick={() => setGroupModalOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl p-6 border"
+            className="w-full max-w-md rounded-2xl p-6 border my-8 max-h-[90vh] overflow-y-auto"
             style={{
               background: "oklch(0.12 0.02 250)",
               borderColor: BORDER,

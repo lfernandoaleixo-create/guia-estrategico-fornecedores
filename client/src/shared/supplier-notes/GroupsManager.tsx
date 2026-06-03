@@ -19,8 +19,8 @@ export function GroupsManager({ tone = "light" }: Props) {
   const { groups, createGroup, updateGroup, deleteGroup } = useSupplierGroups();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ name: string; legend: string; color: string }>(
-    { name: "", legend: "", color: GROUP_COLOR_PALETTE[0] }
+  const [draft, setDraft] = useState<{ name: string; legend: string; color: string; number: number }>(
+    { name: "", legend: "", color: GROUP_COLOR_PALETTE[0], number: 1 }
   );
 
   const isDark = tone === "dark";
@@ -35,22 +35,25 @@ export function GroupsManager({ tone = "light" }: Props) {
 
   function startCreate() {
     setEditing(null);
-    setDraft({ name: "", legend: "", color: GROUP_COLOR_PALETTE[0] });
+    const usedNumbers = groups.map((g) => g.number).filter(Boolean);
+    let nextNum = 1;
+    while (usedNumbers.includes(nextNum)) nextNum++;
+    setDraft({ name: "", legend: "", color: GROUP_COLOR_PALETTE[0], number: nextNum });
     setOpen(true);
   }
 
   function startEdit(g: SupplierGroup) {
     setEditing(g.id);
-    setDraft({ name: g.name, legend: g.legend, color: g.color });
+    setDraft({ name: g.name, legend: g.legend, color: g.color, number: g.number ?? 1 });
     setOpen(true);
   }
 
   async function handleSave() {
     if (!draft.name.trim()) return;
     if (editing) {
-      await updateGroup(editing, draft);
+      await updateGroup(editing, { name: draft.name, legend: draft.legend, color: draft.color, number: draft.number });
     } else {
-      await createGroup(draft);
+      await createGroup({ name: draft.name, legend: draft.legend, color: draft.color, number: draft.number });
     }
     setOpen(false);
   }
@@ -196,6 +199,19 @@ export function GroupsManager({ tone = "light" }: Props) {
             </p>
 
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7 }}>
+              Número do grupo
+            </label>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={draft.number}
+              onChange={(e) => setDraft({ ...draft, number: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, marginTop: 4, fontSize: 16, fontWeight: 700, fontFamily: "'Fraunces', serif" }}
+            />
+            <span style={{ fontSize: 10, opacity: 0.6, marginTop: 2, display: "block" }}>Sugestão automática do próximo livre.</span>
+
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7, marginTop: 12 }}>
               Nome do grupo
             </label>
             <input
