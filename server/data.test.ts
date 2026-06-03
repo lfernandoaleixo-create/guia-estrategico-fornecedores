@@ -455,3 +455,58 @@ describe("data.customSuppliers", () => {
     expect(list.find((s) => s.id === CS_ID)).toBeUndefined();
   });
 });
+
+describe("cadastro embutido no dashboard promovido (supplier vinculado ao groupId)", () => {
+  const G_ID = "cgrp_inline_vitest";
+  const S_ID = "extra_inline_vitest";
+
+  afterAll(async () => {
+    await caller.data.suppliers.delete({ id: S_ID }).catch(() => {});
+    await caller.data.groups.delete({ id: G_ID }).catch(() => {});
+  });
+
+  it("cria fornecedor já com o groupId do dashboard e ele aparece filtrado por grupo", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    // grupo promovido a dashboard
+    await caller.data.groups.upsert({
+      id: G_ID,
+      number: 90,
+      name: "Joias Inline",
+      branch: "Joias",
+      color: "#eab308",
+      description: "dashboard promovido",
+      promotedToDashboard: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // cadastro embutido: fornecedor nasce já com o groupId deste dashboard
+    await caller.data.suppliers.upsert({
+      id: S_ID,
+      groupId: G_ID,
+      name: "Shenzhen Gold Jewelry Co.",
+      category: "Joias / Banhado a ouro",
+      city: "Shenzhen",
+      moq: "100 kits",
+      phones: [],
+      emails: [],
+      links: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // a listagem geral deve trazer o fornecedor vinculado ao grupo correto
+    const all = await caller.data.suppliers.list();
+    const mine = all.filter((s) => s.groupId === G_ID);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.id).toBe(S_ID);
+    expect(mine[0]?.name).toBe("Shenzhen Gold Jewelry Co.");
+    // os dados do cadastro ficam disponíveis para o painel do Diário (prefilled)
+    expect(mine[0]?.category).toBe("Joias / Banhado a ouro");
+    expect(mine[0]?.city).toBe("Shenzhen");
+    expect(mine[0]?.moq).toBe("100 kits");
+  });
+});

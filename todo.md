@@ -101,3 +101,13 @@
 - [x] Testar 'Exportar PDF' na aba Diário do dashboard promovido e confirmar geração (títulos limpos, sem glitch de caracteres)
 - [x] Limpar dados de teste do banco (apenas 2 grupos canônicos restantes)
 - [x] Salvar checkpoint final
+
+## Cadastro de fornecedor dentro do dashboard promovido
+- [x] Modal de cadastro embutido no GrupoDashboard (sem navegar para /adicionar)
+- [x] Botões "Adicionar fornecedor" e "Cadastrar primeiro fornecedor" abrem o modal e gravam com o groupId do dashboard atual
+- [x] Validar no browser que a página se mantém fixa e o fornecedor aparece na lista
+- [x] Aba "Anotações / Diário" lista cada fornecedor do grupo com painel completo (status, informações, upload catálogos/fotos/cotações)
+- [x] Painel do Diário lê automaticamente os dados do cadastro do fornecedor (prefilled) e permite editar pelo lápis
+- [x] Escrever/rodar teste vitest cobrindo criação de fornecedor com groupId (12/12 passando)
+- [x] Limpar fornecedor de teste do banco
+- [x] Salvar checkpoint

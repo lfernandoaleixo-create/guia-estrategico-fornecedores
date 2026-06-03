@@ -24,6 +24,7 @@ import {
   Pencil,
   ListChecks,
   NotebookPen,
+  Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
@@ -32,9 +33,9 @@ import {
   genExtraContactId,
   type ExtraSupplier,
 } from "@/shared/supplier-notes/useExtraSuppliers";
-import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
-import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
@@ -52,36 +53,91 @@ function fmtDate(ts: number): string {
   });
 }
 
+// Constrói os campos read-only do painel de anotações a partir do cadastro do fornecedor.
+// Assim o Diário "lê automaticamente" o que foi cadastrado; a edição continua pelo lápis.
+function buildPrefilled(s: ExtraSupplier): PrefilledField[] {
+  const out: PrefilledField[] = [];
+  const push = (label: string, value?: string, extra?: Partial<PrefilledField>) => {
+    const v = (value ?? "").trim();
+    if (v) out.push({ label, value: v, ...extra });
+  };
+  push("Nome Chinês", s.chineseName);
+  push("Categoria / Setor", s.category);
+  push("NCM", s.ncm);
+  push("Cidade", s.city);
+  push("Província / Estado", s.province);
+  push("Endereço", s.address, { full: true, copyable: true });
+  push("Pessoa de Contato", s.contactName);
+  push("Cargo", s.contactRole);
+  push("Idioma", s.contactLanguage);
+  s.phones.forEach((p, i) =>
+    push(s.phones.length > 1 ? `Telefone ${i + 1}` : "Telefone", p.value, {
+      copyable: true,
+      href: `tel:${p.value.replace(/\s+/g, "")}`,
+    }),
+  );
+  s.emails.forEach((e, i) =>
+    push(s.emails.length > 1 ? `E-mail ${i + 1}` : "E-mail", e.value, {
+      copyable: true,
+      href: `mailto:${e.value}`,
+    }),
+  );
+  s.links.forEach((l, i) =>
+    push(s.links.length > 1 ? `Link ${i + 1}` : "Link / Site", l.value, {
+      full: true,
+      href: l.value,
+    }),
+  );
+  push("MOQ", s.moq);
+  push("Preço FOB", s.priceFob);
+  push("Lead Time", s.leadTime);
+  push("Pagamento", s.paymentTerms);
+  push("Incoterm", s.incoterm);
+  push("Observações do cadastro", s.notes, { full: true });
+  return out;
+}
+
 // ─── Edit Modal ──────────────────────────────────────────────────────────────
-interface EditModalProps {
-  supplier: ExtraSupplier;
+export type SupplierFormValues = Partial<Omit<ExtraSupplier, "id" | "createdAt" | "updatedAt" | "groupId">> & {
+  name: string;
+  phones: ExtraSupplier["phones"];
+  emails: ExtraSupplier["emails"];
+  links: ExtraSupplier["links"];
+};
+
+interface SupplierModalProps {
+  /** Quando presente, o modal opera em modo edição; ausente/null = criação. */
+  supplier?: ExtraSupplier | null;
   accent: string;
-  onSave: (id: string, patch: Partial<Omit<ExtraSupplier, "id" | "createdAt">>) => Promise<void>;
+  /** Recebe os valores tratados. Em edição, `id` vem preenchido; em criação, `null`. */
+  onSubmit: (id: string | null, values: SupplierFormValues) => Promise<void>;
   onClose: () => void;
 }
 
-function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps) {
+function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalProps) {
+  const isEdit = !!supplier;
   const [form, setForm] = useState({
-    name: supplier.name,
-    chineseName: supplier.chineseName || "",
-    category: supplier.category || "",
-    ncm: supplier.ncm || "",
-    city: supplier.city || "",
-    province: supplier.province || "",
-    address: supplier.address || "",
-    contactName: supplier.contactName || "",
-    contactRole: supplier.contactRole || "",
-    contactLanguage: supplier.contactLanguage || "",
-    moq: supplier.moq || "",
-    priceFob: supplier.priceFob || "",
-    leadTime: supplier.leadTime || "",
-    paymentTerms: supplier.paymentTerms || "",
-    incoterm: supplier.incoterm || "",
-    notes: supplier.notes || "",
-    phones: [...supplier.phones],
-    emails: [...supplier.emails],
-    links: [...supplier.links],
+    name: supplier?.name || "",
+    chineseName: supplier?.chineseName || "",
+    category: supplier?.category || "",
+    ncm: supplier?.ncm || "",
+    city: supplier?.city || "",
+    province: supplier?.province || "",
+    address: supplier?.address || "",
+    contactName: supplier?.contactName || "",
+    contactRole: supplier?.contactRole || "",
+    contactLanguage: supplier?.contactLanguage || "",
+    moq: supplier?.moq || "",
+    priceFob: supplier?.priceFob || "",
+    leadTime: supplier?.leadTime || "",
+    paymentTerms: supplier?.paymentTerms || "",
+    incoterm: supplier?.incoterm || "",
+    notes: supplier?.notes || "",
+    phones: supplier ? [...supplier.phones] : [],
+    emails: supplier ? [...supplier.emails] : [],
+    links: supplier ? [...supplier.links] : [],
   });
+  const [saving, setSaving] = useState(false);
 
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -90,29 +146,36 @@ function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps
       toast.error("Nome é obrigatório");
       return;
     }
-    await onSave(supplier.id, {
-      name: form.name.trim(),
-      chineseName: form.chineseName.trim() || undefined,
-      category: form.category.trim() || undefined,
-      ncm: form.ncm.trim() || undefined,
-      city: form.city.trim() || undefined,
-      province: form.province.trim() || undefined,
-      address: form.address.trim() || undefined,
-      contactName: form.contactName.trim() || undefined,
-      contactRole: form.contactRole.trim() || undefined,
-      contactLanguage: form.contactLanguage.trim() || undefined,
-      moq: form.moq.trim() || undefined,
-      priceFob: form.priceFob.trim() || undefined,
-      leadTime: form.leadTime.trim() || undefined,
-      paymentTerms: form.paymentTerms.trim() || undefined,
-      incoterm: form.incoterm.trim() || undefined,
-      notes: form.notes.trim() || undefined,
-      phones: form.phones,
-      emails: form.emails,
-      links: form.links,
-    });
-    toast.success("Fornecedor atualizado");
-    onClose();
+    setSaving(true);
+    try {
+      await onSubmit(supplier?.id ?? null, {
+        name: form.name.trim(),
+        chineseName: form.chineseName.trim() || undefined,
+        category: form.category.trim() || undefined,
+        ncm: form.ncm.trim() || undefined,
+        city: form.city.trim() || undefined,
+        province: form.province.trim() || undefined,
+        address: form.address.trim() || undefined,
+        contactName: form.contactName.trim() || undefined,
+        contactRole: form.contactRole.trim() || undefined,
+        contactLanguage: form.contactLanguage.trim() || undefined,
+        moq: form.moq.trim() || undefined,
+        priceFob: form.priceFob.trim() || undefined,
+        leadTime: form.leadTime.trim() || undefined,
+        paymentTerms: form.paymentTerms.trim() || undefined,
+        incoterm: form.incoterm.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        phones: form.phones.filter((p) => p.value.trim()),
+        emails: form.emails.filter((e) => e.value.trim()),
+        links: form.links.filter((l) => l.value.trim()),
+      });
+      toast.success(isEdit ? "Fornecedor atualizado" : "Fornecedor cadastrado");
+      onClose();
+    } catch {
+      toast.error("Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -143,7 +206,7 @@ function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY, fontFamily: "'Fraunces', serif" }}>
-            Editar fornecedor
+            {isEdit ? "Editar fornecedor" : "Cadastrar fornecedor"}
           </h2>
           <button onClick={onClose} className="p-1 rounded hover:opacity-70" style={{ color: TEXT_MUTED }}>
             <X className="w-5 h-5" />
@@ -348,10 +411,11 @@ function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97] disabled:opacity-60"
             style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
           >
-            Salvar alterações
+            {saving ? "Salvando…" : isEdit ? "Salvar alterações" : "Cadastrar fornecedor"}
           </button>
         </div>
       </div>
@@ -363,7 +427,7 @@ function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps
 export default function GrupoDashboard() {
   const params = useParams() as { groupId: string };
   const { groups, demoteFromDashboard } = useCustomGroups();
-  const { list: allSuppliers, remove: removeSupplier, update: updateSupplier } = useExtraSuppliers();
+  const { list: allSuppliers, remove: removeSupplier, update: updateSupplier, create: createSupplier } = useExtraSuppliers();
 
   const group: CustomGroup | undefined = useMemo(
     () => groups.find((g) => g.id === params.groupId),
@@ -373,11 +437,13 @@ export default function GrupoDashboard() {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<ExtraSupplier | null>(null);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [diaryExpandedId, setDiaryExpandedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"fornecedores" | "diario">("fornecedores");
 
   // Notas/diário deste dashboard promovido (scope dinâmico grupo-{id}).
   const scope = `grupo-${params.groupId}`;
-  const { entries: groupEntries, deleteEntry: deleteGroupEntry } = useSupplierNotes(scope);
+  const { entries: groupEntries, deleteEntry: deleteGroupEntry, getEntry } = useSupplierNotes(scope);
 
   const suppliers = useMemo(() => {
     if (!group) return [];
@@ -462,8 +528,12 @@ export default function GrupoDashboard() {
     toast.success("Fornecedor removido");
   }
 
-  async function handleUpdateSupplier(id: string, patch: Partial<Omit<ExtraSupplier, "id" | "createdAt">>) {
-    await updateSupplier(id, patch);
+  async function handleSubmitSupplier(id: string | null, values: SupplierFormValues) {
+    if (id) {
+      await updateSupplier(id, values);
+    } else if (group) {
+      await createSupplier({ ...values, groupId: group.id });
+    }
   }
 
   return (
@@ -577,8 +647,8 @@ export default function GrupoDashboard() {
             </div>
           </div>
           <div className="flex-1" />
-          <Link
-            href="/adicionar"
+          <button
+            onClick={() => setCreatingSupplier(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
             style={{
               background: `${accent}`,
@@ -587,7 +657,7 @@ export default function GrupoDashboard() {
           >
             <Plus className="w-4 h-4" />
             Adicionar fornecedor
-          </Link>
+          </button>
           <button
             onClick={handleDemote}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
@@ -666,14 +736,14 @@ export default function GrupoDashboard() {
               style={{ color: accent }}
             />
             <p className="mb-3">Nenhum fornecedor encontrado neste dashboard ainda.</p>
-            <Link
-              href="/adicionar"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            <button
+              onClick={() => setCreatingSupplier(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
               style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
             >
               <Plus className="w-4 h-4" />
               Cadastrar primeiro fornecedor
-            </Link>
+            </button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -809,6 +879,7 @@ export default function GrupoDashboard() {
                         supplierName={s.name}
                         accent={accent}
                         compact
+                        prefilledFields={buildPrefilled(s)}
                         editableFields={DEFAULT_EDITABLE_FIELDS}
                         onSaved={() => setExpandedId(null)}
                       />
@@ -845,11 +916,129 @@ export default function GrupoDashboard() {
             Anotações / Diário
           </h2>
           <p className="text-sm max-w-2xl" style={{ color: TEXT_MUTED, lineHeight: 1.55 }}>
-            Acompanhe o status de cada fornecedor deste dashboard, métricas de uploads (catálogos,
-            fotos, cotações) e gere relatórios em PDF. Tudo é salvo no banco compartilhado e
-            sincronizado automaticamente.
+            Acompanhe o status de cada fornecedor deste dashboard, edite as informações,
+            faça upload de catálogos, fotos e cotações e gere relatórios em PDF. Os dados
+            do cadastro são lidos automaticamente e podem ser editados pelo lápis.
           </p>
         </div>
+
+        {/* Lista de fornecedores com painel completo (status, informações, uploads) */}
+        {groupSuppliers.length === 0 ? (
+          <div
+            className="rounded-2xl border-2 border-dashed p-12 text-center"
+            style={{ borderColor: BORDER, color: TEXT_MUTED }}
+          >
+            <NotebookPen className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: accent }} />
+            <p className="mb-3">Nenhum fornecedor cadastrado neste dashboard ainda.</p>
+            <button
+              onClick={() => setCreatingSupplier(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+              style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
+            >
+              <Plus className="w-4 h-4" />
+              Cadastrar primeiro fornecedor
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {groupSuppliers.map((s) => {
+              const isOpen = diaryExpandedId === s.id;
+              const entry = getEntry(s.id);
+              const st = STATUS_CONFIG[entry?.status ?? "nao-visitado"];
+              const attachCount = entry?.attachments?.length ?? 0;
+              return (
+                <article
+                  key={s.id}
+                  className="rounded-2xl border transition-all"
+                  style={{
+                    background: SURFACE,
+                    borderColor: isOpen ? accent : BORDER,
+                    borderLeft: `4px solid ${accent}`,
+                  }}
+                >
+                  <div
+                    className="p-5 cursor-pointer select-none"
+                    onClick={() =>
+                      setDiaryExpandedId((prev) => (prev === s.id ? null : s.id))
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {s.category && (
+                          <div
+                            className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
+                            style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {s.category}
+                          </div>
+                        )}
+                        <h3
+                          className="font-semibold leading-tight truncate"
+                          style={{
+                            fontFamily: "'Fraunces', serif",
+                            color: TEXT_PRIMARY,
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {s.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}` }}
+                          >
+                            <span>{st.emoji}</span>
+                            {st.label}
+                          </span>
+                          {attachCount > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full"
+                              style={{ color: TEXT_MUTED, border: `1px solid ${BORDER}` }}
+                            >
+                              <Folder className="w-3 h-3" /> {attachCount} anexo{attachCount === 1 ? "" : "s"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSupplier(s);
+                          }}
+                          className="p-1.5 rounded hover:bg-white/5"
+                          style={{ color: accent }}
+                          title="Editar cadastro"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 ml-1" style={{ color: TEXT_MUTED }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 ml-1" style={{ color: TEXT_MUTED }} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-2 border-t" style={{ borderColor: BORDER }}>
+                      <SupplierNotesPanel
+                        scope={scope}
+                        supplierId={s.id}
+                        supplierName={s.name}
+                        accent={accent}
+                        compact
+                        prefilledFields={buildPrefilled(s)}
+                        editableFields={DEFAULT_EDITABLE_FIELDS}
+                      />
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
 
         {/* Backup */}
         <div
@@ -890,13 +1079,16 @@ export default function GrupoDashboard() {
       </section>
       )}
 
-      {/* Modal de edição */}
-      {editingSupplier && (
-        <EditSupplierModal
+      {/* Modal de cadastro / edição */}
+      {(editingSupplier || creatingSupplier) && (
+        <SupplierModal
           supplier={editingSupplier}
           accent={accent}
-          onSave={handleUpdateSupplier}
-          onClose={() => setEditingSupplier(null)}
+          onSubmit={handleSubmitSupplier}
+          onClose={() => {
+            setEditingSupplier(null);
+            setCreatingSupplier(false);
+          }}
         />
       )}
     </div>
