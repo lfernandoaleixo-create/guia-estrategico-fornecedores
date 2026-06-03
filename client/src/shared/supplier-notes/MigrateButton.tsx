@@ -24,7 +24,7 @@ const DASHBOARDS: Array<{ scope: DashboardScope; label: string; color: string }>
 ];
 
 interface Props {
-  fromScope: DashboardScope;
+  fromScope: string;
   fromSupplierId: string;
   context: MigrationContext;
   /** Callback chamado após migração bem-sucedida (ex: recarregar lista). */

@@ -51,7 +51,7 @@ export interface MigrationResult {
  * Mantém todo o histórico (entry note + extras quando aplicável).
  */
 export async function migrateSupplier(
-  fromScope: DashboardScope,
+  fromScope: string,
   fromSupplierId: string,
   target: MigrationTarget,
   context: MigrationContext,

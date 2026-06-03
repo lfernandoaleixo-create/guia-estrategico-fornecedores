@@ -221,20 +221,20 @@ function fileToDataURL(file: File): Promise<string> {
 
 // ---------- API direta (usada por migração e backup) ----------
 export async function readEntryDirect(
-  scope: "aquario" | "tapete" | "yiwu",
+  scope: string,
   supplierId: string,
 ): Promise<SupplierNoteEntry | null> {
   const all = await dbGetAll(scope);
   return all[supplierId] ?? null;
 }
 export async function writeEntryDirect(
-  scope: "aquario" | "tapete" | "yiwu",
+  scope: string,
   entry: SupplierNoteEntry,
 ): Promise<void> {
   await dbPut(scope, entry);
 }
 export async function deleteEntryDirect(
-  scope: "aquario" | "tapete" | "yiwu",
+  scope: string,
   supplierId: string,
 ): Promise<void> {
   await dbDelete(scope, supplierId);
@@ -249,14 +249,15 @@ export function formatBytes(bytes: number): string {
 // ---------- Pub/Sub global para sincronizar instâncias do hook ----------
 // Cada instância (lista, painel, etc.) registra um listener; quando uma escreve,
 // todas recebem o estado atualizado e re-renderizam.
-type Scope = "aquario" | "tapete" | "yiwu";
-const listeners: Record<Scope, Set<(state: Record<string, SupplierNoteEntry>) => void>> = {
-  aquario: new Set(),
-  tapete: new Set(),
-  yiwu: new Set(),
-};
-function notify(scope: Scope, state: Record<string, SupplierNoteEntry>) {
-  listeners[scope].forEach((fn) => fn(state));
+type Scope = string;
+const listeners = new Map<string, Set<(state: Record<string, SupplierNoteEntry>) => void>>();
+function getListenerSet(scope: string) {
+  let s = listeners.get(scope);
+  if (!s) { s = new Set(); listeners.set(scope, s); }
+  return s;
+}
+function notify(scope: string, state: Record<string, SupplierNoteEntry>) {
+  getListenerSet(scope).forEach((fn) => fn(state));
 }
 
 // ---------- Hook ----------
@@ -276,10 +277,10 @@ export function useSupplierNotes(scope: Scope) {
     const sub = (state: Record<string, SupplierNoteEntry>) => {
       if (mounted) setEntries(state);
     };
-    listeners[scope].add(sub);
+    getListenerSet(scope).add(sub);
     return () => {
       mounted = false;
-      listeners[scope].delete(sub);
+      getListenerSet(scope).delete(sub);
     };
   }, [scope]);
 

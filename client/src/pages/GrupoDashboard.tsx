@@ -1,8 +1,10 @@
 // =============================================================================
 // /grupo/:groupId — Dashboard independente para um grupo personalizado promovido.
 // Mantém o mesmo padrão visual editorial dos 3 dashboards principais.
+// Agora com SupplierNotesPanel (catálogos, fotos, cotações, status, diário)
+// e edição de cadastro do fornecedor.
 // =============================================================================
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Link, useParams } from "wouter";
 import {
   ArrowLeft,
@@ -17,13 +19,19 @@ import {
   Phone,
   Mail,
   Link as LinkIcon,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
 import {
   useExtraSuppliers,
+  genExtraContactId,
   type ExtraSupplier,
 } from "@/shared/supplier-notes/useExtraSuppliers";
+import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
+import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -38,10 +46,318 @@ function fmtDate(ts: number): string {
   });
 }
 
+// ─── Edit Modal ──────────────────────────────────────────────────────────────
+interface EditModalProps {
+  supplier: ExtraSupplier;
+  accent: string;
+  onSave: (id: string, patch: Partial<Omit<ExtraSupplier, "id" | "createdAt">>) => Promise<void>;
+  onClose: () => void;
+}
+
+function EditSupplierModal({ supplier, accent, onSave, onClose }: EditModalProps) {
+  const [form, setForm] = useState({
+    name: supplier.name,
+    chineseName: supplier.chineseName || "",
+    category: supplier.category || "",
+    ncm: supplier.ncm || "",
+    city: supplier.city || "",
+    province: supplier.province || "",
+    address: supplier.address || "",
+    contactName: supplier.contactName || "",
+    contactRole: supplier.contactRole || "",
+    contactLanguage: supplier.contactLanguage || "",
+    moq: supplier.moq || "",
+    priceFob: supplier.priceFob || "",
+    leadTime: supplier.leadTime || "",
+    paymentTerms: supplier.paymentTerms || "",
+    incoterm: supplier.incoterm || "",
+    notes: supplier.notes || "",
+    phones: [...supplier.phones],
+    emails: [...supplier.emails],
+    links: [...supplier.links],
+  });
+
+  const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    await onSave(supplier.id, {
+      name: form.name.trim(),
+      chineseName: form.chineseName.trim() || undefined,
+      category: form.category.trim() || undefined,
+      ncm: form.ncm.trim() || undefined,
+      city: form.city.trim() || undefined,
+      province: form.province.trim() || undefined,
+      address: form.address.trim() || undefined,
+      contactName: form.contactName.trim() || undefined,
+      contactRole: form.contactRole.trim() || undefined,
+      contactLanguage: form.contactLanguage.trim() || undefined,
+      moq: form.moq.trim() || undefined,
+      priceFob: form.priceFob.trim() || undefined,
+      leadTime: form.leadTime.trim() || undefined,
+      paymentTerms: form.paymentTerms.trim() || undefined,
+      incoterm: form.incoterm.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+      phones: form.phones,
+      emails: form.emails,
+      links: form.links,
+    });
+    toast.success("Fornecedor atualizado");
+    onClose();
+  };
+
+  const inputStyle: React.CSSProperties = {
+    background: "oklch(0.14 0.02 250)",
+    border: `1px solid ${BORDER}`,
+    color: TEXT_PRIMARY,
+    borderRadius: "0.5rem",
+    padding: "0.5rem 0.75rem",
+    fontSize: "0.875rem",
+    width: "100%",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    color: TEXT_MUTED,
+    fontSize: "0.65rem",
+    textTransform: "uppercase",
+    letterSpacing: "0.12em",
+    fontFamily: "'JetBrains Mono', monospace",
+    marginBottom: "0.25rem",
+    display: "block",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+      <div
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6"
+        style={{ background: "oklch(0.10 0.02 250)", border: `1px solid ${BORDER}` }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY, fontFamily: "'Fraunces', serif" }}>
+            Editar fornecedor
+          </h2>
+          <button onClick={onClose} className="p-1 rounded hover:opacity-70" style={{ color: TEXT_MUTED }}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Identificação */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label style={labelStyle}>Nome *</label>
+              <input value={form.name} onChange={(e) => set("name", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Nome Chinês</label>
+              <input value={form.chineseName} onChange={(e) => set("chineseName", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Categoria/Setor</label>
+              <input value={form.category} onChange={(e) => set("category", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>NCM</label>
+              <input value={form.ncm} onChange={(e) => set("ncm", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Localização */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Cidade</label>
+              <input value={form.city} onChange={(e) => set("city", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Província/Estado</label>
+              <input value={form.province} onChange={(e) => set("province", e.target.value)} style={inputStyle} />
+            </div>
+            <div className="col-span-2">
+              <label style={labelStyle}>Endereço</label>
+              <input value={form.address} onChange={(e) => set("address", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Contato */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Nome do contato</label>
+              <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Cargo</label>
+              <input value={form.contactRole} onChange={(e) => set("contactRole", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Idioma</label>
+              <input value={form.contactLanguage} onChange={(e) => set("contactLanguage", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Telefones */}
+          <div>
+            <label style={labelStyle}>Telefones</label>
+            {form.phones.map((p, i) => (
+              <div key={p.id} className="flex gap-2 mb-1">
+                <input
+                  value={p.value}
+                  onChange={(e) => {
+                    const arr = [...form.phones];
+                    arr[i] = { ...arr[i], value: e.target.value };
+                    setForm((f) => ({ ...f, phones: arr }));
+                  }}
+                  style={inputStyle}
+                  placeholder="+86 ..."
+                />
+                <button
+                  onClick={() => setForm((f) => ({ ...f, phones: f.phones.filter((_, idx) => idx !== i) }))}
+                  className="px-2"
+                  style={{ color: "#fca5a5" }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { id: genExtraContactId(), value: "" }] }))}
+              className="text-xs mt-1"
+              style={{ color: accent }}
+            >
+              + Adicionar telefone
+            </button>
+          </div>
+
+          {/* Emails */}
+          <div>
+            <label style={labelStyle}>E-mails</label>
+            {form.emails.map((e, i) => (
+              <div key={e.id} className="flex gap-2 mb-1">
+                <input
+                  value={e.value}
+                  onChange={(ev) => {
+                    const arr = [...form.emails];
+                    arr[i] = { ...arr[i], value: ev.target.value };
+                    setForm((f) => ({ ...f, emails: arr }));
+                  }}
+                  style={inputStyle}
+                  placeholder="email@example.com"
+                />
+                <button
+                  onClick={() => setForm((f) => ({ ...f, emails: f.emails.filter((_, idx) => idx !== i) }))}
+                  className="px-2"
+                  style={{ color: "#fca5a5" }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setForm((f) => ({ ...f, emails: [...f.emails, { id: genExtraContactId(), value: "" }] }))}
+              className="text-xs mt-1"
+              style={{ color: accent }}
+            >
+              + Adicionar e-mail
+            </button>
+          </div>
+
+          {/* Links */}
+          <div>
+            <label style={labelStyle}>Links/Sites</label>
+            {form.links.map((l, i) => (
+              <div key={l.id} className="flex gap-2 mb-1">
+                <input
+                  value={l.value}
+                  onChange={(ev) => {
+                    const arr = [...form.links];
+                    arr[i] = { ...arr[i], value: ev.target.value };
+                    setForm((f) => ({ ...f, links: arr }));
+                  }}
+                  style={inputStyle}
+                  placeholder="https://..."
+                />
+                <button
+                  onClick={() => setForm((f) => ({ ...f, links: f.links.filter((_, idx) => idx !== i) }))}
+                  className="px-2"
+                  style={{ color: "#fca5a5" }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setForm((f) => ({ ...f, links: [...f.links, { id: genExtraContactId(), value: "" }] }))}
+              className="text-xs mt-1"
+              style={{ color: accent }}
+            >
+              + Adicionar link
+            </button>
+          </div>
+
+          {/* Comercial */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>MOQ</label>
+              <input value={form.moq} onChange={(e) => set("moq", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Preço FOB</label>
+              <input value={form.priceFob} onChange={(e) => set("priceFob", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Lead Time</label>
+              <input value={form.leadTime} onChange={(e) => set("leadTime", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Pagamento</label>
+              <input value={form.paymentTerms} onChange={(e) => set("paymentTerms", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Incoterm</label>
+              <input value={form.incoterm} onChange={(e) => set("incoterm", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div>
+            <label style={labelStyle}>Observações</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical" }}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t" style={{ borderColor: BORDER }}>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm"
+            style={{ color: TEXT_MUTED, border: `1px solid ${BORDER}` }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+            style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
+          >
+            Salvar alterações
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function GrupoDashboard() {
   const params = useParams() as { groupId: string };
   const { groups, demoteFromDashboard } = useCustomGroups();
-  const { list: allSuppliers, remove: removeSupplier } = useExtraSuppliers();
+  const { list: allSuppliers, remove: removeSupplier, update: updateSupplier } = useExtraSuppliers();
 
   const group: CustomGroup | undefined = useMemo(
     () => groups.find((g) => g.id === params.groupId),
@@ -49,6 +365,8 @@ export default function GrupoDashboard() {
   );
 
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<ExtraSupplier | null>(null);
 
   const suppliers = useMemo(() => {
     if (!group) return [];
@@ -71,6 +389,10 @@ export default function GrupoDashboard() {
       return hay.includes(q);
     });
   }, [allSuppliers, group, search]);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, []);
 
   if (!group) {
     return (
@@ -116,6 +438,10 @@ export default function GrupoDashboard() {
     if (!window.confirm(`Excluir "${s.name}" deste grupo?`)) return;
     await removeSupplier(s.id);
     toast.success("Fornecedor removido");
+  }
+
+  async function handleUpdateSupplier(id: string, patch: Partial<Omit<ExtraSupplier, "id" | "createdAt">>) {
+    await updateSupplier(id, patch);
   }
 
   return (
@@ -296,134 +622,160 @@ export default function GrupoDashboard() {
             </Link>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {suppliers.map((s) => (
-              <article
-                key={s.id}
-                className="rounded-2xl p-5 border transition-all"
-                style={{
-                  background: SURFACE,
-                  borderColor: BORDER,
-                  borderLeft: `4px solid ${accent}`,
-                }}
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    {s.category && (
-                      <div
-                        className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
-                        style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {s.category}
-                      </div>
-                    )}
-                    <h3
-                      className="font-semibold leading-tight truncate"
-                      style={{
-                        fontFamily: "'Fraunces', serif",
-                        color: TEXT_PRIMARY,
-                        fontSize: "1.1rem",
-                      }}
-                    >
-                      {s.name}
-                    </h3>
-                    {s.chineseName && (
-                      <p
-                        className="text-xs italic mt-0.5 truncate"
-                        style={{ color: TEXT_MUTED }}
-                      >
-                        {s.chineseName}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleRemove(s)}
-                    className="p-1.5 rounded hover:bg-red-500/10"
-                    style={{ color: "#fca5a5" }}
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div
-                  className="flex flex-wrap gap-x-3 gap-y-1 text-xs mb-2"
-                  style={{ color: TEXT_MUTED }}
+          <div className="flex flex-col gap-4">
+            {suppliers.map((s) => {
+              const isOpen = expandedId === s.id;
+              return (
+                <article
+                  key={s.id}
+                  className="rounded-2xl border transition-all"
+                  style={{
+                    background: SURFACE,
+                    borderColor: isOpen ? accent : BORDER,
+                    borderLeft: `4px solid ${accent}`,
+                  }}
                 >
-                  {s.city && <span>{s.city}</span>}
-                  {s.province && <span>· {s.province}</span>}
-                  {s.contactName && <span>· {s.contactName}</span>}
-                </div>
-
-                <div className="flex flex-col gap-1 text-xs mb-2">
-                  {s.phones.slice(0, 1).map((p) => (
-                    <a
-                      key={p.id}
-                      href={`tel:${p.value}`}
-                      className="inline-flex items-center gap-1.5"
-                      style={{ color: TEXT_PRIMARY }}
-                    >
-                      <Phone className="w-3 h-3" style={{ color: accent }} />
-                      {p.value}
-                    </a>
-                  ))}
-                  {s.emails.slice(0, 1).map((e) => (
-                    <a
-                      key={e.id}
-                      href={`mailto:${e.value}`}
-                      className="inline-flex items-center gap-1.5 truncate"
-                      style={{ color: TEXT_PRIMARY }}
-                    >
-                      <Mail className="w-3 h-3" style={{ color: accent }} />
-                      <span className="truncate">{e.value}</span>
-                    </a>
-                  ))}
-                  {s.links.slice(0, 1).map((l) => (
-                    <a
-                      key={l.id}
-                      href={l.value}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 truncate"
-                      style={{ color: TEXT_PRIMARY }}
-                    >
-                      <LinkIcon className="w-3 h-3" style={{ color: accent }} />
-                      <span className="truncate">{l.value}</span>
-                    </a>
-                  ))}
-                </div>
-
-                {(s.priceFob || s.moq || s.leadTime) && (
+                  {/* Header do card — clicável para expandir */}
                   <div
-                    className="flex flex-wrap gap-x-3 gap-y-1 text-xs"
-                    style={{ color: TEXT_MUTED }}
+                    className="p-5 cursor-pointer select-none"
+                    onClick={() => toggleExpand(s.id)}
                   >
-                    {s.priceFob && <span>FOB {s.priceFob}</span>}
-                    {s.moq && <span>· MOQ {s.moq}</span>}
-                    {s.leadTime && <span>· Lead {s.leadTime}</span>}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex-1 min-w-0">
+                        {s.category && (
+                          <div
+                            className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
+                            style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {s.category}
+                          </div>
+                        )}
+                        <h3
+                          className="font-semibold leading-tight truncate"
+                          style={{
+                            fontFamily: "'Fraunces', serif",
+                            color: TEXT_PRIMARY,
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {s.name}
+                        </h3>
+                        {s.chineseName && (
+                          <p
+                            className="text-xs italic mt-0.5 truncate"
+                            style={{ color: TEXT_MUTED }}
+                          >
+                            {s.chineseName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSupplier(s);
+                          }}
+                          className="p-1.5 rounded hover:bg-white/5"
+                          style={{ color: accent }}
+                          title="Editar cadastro"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(s);
+                          }}
+                          className="p-1.5 rounded hover:bg-red-500/10"
+                          style={{ color: "#fca5a5" }}
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 ml-1" style={{ color: TEXT_MUTED }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 ml-1" style={{ color: TEXT_MUTED }} />
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="flex flex-wrap gap-x-3 gap-y-1 text-xs mb-2"
+                      style={{ color: TEXT_MUTED }}
+                    >
+                      {s.city && <span>{s.city}</span>}
+                      {s.province && <span>· {s.province}</span>}
+                      {s.contactName && <span>· {s.contactName}</span>}
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-xs">
+                      {s.phones.slice(0, 1).map((p) => (
+                        <span key={p.id} className="inline-flex items-center gap-1.5" style={{ color: TEXT_PRIMARY }}>
+                          <Phone className="w-3 h-3" style={{ color: accent }} />
+                          {p.value}
+                        </span>
+                      ))}
+                      {s.emails.slice(0, 1).map((e) => (
+                        <span key={e.id} className="inline-flex items-center gap-1.5 truncate" style={{ color: TEXT_PRIMARY }}>
+                          <Mail className="w-3 h-3" style={{ color: accent }} />
+                          <span className="truncate">{e.value}</span>
+                        </span>
+                      ))}
+                      {s.links.slice(0, 1).map((l) => (
+                        <a
+                          key={l.id}
+                          href={l.value}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 truncate hover:underline"
+                          style={{ color: TEXT_PRIMARY }}
+                        >
+                          <LinkIcon className="w-3 h-3" style={{ color: accent }} />
+                          <span className="truncate">{l.value}</span>
+                        </a>
+                      ))}
+                    </div>
+
+                    <div
+                      className="text-[10px] mt-3 pt-2 border-t font-mono"
+                      style={{ color: TEXT_MUTED, borderColor: BORDER }}
+                    >
+                      Cadastrado em {fmtDate(s.createdAt)}
+                    </div>
                   </div>
-                )}
 
-                {s.notes && (
-                  <p
-                    className="text-xs mt-2 italic line-clamp-2"
-                    style={{ color: "oklch(0.78 0.015 80)" }}
-                  >
-                    "{s.notes}"
-                  </p>
-                )}
-
-                <div
-                  className="text-[10px] mt-3 pt-2 border-t font-mono"
-                  style={{ color: TEXT_MUTED, borderColor: BORDER }}
-                >
-                  Cadastrado em {fmtDate(s.createdAt)}
-                </div>
-              </article>
-            ))}
+                  {/* Painel de anotações expandido */}
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-2 border-t" style={{ borderColor: BORDER }}>
+                      <SupplierNotesPanel
+                        scope={`grupo-${group.id}`}
+                        supplierId={s.id}
+                        supplierName={s.name}
+                        accent={accent}
+                        compact
+                        editableFields={DEFAULT_EDITABLE_FIELDS}
+                        onSaved={() => setExpandedId(null)}
+                      />
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
+
+      {/* Modal de edição */}
+      {editingSupplier && (
+        <EditSupplierModal
+          supplier={editingSupplier}
+          accent={accent}
+          onSave={handleUpdateSupplier}
+          onClose={() => setEditingSupplier(null)}
+        />
+      )}
     </div>
   );
 }

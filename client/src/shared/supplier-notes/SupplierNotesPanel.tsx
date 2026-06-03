@@ -65,7 +65,7 @@ export interface EditableField {
 }
 
 interface Props {
-  scope: "aquario" | "tapete" | "yiwu";
+  scope: string;
   supplierId: string;
   supplierName?: string;
   /** Cor de destaque (acento) — opcional, para casar com a paleta de cada dashboard */
