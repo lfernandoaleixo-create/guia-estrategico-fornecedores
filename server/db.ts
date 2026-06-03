@@ -245,3 +245,44 @@ export async function deleteCustomSupplier(id: string) {
   if (!db) throw new Error("Database unavailable");
   await db.delete(customSuppliers).where(eq(customSuppliers.id, id));
 }
+
+// =============================================================================
+// Seed idempotente dos 2 grupos iniciais fixos.
+// =============================================================================
+// Garante que a base sempre sobe com o Grupo Nº 01 (Aquários & Terrários) e o
+// Grupo Nº 02 (Tapete Higiênico Pet), sem depender de inserção manual nem do
+// seed disparado pela UI. Idempotente: só cria se o id ainda não existir, e
+// nunca sobrescreve edições do usuário (o onDuplicateKeyUpdate apenas reescreve
+// o próprio id, ou seja, no-op para linhas existentes).
+export async function seedSupplierGroups(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const now = new Date().toISOString();
+  // IDs/valores idênticos ao seed do frontend (useSupplierGroups.SEED_GROUPS)
+  // para que servidor e cliente convirjam para os MESMOS registros (sem duplicar).
+  const seeds: InsertSupplierGroupRow[] = [
+    {
+      id: "grp_seed_aquario_terrario",
+      number: 1,
+      name: "Aquários & Terrários",
+      legend: "Aquariofilia, terrários e equipamentos",
+      color: "#ef4444",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: "grp_seed_tapete_higienico",
+      number: 2,
+      name: "Tapete Higiênico Pet",
+      legend: "Importação de tapetes higiênicos (NCM 4818)",
+      color: "#06b6d4",
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+  for (const row of seeds) {
+    await db.insert(supplierGroups).values(row).onDuplicateKeyUpdate({
+      set: { id: row.id },
+    });
+  }
+}

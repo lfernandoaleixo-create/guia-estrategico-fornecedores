@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { seedSupplierGroups } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +37,12 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // Seed idempotente dos grupos fixos Nº 01 e Nº 02 (não bloqueia o boot).
+  seedSupplierGroups().catch((err) =>
+    console.warn("[Seed] Falha ao semear supplier_groups:", err),
+  );
+
   // tRPC API
   app.use(
     "/api/trpc",

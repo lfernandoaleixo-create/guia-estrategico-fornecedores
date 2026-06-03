@@ -92,7 +92,7 @@ export function SupplierAnnotation({ supplierId, supplierName, variant = "compac
             <DialogDescription className="text-xs text-zinc-600">
               <span className="font-mono font-semibold text-zinc-800">{supplierName}</span>
               <span className="block mt-1 text-zinc-500">
-                Status, observações e arquivos salvos localmente neste navegador.
+                Status, observações e arquivos salvos no banco compartilhado (sincroniza entre dispositivos).
               </span>
             </DialogDescription>
           </DialogHeader>

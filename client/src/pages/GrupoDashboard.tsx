@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ChevronUp,
   Pencil,
+  ListChecks,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
@@ -32,6 +34,10 @@ import {
 } from "@/shared/supplier-notes/useExtraSuppliers";
 import SupplierNotesPanel from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
+import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
+import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
+import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -367,6 +373,11 @@ export default function GrupoDashboard() {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<ExtraSupplier | null>(null);
+  const [tab, setTab] = useState<"fornecedores" | "diario">("fornecedores");
+
+  // Notas/diário deste dashboard promovido (scope dinâmico grupo-{id}).
+  const scope = `grupo-${params.groupId}`;
+  const { entries: groupEntries, deleteEntry: deleteGroupEntry } = useSupplierNotes(scope);
 
   const suppliers = useMemo(() => {
     if (!group) return [];
@@ -393,6 +404,17 @@ export default function GrupoDashboard() {
   const toggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
   }, []);
+
+  // Todos os fornecedores do grupo (sem o filtro de busca) — usado nas métricas do diário.
+  const groupSuppliers = useMemo(
+    () => (group ? allSuppliers.filter((s) => s.groupId === group.id) : []),
+    [allSuppliers, group],
+  );
+  const allSupplierIds = useMemo(() => groupSuppliers.map((s) => s.id), [groupSuppliers]);
+  const resolveSupplierName = useCallback(
+    (sid: string) => groupSuppliers.find((s) => s.id === sid)?.name ?? sid,
+    [groupSuppliers],
+  );
 
   if (!group) {
     return (
@@ -582,6 +604,38 @@ export default function GrupoDashboard() {
         </div>
       </section>
 
+      {/* Abas: Fornecedores | Anotações / Diário */}
+      <section className="relative z-10 container max-w-6xl">
+        <div
+          className="inline-flex items-center gap-1 p-1 rounded-xl border mb-6"
+          style={{ borderColor: BORDER, background: SURFACE }}
+        >
+          <button
+            onClick={() => setTab("fornecedores")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.97]"
+            style={{
+              background: tab === "fornecedores" ? accent : "transparent",
+              color: tab === "fornecedores" ? "oklch(0.10 0.02 250)" : TEXT_MUTED,
+            }}
+          >
+            <ListChecks className="w-4 h-4" />
+            Fornecedores
+          </button>
+          <button
+            onClick={() => setTab("diario")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.97]"
+            style={{
+              background: tab === "diario" ? accent : "transparent",
+              color: tab === "diario" ? "oklch(0.10 0.02 250)" : TEXT_MUTED,
+            }}
+          >
+            <NotebookPen className="w-4 h-4" />
+            Anotações / Diário
+          </button>
+        </div>
+      </section>
+
+      {tab === "fornecedores" && (
       <section className="relative z-10 container max-w-6xl pb-16">
         <div
           className="rounded-2xl border mb-5 px-3 py-2 flex items-center gap-3"
@@ -766,6 +820,75 @@ export default function GrupoDashboard() {
           </div>
         )}
       </section>
+      )}
+
+      {tab === "diario" && (
+      <section className="relative z-10 container max-w-6xl pb-16 space-y-5">
+        {/* CADERNO DE CAMPO */}
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-[0.25em] font-semibold mb-2"
+            style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            Caderno de Campo
+          </div>
+          <h2
+            className="mb-2"
+            style={{
+              fontFamily: "'Fraunces', serif",
+              fontSize: "clamp(1.5rem, 3vw, 2rem)",
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: TEXT_PRIMARY,
+            }}
+          >
+            Anotações / Diário
+          </h2>
+          <p className="text-sm max-w-2xl" style={{ color: TEXT_MUTED, lineHeight: 1.55 }}>
+            Acompanhe o status de cada fornecedor deste dashboard, métricas de uploads (catálogos,
+            fotos, cotações) e gere relatórios em PDF. Tudo é salvo no banco compartilhado e
+            sincronizado automaticamente.
+          </p>
+        </div>
+
+        {/* Backup */}
+        <div
+          className="rounded-2xl border p-5"
+          style={{ borderColor: BORDER, background: SURFACE }}
+        >
+          <BackupPanel tone="dark" />
+        </div>
+
+        {/* Métricas de uploads */}
+        <UploadMetrics scope={scope} tone="dark" accent={accent} />
+
+        {/* Relatório de Atividades (status + detalhamento + PDF) */}
+        <div
+          className="rounded-2xl border p-5"
+          style={{ borderColor: BORDER, background: SURFACE }}
+        >
+          {groupSuppliers.length === 0 ? (
+            <div className="text-center py-10" style={{ color: TEXT_MUTED }}>
+              <NotebookPen className="w-9 h-9 mx-auto mb-3 opacity-40" style={{ color: accent }} />
+              <p className="mb-1">Nenhum fornecedor cadastrado neste dashboard ainda.</p>
+              <p className="text-xs">
+                As métricas e o relatório aparecerão assim que você adicionar fornecedores.
+              </p>
+            </div>
+          ) : (
+            <ReportPanel
+              scope={scope}
+              scopeLabel={`${group.name} · Grupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
+              entries={groupEntries}
+              allSupplierIds={allSupplierIds}
+              resolveSupplierName={resolveSupplierName}
+              onDeleteEntry={deleteGroupEntry}
+              tone="dark"
+            />
+          )}
+        </div>
+      </section>
+      )}
 
       {/* Modal de edição */}
       {editingSupplier && (

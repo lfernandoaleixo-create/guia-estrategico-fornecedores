@@ -1,48 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
-  requestPersistentStorage,
-  getPersistStatus,
-  estimateStorage,
   exportAllNotes,
   downloadBackup,
   readBackupFile,
   importAllNotes,
-  type PersistStatus,
-  type StorageEstimate,
   type ImportResult,
 } from "./backup";
 
 /**
- * BackupPanel — UI compartilhada para Backup/Restore e ativação de
- * armazenamento persistente. Aparece no topo de cada página de Anotações.
+ * BackupPanel — UI compartilhada para Backup/Restore das anotações.
+ *
+ * Os dados (status, observações, campos, anexos, grupos e fornecedores) ficam
+ * salvos no banco de dados compartilhado e sincronizam automaticamente entre
+ * todos os dispositivos e navegadores. Este painel permite exportar/importar
+ * um arquivo JSON como camada extra de segurança (e para mover dados entre
+ * ambientes), mas não é mais necessário para evitar perda local.
  */
 export function BackupPanel({ tone = "dark" }: { tone?: "dark" | "light" }) {
-  const [persist, setPersist] = useState<PersistStatus>({ supported: true, persisted: false });
-  const [storage, setStorage] = useState<StorageEstimate | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [lastImport, setLastImport] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const ps = await getPersistStatus();
-      if (mounted) setPersist(ps);
-      const est = await estimateStorage();
-      if (mounted) setStorage(est);
-      // tenta auto-ativar persistente uma vez (silencioso)
-      if (ps.supported && !ps.persisted) {
-        const res = await requestPersistentStorage();
-        if (mounted) setPersist(res);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const isDark = tone === "dark";
   const cardBg = isDark ? "bg-white/5 border-white/10" : "bg-white border-zinc-200";
@@ -91,11 +71,6 @@ export function BackupPanel({ tone = "dark" }: { tone?: "dark" | "light" }) {
     }
   }
 
-  async function ensurePersist() {
-    const r = await requestPersistentStorage();
-    setPersist(r);
-  }
-
   return (
     <div
       className={`rounded-2xl border ${cardBg} p-4 sm:p-5 flex flex-col gap-3`}
@@ -107,41 +82,20 @@ export function BackupPanel({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">💾</span>
             <h3 className={`text-sm font-semibold tracking-wide ${textMain}`}>
-              Proteção das anotações
+              Backup das anotações
             </h3>
-            {persist.persisted ? (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/40 font-medium">
-                Armazenamento persistente ativo
-              </span>
-            ) : (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/40 font-medium">
-                Sem persistência garantida
-              </span>
-            )}
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/40 font-medium">
+              Sincronizado na nuvem
+            </span>
           </div>
           <p className={`text-xs leading-relaxed ${textMuted}`}>
-            Status, observações, campos e anexos ficam salvos neste navegador (IndexedDB). Para que
-            nada seja perdido, recomendamos <strong>exportar um backup semanal</strong> em arquivo
-            JSON e guardar no Drive/OneDrive/e-mail. Você pode importar o backup em outro
-            computador a qualquer momento.
+            Status, observações, campos e anexos ficam salvos no <strong>banco de dados
+            compartilhado</strong> — sincronizam automaticamente entre todos os dispositivos e
+            navegadores. Ainda assim, você pode <strong>exportar um backup periódico</strong> em
+            arquivo JSON (e restaurá-lo a qualquer momento) como camada extra de segurança.
           </p>
-          {storage && (
-            <p className={`text-[11px] mt-1 ${textMuted}`}>
-              Espaço usado: {storage.usageMB.toFixed(1)} MB de {storage.quotaMB.toFixed(0)} MB
-              disponíveis ({storage.pct.toFixed(1)}%).
-            </p>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!persist.persisted && persist.supported && (
-            <button
-              onClick={ensurePersist}
-              className={`text-xs font-medium px-3 py-2 rounded-lg ${buttonSecondary}`}
-              type="button"
-            >
-              🔒 Ativar persistência
-            </button>
-          )}
           <button
             onClick={handleExport}
             disabled={exporting}

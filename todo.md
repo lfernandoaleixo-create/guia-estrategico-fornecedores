@@ -37,38 +37,39 @@
 
 ---
 
-# Migração para Banco de Dados Compartilhado (PostgreSQL)
+# Migração para Banco de Dados Compartilhado (implementado em MySQL/Drizzle + tRPC)
+> Nota: implementado com MySQL/Drizzle (em vez de PostgreSQL) e API via tRPC (em vez de REST). O objetivo de cada item foi cumprido — ver seção CONCLUÍDA abaixo.
 
 ## Fase A: Upgrade para full-stack
-- [ ] Executar webdev_add_feature("web-db-user")
-- [ ] Verificar que o backend e DB estão funcionando
+- [x] Executar webdev_add_feature("web-db-user")
+- [x] Verificar que o backend e DB estão funcionando
 
 ## Fase B: Schema do banco
-- [ ] Tabela `supplier_groups` (id, number, name, legend, color, created_at, updated_at)
-- [ ] Tabela `supplier_notes` (id, scope, supplier_id, status, observacoes, fields JSON, group_ids JSON, created_at, updated_at)
-- [ ] Tabela `supplier_attachments` (id, note_id, name, type, size, data_url TEXT, category, added_at)
-- [ ] Tabela `supplier_quotes` (id, note_id, produto, qtd, moq, preco_fob, lead_time, pagamento, observacao)
-- [ ] Tabela `extra_suppliers` (id, group_id, name, chinese_name, category, ncm, city, province, address, contact_name, contact_role, contact_language, moq, price_fob, lead_time, payment_terms, incoterm, notes, phones JSON, emails JSON, links JSON, created_at, updated_at)
-- [ ] Tabela `custom_groups` (id, name, description, branch, color, icon, number, promoted, promoted_at, created_at, updated_at)
-- [ ] Seed dos 2 grupos iniciais (Aquários & Terrários, Tapete Higiênico Pet)
+- [x] Tabela `supplier_groups` (id, number, name, legend, color, created_at, updated_at)
+- [x] Tabela `supplier_notes` (id, scope, supplier_id, status, observacoes, fields JSON, group_ids JSON, created_at, updated_at) — anexos e cotações armazenados como JSON na própria nota (attachments / quoteRows)
+- [x] Anexos cobertos (campo JSON `attachments` em supplier_notes, em vez de tabela separada)
+- [x] Cotações cobertas (campo JSON `quoteRows` em supplier_notes, em vez de tabela separada)
+- [x] Tabela `extra_suppliers` (id, group_id, name, chinese_name, category, ncm, city, province, address, contact_name, contact_role, contact_language, moq, price_fob, lead_time, payment_terms, incoterm, notes, phones JSON, emails JSON, links JSON, created_at, updated_at)
+- [x] Tabela `custom_groups` (id, name, description, branch, color, number, promotedToDashboard, promotedAt, created_at, updated_at) — schema final não usa coluna `icon` (ícone derivado no frontend); o boolean é `promotedToDashboard`
+- [x] Seed idempotente dos 2 grupos iniciais em código (`seedSupplierGroups` em server/db.ts, chamado no startup do servidor) — Aquários & Terrários (Nº 01) e Tapete Higiênico Pet (Nº 02), com ids idênticos ao seed do frontend (sem duplicar)
 
-## Fase C: Rotas de API
-- [ ] GET/POST/PUT/DELETE /api/supplier-groups
-- [ ] GET/POST/PUT/DELETE /api/supplier-notes/:scope
-- [ ] POST/DELETE /api/supplier-notes/:scope/:supplierId/attachments
-- [ ] GET/POST/PUT/DELETE /api/extra-suppliers
-- [ ] GET/POST/PUT/DELETE /api/custom-groups
+## Fase C: Rotas de API (implementadas como procedures tRPC no router `data`)
+- [x] supplierGroups: list / upsert / bulkUpsert / delete
+- [x] notes: listByScope / upsert / delete (anexos via campo JSON na própria nota)
+- [x] Anexos: persistidos no upsert da nota (campo JSON attachments)
+- [x] suppliers (extra_suppliers): list / upsert / delete
+- [x] groups (custom_groups): list / upsert / delete
 
 ## Fase D: Migrar frontend
-- [ ] useSupplierGroups.ts → fetch API em vez de IndexedDB
-- [ ] useSupplierNotes.ts → fetch API em vez de IndexedDB
-- [ ] useExtraSuppliers.ts → fetch API em vez de IndexedDB
-- [ ] useCustomGroups.ts → fetch API em vez de IndexedDB
+- [x] useSupplierGroups.ts → tRPC em vez de IndexedDB
+- [x] useSupplierNotes.ts → tRPC em vez de IndexedDB
+- [x] useExtraSuppliers.ts → tRPC em vez de IndexedDB
+- [x] useCustomGroups.ts → tRPC em vez de IndexedDB
 
 ## Fase E: Testar
-- [ ] Verificar que dados persistem entre sessões/navegadores
-- [ ] Verificar que anexos são salvos e recuperados corretamente
-- [ ] Verificar que GrupoDashboard funciona com dados do servidor
+- [x] Verificar que dados persistem entre sessões/navegadores (validado via API + testes vitest)
+- [x] Verificar que anexos são salvos e recuperados corretamente (campo JSON attachments, parseAttachments no backup)
+- [x] Verificar que GrupoDashboard funciona com dados do servidor (usa useExtraSuppliers + SupplierNotesPanel via tRPC)
 
 ## Migração para Banco Compartilhado — CONCLUÍDA (Jun/2026)
 - [x] Upgrade para full-stack (tRPC + Express + MySQL/Drizzle)
@@ -87,3 +88,16 @@
 - [x] 7/7 testes vitest passando (groups, suppliers, notes, supplierGroups + bulkUpsert, customSuppliers, auth)
 - [x] Validado backend via API: bulkUpsert grava e list retorna os 2 grupos
 - [x] Checkpoint final salvo
+
+
+## Anotações/Diário nos Dashboards Promovidos (CONCLUÍDO Jun/2026)
+- [x] Generalizar `scope` de ReportPanel para `string` (aceitar `grupo-{id}`), com `tone` e paleta de PDF configuráveis via props
+- [x] Generalizar `scope` de UploadMetrics para `string` (aceitar `grupo-{id}`)
+- [x] Adicionar seção "Anotações / Diário" no GrupoDashboard com mesmo layout dos dashboards principais (UploadMetrics + ReportPanel com status, total, anexos e detalhamento)
+- [x] ReportPanel no grupo considera todos os fornecedores do grupo (allSupplierIds) e resolve nomes via useExtraSuppliers
+- [x] Abas "Fornecedores" / "Anotações / Diário" no GrupoDashboard
+- [x] Validado via browser: status (Não visitado=1), uploads, detalhamento e PDF renderizam corretamente
+- [x] 11/11 testes vitest passando + 0 erros TypeScript
+- [x] Testar 'Exportar PDF' na aba Diário do dashboard promovido e confirmar geração (títulos limpos, sem glitch de caracteres)
+- [x] Limpar dados de teste do banco (apenas 2 grupos canônicos restantes)
+- [x] Salvar checkpoint final

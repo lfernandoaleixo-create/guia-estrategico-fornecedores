@@ -575,7 +575,7 @@ export default function Anotacoes() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
           <NotebookPen className="w-4 h-4" />
           <span>Anotações / Diário de Negociação — NCM 4818.90.90</span>
-          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">Salvo no navegador</span>
+          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">Salvo no banco compartilhado</span>
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>

@@ -17,7 +17,8 @@ import {
 import { Camera, BookOpen, DollarSign, Folder, Calendar, Filter } from "lucide-react";
 
 interface Props {
-  scope: "aquario" | "tapete" | "yiwu";
+  /** Aceita os scopes fixos (aquario|tapete|yiwu) ou dinâmicos como `grupo-{id}` */
+  scope: string;
   /** Cor de destaque (hex/oklch) — combina com o dashboard */
   accent?: string;
   /** Tom claro (Aquário/Tapete usam cards brancos; Yiwu usa escuro) */

@@ -768,7 +768,7 @@ function AttachmentList({ items, onRemove, emptyText }: AttachmentListProps) {
         className="text-center py-4 rounded-lg border border-dashed text-xs text-zinc-500"
         style={{ borderColor: "#e4e4e7", background: "#fafafa" }}
       >
-        {emptyText ?? "Nenhum arquivo anexado nesta categoria. (Limite 8 MB por arquivo, salvos no navegador.)"}
+        {emptyText ?? "Nenhum arquivo anexado nesta categoria. (Limite 8 MB por arquivo, salvos no banco compartilhado.)"}
       </div>
     );
   }

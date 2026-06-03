@@ -622,7 +622,7 @@ export default function Home() {
                     <span className="num-display font-semibold" style={{ color: "var(--foreground)" }}>
                       {suppliersWithNotes.length}
                     </span>{" "}
-                    fornecedor{suppliersWithNotes.length !== 1 ? "es" : ""} com anotações · Salvo localmente no navegador
+                    fornecedor{suppliersWithNotes.length !== 1 ? "es" : ""} com anotações · Salvo no banco compartilhado
                   </p>
                 </div>
 

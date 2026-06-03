@@ -1,20 +1,15 @@
 // =============================================================================
-// backup.ts — Garantias de não-perda de dados (status, observações, anexos)
+// backup.ts — Exportação / importação de backup (camada extra de segurança)
 //
-// 1. requestPersistentStorage(): pede ao navegador para tratar os dados
-//    como "não descartáveis". Sem isso, o SO pode limpar IndexedDB quando o
-//    disco fica cheio. Com isso, só uma ação explícita do usuário apaga.
+// Os dados vivem no banco compartilhado (via tRPC). Estas funções permitem:
 //
-// 2. exportAllNotes(): lê todos os scopes (aquario/tapete/yiwu) do IndexedDB
-//    e devolve um JSON único com TODAS as anotações + anexos (em base64).
+// 1. exportAllNotes(): lê todos os scopes (aquario/tapete/yiwu) + grupos e
+//    fornecedores do banco e devolve um JSON único com TUDO (anexos em base64).
 //    Pode ser baixado como .json e guardado em Drive/OneDrive/e-mail.
 //
-// 3. importAllNotes(json): restaura o arquivo .json gerado acima em qualquer
-//    máquina ou navegador. Faz merge não-destrutivo: nunca sobrescreve uma
-//    entrada existente com uma versão mais antiga; nunca apaga.
-//
-// 4. estimateStorage(): retorna espaço usado / disponível para o gestor
-//    saber quando exportar.
+// 2. importAllNotes(json): restaura o arquivo .json gerado acima em qualquer
+//    ambiente. Faz merge não-destrutivo: nunca sobrescreve uma entrada
+//    existente com uma versão mais antiga; nunca apaga.
 // =============================================================================
 
 import type { SupplierNoteEntry } from "./useSupplierNotes";
@@ -102,66 +97,6 @@ async function putEntry(scope: NoteScope, entry: SupplierNoteEntry): Promise<voi
 
 // Marca readEntryDirect como usado (evita warning de import não utilizado)
 void readEntryDirect;
-
-// ---------- Persistent Storage ----------
-
-export interface PersistStatus {
-  supported: boolean;
-  persisted: boolean;
-}
-
-/**
- * Pede ao navegador para marcar o storage como persistente.
- * Em Chrome/Edge isso é normalmente concedido automaticamente se
- * o usuário interagiu com o site, instalou-o, ou recebeu permissão
- * de notificações; em Firefox pode mostrar prompt.
- */
-export async function requestPersistentStorage(): Promise<PersistStatus> {
-  if (typeof navigator === "undefined" || !navigator.storage?.persist) {
-    return { supported: false, persisted: false };
-  }
-  try {
-    const already = await navigator.storage.persisted();
-    if (already) return { supported: true, persisted: true };
-    const granted = await navigator.storage.persist();
-    return { supported: true, persisted: granted };
-  } catch {
-    return { supported: true, persisted: false };
-  }
-}
-
-export async function getPersistStatus(): Promise<PersistStatus> {
-  if (typeof navigator === "undefined" || !navigator.storage?.persisted) {
-    return { supported: false, persisted: false };
-  }
-  try {
-    return { supported: true, persisted: await navigator.storage.persisted() };
-  } catch {
-    return { supported: true, persisted: false };
-  }
-}
-
-export interface StorageEstimate {
-  usageMB: number;
-  quotaMB: number;
-  pct: number;
-}
-
-export async function estimateStorage(): Promise<StorageEstimate | null> {
-  if (typeof navigator === "undefined" || !navigator.storage?.estimate) return null;
-  try {
-    const est = await navigator.storage.estimate();
-    const usage = est.usage ?? 0;
-    const quota = est.quota ?? 0;
-    return {
-      usageMB: usage / (1024 * 1024),
-      quotaMB: quota / (1024 * 1024),
-      pct: quota > 0 ? (usage / quota) * 100 : 0,
-    };
-  } catch {
-    return null;
-  }
-}
 
 // ---------- Export / Import ----------
 

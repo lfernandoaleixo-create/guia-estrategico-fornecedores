@@ -301,6 +301,112 @@ describe("backup v3 coverage (custom groups + extra suppliers persist)", () => {
   });
 });
 
+describe("data.notes attachments (JSON persistence)", () => {
+  const ATT_SCOPE = "scope-attach-vitest";
+  const ATT_SUPPLIER = "supplier-attach-vitest";
+
+  afterAll(async () => {
+    await caller.data.notes
+      .delete({ scope: ATT_SCOPE, supplierId: ATT_SUPPLIER })
+      .catch(() => {});
+  });
+
+  it("saves and reads back attachments stored as JSON, then updates the set", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    const attachments = [
+      {
+        id: "att-1",
+        name: "catalogo.pdf",
+        type: "application/pdf",
+        size: 1234,
+        category: "catalogo",
+        dataUrl: "data:application/pdf;base64,JVBERi0xLjQK",
+        addedAt: now,
+      },
+      {
+        id: "att-2",
+        name: "foto.png",
+        type: "image/png",
+        size: 5678,
+        category: "fotos",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+        addedAt: now,
+      },
+    ];
+
+    // 1) cria nota com 2 anexos (serializados como JSON string)
+    await caller.data.notes.upsert({
+      scope: ATT_SCOPE,
+      supplierId: ATT_SUPPLIER,
+      status: "negociando",
+      observacoes: "com anexos",
+      fields: {},
+      attachments: JSON.stringify(attachments),
+      groupIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // 2) lê de volta e confirma que os 2 anexos persistiram íntegros
+    const list = await caller.data.notes.listByScope({ scope: ATT_SCOPE });
+    const note = list.find((n) => n.supplierId === ATT_SUPPLIER);
+    expect(note).toBeDefined();
+    const parsed =
+      typeof note!.attachments === "string"
+        ? JSON.parse(note!.attachments)
+        : note!.attachments;
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(2);
+    const byId = Object.fromEntries(parsed.map((a: { id: string }) => [a.id, a]));
+    expect(byId["att-1"].name).toBe("catalogo.pdf");
+    expect(byId["att-1"].category).toBe("catalogo");
+    expect(byId["att-1"].dataUrl).toContain("base64,");
+    expect(byId["att-2"].type).toBe("image/png");
+
+    // 3) atualiza removendo 1 anexo (mantém apenas att-2)
+    await caller.data.notes.upsert({
+      scope: ATT_SCOPE,
+      supplierId: ATT_SUPPLIER,
+      status: "negociando",
+      observacoes: "com anexos",
+      fields: {},
+      attachments: JSON.stringify([attachments[1]]),
+      groupIds: [],
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    });
+    const list2 = await caller.data.notes.listByScope({ scope: ATT_SCOPE });
+    const note2 = list2.find((n) => n.supplierId === ATT_SUPPLIER);
+    const parsed2 =
+      typeof note2!.attachments === "string"
+        ? JSON.parse(note2!.attachments)
+        : note2!.attachments;
+    expect(parsed2).toHaveLength(1);
+    expect(parsed2[0].id).toBe("att-2");
+  });
+});
+
+describe("seedSupplierGroups (idempotent fixed groups)", () => {
+  it("ensures the two fixed groups exist and is safe to run repeatedly", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const { seedSupplierGroups } = await import("./db");
+    // roda duas vezes para provar idempotência
+    await seedSupplierGroups();
+    await seedSupplierGroups();
+    const list = await caller.data.supplierGroups.list();
+    const aquario = list.filter((g) => g.id === "grp_seed_aquario_terrario");
+    const tapete = list.filter((g) => g.id === "grp_seed_tapete_higienico");
+    expect(aquario).toHaveLength(1);
+    expect(tapete).toHaveLength(1);
+    expect(aquario[0]?.number).toBe(1);
+    expect(tapete[0]?.number).toBe(2);
+  });
+});
+
 describe("data.customSuppliers", () => {
   const CS_ID = "custom-aquario-vitest";
   const CS_SCOPE = "aquario";

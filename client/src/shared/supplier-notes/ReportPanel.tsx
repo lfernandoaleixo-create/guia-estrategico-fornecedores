@@ -15,14 +15,18 @@ import { FileText, Download, Filter, BarChart3, Calendar, Trash2 } from "lucide-
 
 // ---------- Types ----------
 interface ReportPanelProps {
-  scope: "aquario" | "tapete" | "yiwu";
+  /** Aceita os scopes fixos (aquario|tapete|yiwu) ou dinâmicos como `grupo-{id}` */
+  scope: string;
   scopeLabel: string;
   entries: Record<string, SupplierNoteEntry>;
   resolveSupplierName: (supplierId: string) => string;
   onDeleteEntry?: (supplierId: string) => void;
   /** IDs de todos os fornecedores do dataset — os que não têm entry contam como "Não visitado" */
   allSupplierIds?: string[];
+  /** Tom do painel. Se omitido, deriva de scope ("yiwu" e "grupo-*" => dark). */
   tone?: "dark" | "light";
+  /** Paleta opcional para o PDF (RGB). Default deriva do scope. */
+  pdfPalette?: { primary: number[]; secondary: number[]; accent: number[] };
 }
 
 type PeriodFilter = "todos" | "hoje" | "7dias" | "30dias" | "personalizado";
@@ -96,8 +100,11 @@ export default function ReportPanel({
   resolveSupplierName,
   onDeleteEntry,
   allSupplierIds,
+  tone,
+  pdfPalette,
 }: ReportPanelProps) {
-  const dark = (scope === "yiwu");
+  // Dashboards promovidos (grupo-*) e Yiwu usam tom escuro por padrão.
+  const dark = tone ? tone === "dark" : (scope === "yiwu" || scope.startsWith("grupo-"));
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -182,7 +189,9 @@ export default function ReportPanel({
         tapete: { primary: [8, 145, 178], secondary: [207, 250, 254], accent: [14, 116, 144] },
         yiwu: { primary: [202, 138, 4], secondary: [254, 249, 195], accent: [161, 98, 7] },
       };
-      const colors = palette[scope] || palette.yiwu;
+      // Paleta padrão para dashboards promovidos (laranja editorial).
+      const promotedPalette = { primary: [234, 88, 12], secondary: [255, 237, 213], accent: [194, 65, 12] };
+      const colors = pdfPalette || palette[scope] || (scope.startsWith("grupo-") ? promotedPalette : palette.yiwu);
 
       // Status color map (RGB)
       const statusColors: Record<string, number[]> = {
@@ -225,7 +234,7 @@ export default function ReportPanel({
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.text("\u25cf  RESUMO POR STATUS", 16, y + 3);
+      doc.text("RESUMO POR STATUS", 16, y + 3);
       doc.setTextColor(0, 0, 0);
       y += 12;
 
@@ -287,7 +296,7 @@ export default function ReportPanel({
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.text("\u25cf  ANEXOS COLETADOS", 16, attY + 3);
+      doc.text("ANEXOS COLETADOS", 16, attY + 3);
       doc.setTextColor(0, 0, 0);
 
       const attData = [
