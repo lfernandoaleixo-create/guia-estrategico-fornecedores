@@ -29,6 +29,16 @@ import {
   writeAllGroups,
   type SupplierGroup,
 } from "./useSupplierGroups";
+import {
+  readAllExtraSuppliers,
+  writeAllExtraSuppliers,
+  type ExtraSupplier,
+} from "./useExtraSuppliers";
+import {
+  readAllCustomGroups,
+  writeAllCustomGroups,
+  type CustomGroup,
+} from "./useCustomGroups";
 
 export type NoteScope = "aquario" | "tapete" | "yiwu";
 
@@ -157,7 +167,7 @@ export async function estimateStorage(): Promise<StorageEstimate | null> {
 
 export interface BackupFile {
   format: "guia-fornecedores-backup";
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: string; // ISO
   exportedAtBR: string; // dd/mm/aaaa
   scopes: Record<NoteScope, SupplierNoteEntry[]>;
@@ -170,6 +180,12 @@ export interface BackupFile {
   /** v3+: grupos de fornecedores compartilhados */
   groups?: SupplierGroup[];
   totalGroups?: number;
+  /** v3+: grupos personalizados (aba Adicionar) */
+  customGroups?: CustomGroup[];
+  totalCustomGroups?: number;
+  /** v3+: fornecedores avulsos cadastrados em grupos personalizados */
+  extraSuppliers?: ExtraSupplier[];
+  totalExtraSuppliers?: number;
 }
 
 export async function exportAllNotes(): Promise<BackupFile> {
@@ -201,10 +217,22 @@ export async function exportAllNotes(): Promise<BackupFile> {
   } catch {
     groupList = [];
   }
+  let customGroupList: CustomGroup[] = [];
+  try {
+    customGroupList = await readAllCustomGroups();
+  } catch {
+    customGroupList = [];
+  }
+  let extraSupplierList: ExtraSupplier[] = [];
+  try {
+    extraSupplierList = await readAllExtraSuppliers();
+  } catch {
+    extraSupplierList = [];
+  }
   const now = new Date();
   return {
     format: "guia-fornecedores-backup",
-    version: 2,
+    version: 3,
     exportedAt: now.toISOString(),
     exportedAtBR: now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }),
     scopes,
@@ -215,6 +243,10 @@ export async function exportAllNotes(): Promise<BackupFile> {
     totalCustomSuppliers: customSuppliers.length,
     groups: groupList,
     totalGroups: groupList.length,
+    customGroups: customGroupList,
+    totalCustomGroups: customGroupList.length,
+    extraSuppliers: extraSupplierList,
+    totalExtraSuppliers: extraSupplierList.length,
   };
 }
 
@@ -241,6 +273,8 @@ export interface ImportResult {
   customSuppliersAdded?: number;
   customSuppliersUpdated?: number;
   groupsImported?: number;
+  customGroupsImported?: number;
+  extraSuppliersImported?: number;
 }
 
 /**
@@ -280,6 +314,26 @@ export async function importAllNotes(json: unknown): Promise<ImportResult> {
     try {
       await writeAllGroups(backup.groups);
       result.groupsImported = backup.groups.length;
+    } catch {
+      // ignora
+    }
+  }
+
+  // v3+: importa grupos personalizados (aba Adicionar)
+  if (Array.isArray(backup.customGroups) && backup.customGroups.length > 0) {
+    try {
+      await writeAllCustomGroups(backup.customGroups);
+      result.customGroupsImported = backup.customGroups.length;
+    } catch {
+      // ignora
+    }
+  }
+
+  // v3+: importa fornecedores avulsos (extra suppliers)
+  if (Array.isArray(backup.extraSuppliers) && backup.extraSuppliers.length > 0) {
+    try {
+      await writeAllExtraSuppliers(backup.extraSuppliers);
+      result.extraSuppliersImported = backup.extraSuppliers.length;
     } catch {
       // ignora
     }

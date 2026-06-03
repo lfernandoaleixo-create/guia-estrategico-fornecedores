@@ -191,6 +191,116 @@ describe("data.supplierGroups", () => {
   });
 });
 
+describe("migration flow (notes between scopes)", () => {
+  const FROM_SCOPE = "aquario";
+  const TO_SCOPE = "tapete";
+  const SRC_ID = "mig-src-vitest";
+  const DST_ID = `migrated-${FROM_SCOPE}-${SRC_ID}`;
+
+  afterAll(async () => {
+    await caller.data.notes.delete({ scope: FROM_SCOPE, supplierId: SRC_ID }).catch(() => {});
+    await caller.data.notes.delete({ scope: TO_SCOPE, supplierId: DST_ID }).catch(() => {});
+  });
+
+  it("moves a note from one dashboard scope to another preserving history", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    // 1) cria nota na origem com histórico (status + observações)
+    await caller.data.notes.upsert({
+      scope: FROM_SCOPE,
+      supplierId: SRC_ID,
+      status: "negociando",
+      observacoes: "histórico importante",
+      fields: { contato: "Wang" },
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // 2) migra: cria no destino com mesmo histórico e remove da origem
+    const src = (await caller.data.notes.listByScope({ scope: FROM_SCOPE })).find(
+      (n) => n.supplierId === SRC_ID,
+    );
+    expect(src).toBeDefined();
+    await caller.data.notes.upsert({
+      scope: TO_SCOPE,
+      supplierId: DST_ID,
+      status: src!.status,
+      observacoes: src!.observacoes ?? "",
+      fields: (src!.fields as Record<string, string>) ?? {},
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    });
+    await caller.data.notes.delete({ scope: FROM_SCOPE, supplierId: SRC_ID });
+
+    // 3) verifica: origem vazia, destino com o histórico preservado
+    const fromAfter = (await caller.data.notes.listByScope({ scope: FROM_SCOPE })).find(
+      (n) => n.supplierId === SRC_ID,
+    );
+    expect(fromAfter).toBeUndefined();
+    const dst = (await caller.data.notes.listByScope({ scope: TO_SCOPE })).find(
+      (n) => n.supplierId === DST_ID,
+    );
+    expect(dst).toBeDefined();
+    expect(dst?.status).toBe("negociando");
+    expect(dst?.observacoes).toBe("histórico importante");
+  });
+});
+
+describe("backup v3 coverage (custom groups + extra suppliers persist)", () => {
+  const BK_GROUP = "cgrp_backup_vitest";
+  const BK_SUPPLIER = "extra_backup_vitest";
+
+  afterAll(async () => {
+    await caller.data.suppliers.delete({ id: BK_SUPPLIER }).catch(() => {});
+    await caller.data.groups.delete({ id: BK_GROUP }).catch(() => {});
+  });
+
+  it("persists a custom group and its extra supplier so backup can export both", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    await caller.data.groups.upsert({
+      id: BK_GROUP,
+      number: 60,
+      name: "Grupo Backup",
+      branch: "Vidro",
+      color: "#06b6d4",
+      description: "backup test",
+      promotedToDashboard: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await caller.data.suppliers.upsert({
+      id: BK_SUPPLIER,
+      groupId: BK_GROUP,
+      name: "Fornecedor Backup",
+      phones: [{ id: "p1", value: "+86 777" }],
+      emails: [],
+      links: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // backup v3 lê de groups.list + suppliers.list — confirmamos que ambos retornam
+    const groups = await caller.data.groups.list();
+    const suppliers = await caller.data.suppliers.list();
+    const g = groups.find((x) => x.id === BK_GROUP);
+    const s = suppliers.find((x) => x.id === BK_SUPPLIER);
+    expect(g).toBeDefined();
+    expect(g?.name).toBe("Grupo Backup");
+    expect(s).toBeDefined();
+    expect(s?.groupId).toBe(BK_GROUP);
+    expect(Array.isArray(s?.phones)).toBe(true);
+  });
+});
+
 describe("data.customSuppliers", () => {
   const CS_ID = "custom-aquario-vitest";
   const CS_SCOPE = "aquario";
