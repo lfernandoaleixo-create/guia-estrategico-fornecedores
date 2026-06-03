@@ -510,3 +510,70 @@ describe("cadastro embutido no dashboard promovido (supplier vinculado ao groupI
     expect(mine[0]?.moq).toBe("100 kits");
   });
 });
+
+describe("data.notes groupIds (chips de grupo no card do Diário)", () => {
+  const GI_SCOPE = "scope-groupids-vitest";
+  const GI_SUPPLIER = "supplier-groupids-vitest";
+
+  afterAll(async () => {
+    await caller.data.notes
+      .delete({ scope: GI_SCOPE, supplierId: GI_SUPPLIER })
+      .catch(() => {});
+  });
+
+  it("persiste os groupIds marcados (mistura de grupo compartilhado + personalizado) e atualiza a seleção", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    const shared = "grp_seed_aquario_terrario"; // grupo compartilhado fixo
+    const custom = "cgrp_chip_vitest"; // grupo personalizado
+
+    // 1) salva nota com seleção mista de grupos
+    await caller.data.notes.upsert({
+      scope: GI_SCOPE,
+      supplierId: GI_SUPPLIER,
+      status: "negociando",
+      observacoes: "",
+      fields: {},
+      attachments: "[]",
+      groupIds: [shared, custom],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    let list = await caller.data.notes.listByScope({ scope: GI_SCOPE });
+    let note = list.find((n) => n.supplierId === GI_SUPPLIER);
+    expect(note).toBeDefined();
+    const ids =
+      typeof note!.groupIds === "string"
+        ? JSON.parse(note!.groupIds)
+        : note!.groupIds;
+    expect(Array.isArray(ids)).toBe(true);
+    expect(ids).toContain(shared);
+    expect(ids).toContain(custom);
+    expect(ids).toHaveLength(2);
+
+    // 2) atualiza removendo o compartilhado (mantém só o personalizado)
+    await caller.data.notes.upsert({
+      scope: GI_SCOPE,
+      supplierId: GI_SUPPLIER,
+      status: "negociando",
+      observacoes: "",
+      fields: {},
+      attachments: "[]",
+      groupIds: [custom],
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    });
+
+    list = await caller.data.notes.listByScope({ scope: GI_SCOPE });
+    note = list.find((n) => n.supplierId === GI_SUPPLIER);
+    const ids2 =
+      typeof note!.groupIds === "string"
+        ? JSON.parse(note!.groupIds)
+        : note!.groupIds;
+    expect(ids2).toHaveLength(1);
+    expect(ids2[0]).toBe(custom);
+  });
+});

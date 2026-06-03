@@ -119,3 +119,9 @@
 - [x] GroupSummaryCards reconhece grupos personalizados nas agregações
 - [x] Aba Diário reordenada: Métricas e Relatório no topo, lista de fornecedores depois
 - [x] Rodar testes vitest (12/12) e salvar checkpoint
+
+## Chips de grupo no card recolhido do Diário
+- [x] Mapa id->info unindo grupos compartilhados + personalizados no GrupoDashboard
+- [x] Cabeçalho do card recolhido mostra status + anexos + chips dos grupos marcados (cor do grupo, tag PERS. no tooltip)
+- [x] Validado no browser (Fornecedor 1 exibe chip "Nº 05 Fornecedores de jóias")
+- [x] Teste vitest cobrindo persistência de groupIds na nota (13/13 passando)

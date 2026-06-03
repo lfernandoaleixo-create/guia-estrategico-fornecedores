@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
+import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import {
   useExtraSuppliers,
   genExtraContactId,
@@ -427,7 +428,20 @@ function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalPro
 export default function GrupoDashboard() {
   const params = useParams() as { groupId: string };
   const { groups, demoteFromDashboard } = useCustomGroups();
+  const { groups: sharedGroups } = useSupplierGroups();
   const { list: allSuppliers, remove: removeSupplier, update: updateSupplier, create: createSupplier } = useExtraSuppliers();
+
+  // Mapa id -> info do grupo (compartilhados + personalizados) para os chips do card.
+  const groupInfoById = useMemo(() => {
+    const map = new Map<string, { number: number; name: string; color: string; isCustom: boolean }>();
+    sharedGroups.forEach((g) =>
+      map.set(g.id, { number: g.number, name: g.name, color: g.color, isCustom: false }),
+    );
+    groups.forEach((g) =>
+      map.set(g.id, { number: g.number, name: g.name, color: g.color, isCustom: true }),
+    );
+    return map;
+  }, [sharedGroups, groups]);
 
   const group: CustomGroup | undefined = useMemo(
     () => groups.find((g) => g.id === params.groupId),
@@ -1034,6 +1048,30 @@ export default function GrupoDashboard() {
                               <Folder className="w-3 h-3" /> {attachCount} anexo{attachCount === 1 ? "" : "s"}
                             </span>
                           )}
+                          {(entry?.groupIds ?? [])
+                            .map((gid) => ({ gid, info: groupInfoById.get(gid) }))
+                            .filter((x) => x.info)
+                            .map(({ gid, info }) => (
+                              <span
+                                key={gid}
+                                className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{
+                                  color: info!.color,
+                                  background: `${info!.color}1f`,
+                                  border: `1px solid ${info!.color}66`,
+                                }}
+                                title={`${info!.name}${info!.isCustom ? " (grupo personalizado)" : ""}`}
+                              >
+                                <span
+                                  className="inline-block w-1.5 h-1.5 rounded-full"
+                                  style={{ background: info!.color }}
+                                />
+                                <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                  Nº {String(info!.number).padStart(2, "0")}
+                                </span>
+                                <span className="truncate max-w-[140px]">{info!.name}</span>
+                              </span>
+                            ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
