@@ -12,6 +12,7 @@
 import { useMemo, useState } from "react";
 import { Users, ChevronDown, ChevronUp, Layers } from "lucide-react";
 import { useSupplierGroups, type SupplierGroup } from "./useSupplierGroups";
+import { useCustomGroups } from "./useCustomGroups";
 import { useSupplierNotes } from "./useSupplierNotes";
 
 interface Props {
@@ -38,9 +39,26 @@ export function GroupSummaryCards({
   accent = "#0891b2",
   previewLimit = 8,
 }: Props) {
-  const { groups } = useSupplierGroups();
+  const { groups: sharedGroups } = useSupplierGroups();
+  const { groups: customGroups } = useCustomGroups();
   const { entries } = useSupplierNotes(scope);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Mescla as duas fontes (compartilhados + personalizados) para resolver
+  // qualquer groupId marcado, independentemente da origem.
+  const groups = useMemo<SupplierGroup[]>(() => {
+    const shared: SupplierGroup[] = sharedGroups;
+    const custom: SupplierGroup[] = customGroups.map((g) => ({
+      id: g.id,
+      number: g.number,
+      name: g.name,
+      legend: g.description || g.branch || "",
+      color: g.color,
+      createdAt: g.createdAt,
+      updatedAt: g.updatedAt,
+    }));
+    return [...shared, ...custom];
+  }, [sharedGroups, customGroups]);
 
   const aggregated: AggregatedGroup[] = useMemo(() => {
     const byGroup = new Map<string, string[]>();

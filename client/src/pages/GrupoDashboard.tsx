@@ -922,7 +922,43 @@ export default function GrupoDashboard() {
           </p>
         </div>
 
-        {/* Lista de fornecedores com painel completo (status, informações, uploads) */}
+        {/* Métricas de uploads (TOPO) */}
+        <UploadMetrics scope={scope} tone="dark" accent={accent} />
+
+        {/* Relatório de Atividades (status + detalhamento + PDF) — TOPO */}
+        <div
+          className="rounded-2xl border p-5"
+          style={{ borderColor: BORDER, background: SURFACE }}
+        >
+          {groupSuppliers.length === 0 ? (
+            <div className="text-center py-10" style={{ color: TEXT_MUTED }}>
+              <NotebookPen className="w-9 h-9 mx-auto mb-3 opacity-40" style={{ color: accent }} />
+              <p className="mb-1">Nenhum fornecedor cadastrado neste dashboard ainda.</p>
+              <p className="text-xs">
+                As métricas e o relatório aparecerão assim que você adicionar fornecedores.
+              </p>
+            </div>
+          ) : (
+            <ReportPanel
+              scope={scope}
+              scopeLabel={`${group.name} · Grupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
+              entries={groupEntries}
+              allSupplierIds={allSupplierIds}
+              resolveSupplierName={resolveSupplierName}
+              onDeleteEntry={deleteGroupEntry}
+              tone="dark"
+            />
+          )}
+        </div>
+
+        {/* Lista de fornecedores com painel completo (status, informações, uploads) — ABAIXO */}
+        <div>
+          <div
+            className="text-[10px] uppercase tracking-[0.25em] font-semibold mb-3"
+            style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            Fornecedores deste dashboard
+          </div>
         {groupSuppliers.length === 0 ? (
           <div
             className="rounded-2xl border-2 border-dashed p-12 text-center"
@@ -1039,42 +1075,14 @@ export default function GrupoDashboard() {
             })}
           </div>
         )}
+        </div>
 
-        {/* Backup */}
+        {/* Backup (rodapé) */}
         <div
           className="rounded-2xl border p-5"
           style={{ borderColor: BORDER, background: SURFACE }}
         >
           <BackupPanel tone="dark" />
-        </div>
-
-        {/* Métricas de uploads */}
-        <UploadMetrics scope={scope} tone="dark" accent={accent} />
-
-        {/* Relatório de Atividades (status + detalhamento + PDF) */}
-        <div
-          className="rounded-2xl border p-5"
-          style={{ borderColor: BORDER, background: SURFACE }}
-        >
-          {groupSuppliers.length === 0 ? (
-            <div className="text-center py-10" style={{ color: TEXT_MUTED }}>
-              <NotebookPen className="w-9 h-9 mx-auto mb-3 opacity-40" style={{ color: accent }} />
-              <p className="mb-1">Nenhum fornecedor cadastrado neste dashboard ainda.</p>
-              <p className="text-xs">
-                As métricas e o relatório aparecerão assim que você adicionar fornecedores.
-              </p>
-            </div>
-          ) : (
-            <ReportPanel
-              scope={scope}
-              scopeLabel={`${group.name} · Grupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
-              entries={groupEntries}
-              allSupplierIds={allSupplierIds}
-              resolveSupplierName={resolveSupplierName}
-              onDeleteEntry={deleteGroupEntry}
-              tone="dark"
-            />
-          )}
         </div>
       </section>
       )}

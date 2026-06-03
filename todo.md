@@ -111,3 +111,11 @@
 - [x] Escrever/rodar teste vitest cobrindo criação de fornecedor com groupId (12/12 passando)
 - [x] Limpar fornecedor de teste do banco
 - [x] Salvar checkpoint
+
+## Grupos personalizados no seletor "Grupos do Fornecedor"
+- [x] GroupPicker passa a listar também os grupos personalizados (custom_groups), além dos compartilhados fixos (com tag PERS.)
+- [x] Seleção persiste corretamente (sem colisão de IDs entre as duas fontes)
+- [x] Validar no browser que os novos grupos aparecem como chips selecionáveis
+- [x] GroupSummaryCards reconhece grupos personalizados nas agregações
+- [x] Aba Diário reordenada: Métricas e Relatório no topo, lista de fornecedores depois
+- [x] Rodar testes vitest (12/12) e salvar checkpoint

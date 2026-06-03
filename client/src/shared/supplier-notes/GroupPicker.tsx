@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   GROUP_COLOR_PALETTE,
   useSupplierGroups,
 } from "./useSupplierGroups";
+import { useCustomGroups } from "./useCustomGroups";
 
 interface Props {
   selectedIds: string[];
@@ -11,18 +12,62 @@ interface Props {
   tone?: "light" | "dark";
 }
 
+/** Item normalizado exibido como chip (origem compartilhada ou personalizada). */
+interface PickerGroup {
+  id: string;
+  number: number;
+  name: string;
+  legend: string;
+  color: string;
+  origin: "shared" | "custom";
+}
+
 /**
  * Componente compacto para marcar quais grupos um fornecedor pertence.
  * Aparece dentro do SupplierNotesPanel, logo abaixo do Status.
- * Permite criar um grupo novo na hora (modal rápido) sem sair do painel.
+ *
+ * Lista DUAS fontes de grupos:
+ *  - Grupos compartilhados (useSupplierGroups) — inclui os 2 fixos (Nº 01/02).
+ *  - Grupos personalizados (useCustomGroups) — criados na aba "Adicionar"
+ *    (ex.: Brinquedos, Vidro, Joias…), inclusive os promovidos a dashboard.
+ *
+ * Ambos gravam pelo seu `id` real em `groupIds`, então a seleção funciona
+ * independentemente da origem. Permite ainda criar um grupo compartilhado novo
+ * na hora (modal rápido) sem sair do painel.
  */
 export function GroupPicker({ selectedIds, onChange, tone = "light" }: Props) {
-  const { groups, createGroup } = useSupplierGroups();
+  const { groups: sharedGroups, createGroup } = useSupplierGroups();
+  const { groups: customGroups } = useCustomGroups();
   const isDark = tone === "dark";
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLegend, setNewLegend] = useState("");
   const [newColor, setNewColor] = useState(GROUP_COLOR_PALETTE[0]);
+
+  // Mescla as duas fontes em uma única lista de chips. IDs são distintos
+  // (grp_… vs cgrp_…), então não há colisão. Ordena compartilhados primeiro
+  // (mantém os fixos Nº 01/02 à frente) e depois personalizados por número.
+  const groups = useMemo<PickerGroup[]>(() => {
+    const shared: PickerGroup[] = sharedGroups.map((g) => ({
+      id: g.id,
+      number: g.number,
+      name: g.name,
+      legend: g.legend ?? "",
+      color: g.color,
+      origin: "shared",
+    }));
+    const custom: PickerGroup[] = customGroups.map((g) => ({
+      id: g.id,
+      number: g.number,
+      name: g.name,
+      legend: g.description || g.branch || "",
+      color: g.color,
+      origin: "custom",
+    }));
+    shared.sort((a, b) => a.number - b.number);
+    custom.sort((a, b) => a.number - b.number);
+    return [...shared, ...custom];
+  }, [sharedGroups, customGroups]);
 
   function toggle(id: string) {
     if (selectedIds.includes(id)) {
@@ -66,7 +111,10 @@ export function GroupPicker({ selectedIds, onChange, tone = "light" }: Props) {
               key={g.id}
               type="button"
               onClick={() => toggle(g.id)}
-              title={g.legend || g.name}
+              title={
+                (g.legend || g.name) +
+                (g.origin === "custom" ? " · grupo personalizado" : "")
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -104,6 +152,24 @@ export function GroupPicker({ selectedIds, onChange, tone = "light" }: Props) {
                 Nº {String(g.number ?? 0).padStart(2, "0")}
               </span>
               {g.name}
+              {g.origin === "custom" && (
+                <span
+                  aria-hidden
+                  title="Grupo personalizado"
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    opacity: 0.85,
+                    border: `1px solid ${active ? "rgba(255,255,255,0.5)" : `${g.color}88`}`,
+                    borderRadius: 4,
+                    padding: "0 4px",
+                  }}
+                >
+                  Pers.
+                </span>
+              )}
               {active && <span aria-hidden>✓</span>}
             </button>
           );
