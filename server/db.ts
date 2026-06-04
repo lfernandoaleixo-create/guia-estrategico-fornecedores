@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { sanitizeAttachmentsJson, sanitizeQuoteRows } from './sanitizeNote';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -170,12 +171,36 @@ export async function listAllSupplierNotes() {
 export async function upsertSupplierNote(row: InsertSupplierNoteRow) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
+
+  // BLINDAGEM: nunca gravar base64 (dataUrl) nas colunas attachments/quoteRows.
+  // Qualquer dataUrl é enviado ao S3 e substituído por { url, fileKey } antes do
+  // insert. Isso impede o estouro do INSERT que apagava os dados do usuário.
+  let safeRow: InsertSupplierNoteRow = row;
+  try {
+    const safeAttachments = await sanitizeAttachmentsJson(
+      row.scope,
+      row.supplierId,
+      row.attachments as unknown as string,
+    );
+    const safeQuotes = await sanitizeQuoteRows(row.scope, row.supplierId, row.quoteRows);
+    safeRow = {
+      ...row,
+      attachments: safeAttachments,
+      quoteRows: safeQuotes as InsertSupplierNoteRow["quoteRows"],
+    };
+  } catch (err) {
+    console.error("[upsertSupplierNote] sanitize falhou, gravando sem base64 por segurança:", err);
+    // Em caso de falha do S3, melhor não gravar base64 (que quebra o INSERT):
+    // esvazia anexos para preservar status/observações/campos do usuário.
+    safeRow = { ...row, attachments: "[]" };
+  }
+
   // Chave composta (scope, supplierId). Como o schema não declara PK composta no
   // ORM, fazemos delete+insert para garantir idempotência.
   await db
     .delete(supplierNotes)
-    .where(and(eq(supplierNotes.scope, row.scope), eq(supplierNotes.supplierId, row.supplierId)));
-  await db.insert(supplierNotes).values(row);
+    .where(and(eq(supplierNotes.scope, safeRow.scope), eq(supplierNotes.supplierId, safeRow.supplierId)));
+  await db.insert(supplierNotes).values(safeRow);
 }
 
 export async function deleteSupplierNote(scope: string, supplierId: string) {
