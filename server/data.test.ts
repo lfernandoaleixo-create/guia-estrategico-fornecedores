@@ -577,3 +577,132 @@ describe("data.notes groupIds (chips de grupo no card do Diário)", () => {
     expect(ids2[0]).toBe(custom);
   });
 });
+
+describe("appendAttachmentToNote (upload incremental sem perda de dados)", () => {
+  const AP_SCOPE = "scope-append-vitest";
+  const AP_SUPPLIER = "supplier-append-vitest";
+
+  afterAll(async () => {
+    await caller.data.notes
+      .delete({ scope: AP_SCOPE, supplierId: AP_SUPPLIER })
+      .catch(() => {});
+  });
+
+  it("anexa múltiplos arquivos em sequência (append, não substitui) e preserva status/observações", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const { appendAttachmentToNote } = await import("./db");
+    const now = new Date().toISOString();
+
+    // 1) o funcionário preencheu status + observações + campos ANTES de anexar
+    await caller.data.notes.upsert({
+      scope: AP_SCOPE,
+      supplierId: AP_SUPPLIER,
+      status: "negociando",
+      observacoes: "negociando preço FOB e MOQ",
+      fields: { contato: "Sr. Zhang" },
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // 2) anexa o 1º arquivo (referência S3, sem base64)
+    await appendAttachmentToNote(
+      AP_SCOPE,
+      AP_SUPPLIER,
+      {
+        id: "ap-1",
+        name: "catalogo.pdf",
+        type: "application/pdf",
+        size: 1000,
+        fileKey: "supplier-notes/x/ap-1.pdf",
+        url: "/manus-storage/supplier-notes/x/ap-1.pdf",
+        addedAt: "01/06/2026",
+        category: "catalogos",
+      },
+      now,
+    );
+
+    // 3) anexa o 2º arquivo — este era o ponto que quebrava antes
+    await appendAttachmentToNote(
+      AP_SCOPE,
+      AP_SUPPLIER,
+      {
+        id: "ap-2",
+        name: "foto.jpg",
+        type: "image/jpeg",
+        size: 2000,
+        fileKey: "supplier-notes/x/ap-2.jpg",
+        url: "/manus-storage/supplier-notes/x/ap-2.jpg",
+        addedAt: "01/06/2026",
+        category: "fotos",
+      },
+      now,
+    );
+
+    // 4) lê de volta: 2 anexos presentes E status/observações/campos intactos
+    const list = await caller.data.notes.listByScope({ scope: AP_SCOPE });
+    const note = list.find((n) => n.supplierId === AP_SUPPLIER);
+    expect(note).toBeDefined();
+    // dados de texto preservados (não foram apagados pelo upload)
+    expect(note?.status).toBe("negociando");
+    expect(note?.observacoes).toBe("negociando preço FOB e MOQ");
+    const fields =
+      typeof note!.fields === "string" ? JSON.parse(note!.fields) : note!.fields;
+    expect(fields?.contato).toBe("Sr. Zhang");
+    // os 2 anexos foram acumulados (append), não substituídos
+    const parsed =
+      typeof note!.attachments === "string"
+        ? JSON.parse(note!.attachments)
+        : note!.attachments;
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(2);
+    const ids = parsed.map((a: { id: string }) => a.id);
+    expect(ids).toContain("ap-1");
+    expect(ids).toContain("ap-2");
+    // novo modelo: guarda referência (url/fileKey), não base64
+    const byId = Object.fromEntries(parsed.map((a: { id: string }) => [a.id, a]));
+    expect(byId["ap-1"].url).toContain("/manus-storage/");
+    expect(byId["ap-1"].dataUrl).toBeUndefined();
+    expect(byId["ap-2"].fileKey).toBeTruthy();
+  });
+
+  it("cria a nota automaticamente se ela ainda não existir ao anexar o primeiro arquivo", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const { appendAttachmentToNote } = await import("./db");
+    const SCOPE2 = "scope-append-new-vitest";
+    const SUP2 = "supplier-append-new-vitest";
+    const now = new Date().toISOString();
+
+    await appendAttachmentToNote(
+      SCOPE2,
+      SUP2,
+      {
+        id: "new-1",
+        name: "doc.pdf",
+        type: "application/pdf",
+        size: 500,
+        fileKey: "k/new-1.pdf",
+        url: "/manus-storage/k/new-1.pdf",
+        addedAt: "01/06/2026",
+        category: "outros",
+      },
+      now,
+    );
+
+    const list = await caller.data.notes.listByScope({ scope: SCOPE2 });
+    const note = list.find((n) => n.supplierId === SUP2);
+    expect(note).toBeDefined();
+    expect(note?.status).toBe("nao-visitado");
+    const parsed =
+      typeof note!.attachments === "string"
+        ? JSON.parse(note!.attachments)
+        : note!.attachments;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].id).toBe("new-1");
+
+    await caller.data.notes.delete({ scope: SCOPE2, supplierId: SUP2 });
+  });
+});

@@ -186,6 +186,57 @@ export async function deleteSupplierNote(scope: string, supplierId: string) {
     .where(and(eq(supplierNotes.scope, scope), eq(supplierNotes.supplierId, supplierId)));
 }
 
+/**
+ * Anexa UM anexo ao registro da nota no PRÓPRIO servidor, lendo o estado atual
+ * do banco e fazendo o append. Isso evita que o cliente precise reenviar todos
+ * os anexos existentes (o que estourava o limite de payload no 2º upload).
+ * Se a nota ainda não existir, cria uma nova com valores padrão.
+ */
+export async function appendAttachmentToNote(
+  scope: string,
+  supplierId: string,
+  attachment: unknown,
+  nowStr: string,
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const rows = await db
+    .select()
+    .from(supplierNotes)
+    .where(and(eq(supplierNotes.scope, scope), eq(supplierNotes.supplierId, supplierId)))
+    .limit(1);
+  const existing = rows.length > 0 ? rows[0] : null;
+
+  let attachments: unknown[] = [];
+  if (existing?.attachments) {
+    try {
+      const parsed = JSON.parse(existing.attachments as unknown as string);
+      if (Array.isArray(parsed)) attachments = parsed;
+    } catch {
+      attachments = [];
+    }
+  }
+  attachments.push(attachment);
+
+  const row: InsertSupplierNoteRow = {
+    scope,
+    supplierId,
+    status: (existing?.status as string) ?? "nao-visitado",
+    observacoes: (existing?.observacoes as string | null) ?? null,
+    fields: (existing?.fields as InsertSupplierNoteRow["fields"]) ?? {},
+    attachments: JSON.stringify(attachments),
+    quoteRows: (existing?.quoteRows as InsertSupplierNoteRow["quoteRows"]) ?? null,
+    groupIds: (existing?.groupIds as InsertSupplierNoteRow["groupIds"]) ?? [],
+    createdAt: (existing?.createdAt as string) ?? nowStr,
+    updatedAt: nowStr,
+  };
+
+  await db
+    .delete(supplierNotes)
+    .where(and(eq(supplierNotes.scope, scope), eq(supplierNotes.supplierId, supplierId)));
+  await db.insert(supplierNotes).values(row);
+}
+
 
 // ---------- Supplier Groups (compartilhados pelos 3 dashboards) ----------
 import {

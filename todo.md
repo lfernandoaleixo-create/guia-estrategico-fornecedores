@@ -143,3 +143,17 @@
 - [x] Imagens continuam funcionando no modal
 - [x] Fallback de download para tipos não suportados
 - [x] Validar no preview e salvar checkpoint
+
+## Correção CRÍTICA: erro no 2º upload de anexo + perda de dados preenchidos
+Causa: anexos gravados como base64 dentro da mesma linha de supplier_notes; ao anexar o 2º arquivo o payload reenvia todos os anexos (inflado ~33% por base64), estoura o limite de corpo da requisição e falha — e como tudo é salvo no mesmo registro, o funcionário perde status/observações/campos digitados.
+
+- [ ] Criar endpoint server para upload de arquivo para S3 (storagePut), retornando { key, url }
+- [ ] Migrar SupplierAttachment para guardar fileKey/url em vez de dataUrl (mantendo compat com dataUrl legado)
+- [ ] addAttachment: enviar arquivo ao S3 e gravar SOMENTE a referência no banco
+- [ ] Desacoplar upload de anexo do salvamento de texto (falha de upload não pode apagar status/observações/campos)
+- [ ] Preservar/restaurar estado de texto quando um upload falhar (não perder o que o usuário digitou)
+- [ ] Visualização (PdfCanvas/img) e download funcionando tanto para anexos novos (url) quanto legados (base64)
+- [ ] Indicador de "enviando…" por categoria durante o upload
+- [ ] Atualizar testes vitest (nota persiste sem depender de base64; mock do upload)
+- [ ] Validar no preview: anexar 3+ arquivos em sequência sem erro e sem perder dados; salvar checkpoint
+- [ ] Barra de progresso real (%) por arquivo durante o upload (via XHR upload.onprogress) por categoria

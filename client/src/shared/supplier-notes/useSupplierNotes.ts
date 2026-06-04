@@ -36,7 +36,11 @@ export interface SupplierAttachment {
   name: string;
   type: string; // mime
   size: number; // bytes
-  dataUrl: string; // base64
+  /** Anexos LEGADOS: conteúdo base64 inline. Novos anexos usam url/fileKey. */
+  dataUrl?: string; // base64 (legado)
+  /** Novo modelo: referência ao S3. */
+  url?: string; // ex.: /manus-storage/<key>
+  fileKey?: string; // chave no S3
   addedAt: string; // dd/mm/yyyy
   category?: AttachmentCategory; // default "outros" para entradas legadas
 }
@@ -136,15 +140,6 @@ function nowDate(): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
-}
-
-function fileToDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
   });
 }
 
@@ -316,30 +311,66 @@ export function useSupplierNotes(scope: Scope) {
     [buildBase, persist],
   );
 
+  // NOVO MODELO: cada arquivo é enviado individualmente ao S3 via XHR (com
+  // progresso real), e o servidor anexa apenas a referência (url/fileKey) ao
+  // registro da nota. Isso evita reenviar todos os anexos em base64 (que
+  // estourava o payload no 2º upload e fazia o funcionário perder os dados).
   const addAttachment = useCallback(
-    async (supplierId: string, file: File, category: AttachmentCategory = "outros") => {
-      if (file.size > 8 * 1024 * 1024) {
-        throw new Error("Arquivo maior que 8 MB. Compacte ou reduza antes de anexar.");
+    async (
+      supplierId: string,
+      file: File,
+      category: AttachmentCategory = "outros",
+      onProgress?: (percent: number) => void,
+    ) => {
+      if (file.size > 20 * 1024 * 1024) {
+        throw new Error("Arquivo maior que 20 MB. Compacte ou reduza antes de anexar.");
       }
-      const dataUrl = await fileToDataURL(file);
-      const att: SupplierAttachment = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        name: file.name,
-        type: file.type || "application/octet-stream",
-        size: file.size,
-        dataUrl,
-        addedAt: nowDate(),
-        category,
-      };
-      const base = buildBase(supplierId);
-      const updated: SupplierNoteEntry = {
-        ...base,
-        attachments: [...base.attachments, att],
-      };
-      await persist(updated);
+
+      const att = await new Promise<SupplierAttachment>((resolve, reject) => {
+        const form = new FormData();
+        form.append("scope", scope);
+        form.append("supplierId", supplierId);
+        form.append("category", category);
+        form.append("file", file, file.name);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload-attachment");
+        xhr.withCredentials = true;
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            onProgress(Math.min(99, Math.round((e.loaded / e.total) * 100)));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const json = JSON.parse(xhr.responseText);
+              if (onProgress) onProgress(100);
+              resolve(json.attachment as SupplierAttachment);
+            } catch {
+              reject(new Error("Resposta inválida do servidor"));
+            }
+          } else {
+            let msg = "Falha no upload do arquivo";
+            try {
+              const json = JSON.parse(xhr.responseText);
+              if (json?.error) msg = json.error;
+            } catch {
+              /* mantém msg padrão */
+            }
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Erro de rede durante o upload"));
+        xhr.send(form);
+      });
+
+      // O servidor já gravou a referência; recarrega para refletir na UI.
+      await reload();
       return att;
     },
-    [buildBase, persist],
+    [scope, reload],
   );
 
   const upsertQuoteRows = useCallback(

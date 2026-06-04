@@ -141,11 +141,48 @@ function dataURLToBytes(dataUrl: string): Uint8Array | null {
 }
 
 /**
- * Renderiza um PDF (data URL) inteiramente em <canvas> usando pdf.js.
- * Evita o uso de <iframe src="blob:">, que o Chrome bloqueia por segurança
- * em sites publicados ("Esta página foi bloqueada pelo Chrome").
+ * Retorna a fonte exibível de um anexo: a URL do S3 (novo modelo) ou o
+ * data URL base64 (anexos legados). Usada por <img>, download e PDF.
  */
-function PdfCanvas({ dataUrl }: { dataUrl: string }) {
+function attachmentSrc(att: SupplierAttachment): string {
+  return att.url ?? att.dataUrl ?? "";
+}
+
+/**
+ * Baixa um anexo de forma confiável, suportando tanto url (S3) quanto dataUrl
+ * (legado base64). Para URLs do S3, busca o blob e usa objectURL para garantir
+ * o atributo download e o nome correto do arquivo.
+ */
+async function downloadAttachment(att: SupplierAttachment) {
+  if (att.url) {
+    try {
+      const resp = await fetch(att.url, { credentials: "include" });
+      const blob = await resp.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = att.name;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+      return;
+    } catch {
+      // fallback: abre em nova aba
+      window.open(att.url, "_blank", "noopener");
+      return;
+    }
+  }
+  if (att.dataUrl) downloadDataURL(att.dataUrl, att.name);
+}
+
+/**
+ * Renderiza um PDF inteiramente em <canvas> usando pdf.js, a partir de uma URL
+ * (S3) ou de um data URL base64 (legado). Evita <iframe src="blob:">, que o
+ * Chrome bloqueia por segurança em sites publicados.
+ */
+function PdfCanvas({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -156,13 +193,17 @@ function PdfCanvas({ dataUrl }: { dataUrl: string }) {
     container.innerHTML = "";
     setStatus("loading");
 
-    const bytes = dataURLToBytes(dataUrl);
-    if (!bytes) {
+    // pdf.js aceita tanto bytes (data URL) quanto uma URL HTTP diretamente.
+    const docParams = src.startsWith("data:")
+      ? { data: dataURLToBytes(src) ?? new Uint8Array() }
+      : { url: src, withCredentials: true };
+
+    if (src.startsWith("data:") && !dataURLToBytes(src)) {
       setStatus("error");
       return;
     }
 
-    const task = pdfjsLib.getDocument({ data: bytes });
+    const task = pdfjsLib.getDocument(docParams as Parameters<typeof pdfjsLib.getDocument>[0]);
     task.promise
       .then(async (pdf) => {
         if (cancelled) return;
@@ -199,7 +240,7 @@ function PdfCanvas({ dataUrl }: { dataUrl: string }) {
       cancelled = true;
       task.destroy?.();
     };
-  }, [dataUrl]);
+  }, [src]);
 
   return (
     <div className="h-full w-full overflow-auto bg-zinc-200/60">
@@ -260,6 +301,10 @@ export default function SupplierNotesPanel({
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
   const [groupIds, setGroupIdsState] = useState<string[]>(entry?.groupIds ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Progresso de upload por categoria: nome do arquivo + percentual (0..100).
+  const [uploadProgress, setUploadProgress] = useState<
+    Partial<Record<AttachmentCategory, { name: string; percent: number; index: number; total: number }>>
+  >({});
   const [savedHint, setSavedHint] = useState(false);
   const [preview, setPreview] = useState<SupplierAttachment | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -388,13 +433,34 @@ export default function SupplierNotesPanel({
   ) => {
     if (!files) return;
     setUploadError(null);
-    for (const f of Array.from(files)) {
+    const list = Array.from(files);
+    // IMPORTANTE: cada arquivo é enviado individualmente ao S3; o servidor anexa
+    // apenas a referência. Um erro em um arquivo NÃO afeta os dados de texto já
+    // preenchidos (status/observações/campos) nem os anexos já enviados.
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      setUploadProgress((prev) => ({
+        ...prev,
+        [category]: { name: f.name, percent: 0, index: i + 1, total: list.length },
+      }));
       try {
-        await addAttachment(supplierId, f, category);
+        await addAttachment(supplierId, f, category, (percent) => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            [category]: { name: f.name, percent, index: i + 1, total: list.length },
+          }));
+        });
       } catch (err) {
-        setUploadError(err instanceof Error ? err.message : "Erro ao anexar arquivo");
+        setUploadError(
+          `${f.name}: ${err instanceof Error ? err.message : "erro ao anexar"}. Os dados já preenchidos foram preservados.`,
+        );
       }
     }
+    setUploadProgress((prev) => {
+      const next = { ...prev };
+      delete next[category];
+      return next;
+    });
     const refs: Record<AttachmentCategory, React.RefObject<HTMLInputElement | null>> = {
       catalogos: catalogosRef,
       fotos: fotosRef,
@@ -656,6 +722,7 @@ export default function SupplierNotesPanel({
         onPreview={setPreview}
         inputRef={catalogosRef}
         onFiles={(files) => handleFiles(files, "catalogos")}
+        uploadProgress={uploadProgress.catalogos}
       />
 
       {/* FOTOS */}
@@ -671,6 +738,7 @@ export default function SupplierNotesPanel({
         onPreview={setPreview}
         inputRef={fotosRef}
         onFiles={(files) => handleFiles(files, "fotos")}
+        uploadProgress={uploadProgress.fotos}
       />
 
       {/* COTAÇÕES — tabela editável + arquivos */}
@@ -772,6 +840,7 @@ export default function SupplierNotesPanel({
 
         {/* Arquivos de cotação */}
         <div className="mt-3">
+          <UploadProgressBar progress={uploadProgress.cotacoes} accent="#16a34a" />
           <AttachmentList
             items={groupAttachments("cotacoes")}
             onRemove={(id) => removeAttachment(supplierId, id)}
@@ -794,6 +863,7 @@ export default function SupplierNotesPanel({
         onPreview={setPreview}
         inputRef={outrosRef}
         onFiles={(files) => handleFiles(files, "outros")}
+        uploadProgress={uploadProgress.outros}
       />
 
       {/* AÇÕES */}
@@ -846,11 +916,15 @@ function AttachmentPreviewModal({
   attachment: SupplierAttachment | null;
   onClose: () => void;
 }) {
-  // Gera um objectURL estável a partir do data URL enquanto o modal estiver aberto.
+  // Fonte exibível: URL do S3 (novo) ou objectURL a partir do base64 (legado).
   const objectUrl = useMemo(() => {
     if (!attachment) return null;
-    const blob = dataURLToBlob(attachment.dataUrl);
-    return blob ? URL.createObjectURL(blob) : attachment.dataUrl;
+    if (attachment.url) return attachment.url;
+    if (attachment.dataUrl) {
+      const blob = dataURLToBlob(attachment.dataUrl);
+      return blob ? URL.createObjectURL(blob) : attachment.dataUrl;
+    }
+    return null;
   }, [attachment]);
 
   useEffect(() => {
@@ -874,7 +948,7 @@ function AttachmentPreviewModal({
             {attachment && (
               <button
                 type="button"
-                onClick={() => downloadDataURL(attachment.dataUrl, attachment.name)}
+                onClick={() => void downloadAttachment(attachment)}
                 className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 bg-zinc-800 text-white hover:bg-zinc-900 transition-colors active:scale-[0.97]"
               >
                 <Download size={13} /> Baixar
@@ -896,7 +970,7 @@ function AttachmentPreviewModal({
               />
             </div>
           ) : isPdf ? (
-            <PdfCanvas dataUrl={attachment!.dataUrl} />
+            <PdfCanvas src={attachmentSrc(attachment!)} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
               <FileText size={40} style={{ color: "#a1a1aa" }} />
@@ -905,7 +979,7 @@ function AttachmentPreviewModal({
               </p>
               <button
                 type="button"
-                onClick={() => attachment && downloadDataURL(attachment.dataUrl, attachment.name)}
+                onClick={() => attachment && void downloadAttachment(attachment)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 transition-colors active:scale-[0.97]"
               >
                 <Download size={14} /> Baixar arquivo
@@ -922,6 +996,53 @@ function AttachmentPreviewModal({
 // Componentes auxiliares: AttachmentBucket / AttachmentList
 // ============================================================================
 
+/**
+ * Barra de progresso de upload (acessível). Mostra o arquivo atual, o
+ * percentual e, quando há vários, o contador (ex.: 2/3).
+ */
+function UploadProgressBar({
+  progress,
+  accent,
+}: {
+  progress?: { name: string; percent: number; index: number; total: number };
+  accent: string;
+}) {
+  if (!progress) return null;
+  return (
+    <div className="mb-2 rounded-lg border bg-white px-3 py-2" style={{ borderColor: "#e4e4e7" }}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-xs font-medium text-zinc-700 truncate inline-flex items-center gap-1.5">
+          <Loader2 size={12} className="animate-spin" style={{ color: accent }} />
+          Enviando: {progress.name}
+          {progress.total > 1 && (
+            <span className="text-zinc-400"> ({progress.index}/{progress.total})</span>
+          )}
+        </span>
+        <span className="text-xs font-semibold tabular-nums" style={{ color: accent }}>
+          {progress.percent}%
+        </span>
+      </div>
+      <div
+        className="h-2 w-full rounded-full overflow-hidden"
+        style={{ background: "#f1f1f3" }}
+        role="progressbar"
+        aria-valuenow={progress.percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${progress.percent}%`,
+            background: accent,
+            transition: "width 160ms cubic-bezier(0.23, 1, 0.32, 1)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface AttachmentBucketProps {
   title: string;
   subtitle: string;
@@ -934,6 +1055,7 @@ interface AttachmentBucketProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
   onFiles: (files: FileList | null) => void;
   onPreview?: (att: SupplierAttachment) => void;
+  uploadProgress?: { name: string; percent: number; index: number; total: number };
 }
 
 function AttachmentBucket({
@@ -948,6 +1070,7 @@ function AttachmentBucket({
   inputRef,
   onFiles,
   onPreview,
+  uploadProgress,
 }: AttachmentBucketProps) {
   return (
     <div className="mb-4">
@@ -977,6 +1100,7 @@ function AttachmentBucket({
         />
       </div>
       <p className="text-xs text-zinc-500 mb-2">{subtitle}</p>
+      <UploadProgressBar progress={uploadProgress} accent={accent} />
       <AttachmentList items={items} onRemove={onRemove} onPreview={onPreview} />
     </div>
   );
@@ -1013,7 +1137,7 @@ function AttachmentList({ items, onRemove, onPreview, emptyText }: AttachmentLis
             style={{ background: "#f4f4f5" }}
           >
             {isImage(att) ? (
-              <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
+              <img src={attachmentSrc(att)} alt={att.name} className="w-full h-full object-cover" />
             ) : att.type === "application/pdf" ? (
               <FileText size={18} style={{ color: "#dc2626" }} />
             ) : isSpreadsheet(att) ? (
@@ -1044,7 +1168,7 @@ function AttachmentList({ items, onRemove, onPreview, emptyText }: AttachmentLis
             )}
             <button
               type="button"
-              onClick={() => downloadDataURL(att.dataUrl, att.name)}
+              onClick={() => void downloadAttachment(att)}
               className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
               aria-label="Baixar"
               title="Baixar"

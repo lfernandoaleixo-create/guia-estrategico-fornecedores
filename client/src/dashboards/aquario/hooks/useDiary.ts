@@ -25,7 +25,8 @@ export interface DiaryAttachment {
   name: string;
   type: string;
   size: number;
-  dataUrl: string;
+  dataUrl?: string;
+  url?: string;
   addedAt: string;
 }
 
@@ -43,6 +44,7 @@ function toDiaryAttachment(a: SupplierAttachment): DiaryAttachment {
     type: a.type,
     size: a.size,
     dataUrl: a.dataUrl,
+    url: a.url,
     addedAt: a.addedAt,
   };
 }
