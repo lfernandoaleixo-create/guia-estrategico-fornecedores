@@ -10,7 +10,13 @@
 //   - Data atualizada automaticamente (sem hora)
 // =============================================================================
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { GroupPicker } from "./GroupPicker";
 import { MigrateButton } from "./MigrateButton";
 import {
@@ -128,20 +134,6 @@ function downloadDataURL(dataUrl: string, filename: string) {
   if (blob) setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-/** Abre o anexo numa nova aba para visualização (Blob + objectURL). */
-function openDataURL(dataUrl: string) {
-  const blob = dataURLToBlob(dataUrl);
-  if (!blob) {
-    window.open(dataUrl, "_blank", "noopener");
-    return;
-  }
-  const href = URL.createObjectURL(blob);
-  const win = window.open(href, "_blank", "noopener");
-  // Se o navegador bloquear o popup, faz fallback navegando na própria aba.
-  if (!win) window.location.href = href;
-  setTimeout(() => URL.revokeObjectURL(href), 60_000);
-}
-
 export default function SupplierNotesPanel({
   scope,
   supplierId,
@@ -171,6 +163,7 @@ export default function SupplierNotesPanel({
   const [groupIds, setGroupIdsState] = useState<string[]>(entry?.groupIds ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState(false);
+  const [preview, setPreview] = useState<SupplierAttachment | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const catalogosRef = useRef<HTMLInputElement>(null);
@@ -562,6 +555,7 @@ export default function SupplierNotesPanel({
         accept="image/*,application/pdf"
         onPick={() => catalogosRef.current?.click()}
         onRemove={(id) => removeAttachment(supplierId, id)}
+        onPreview={setPreview}
         inputRef={catalogosRef}
         onFiles={(files) => handleFiles(files, "catalogos")}
       />
@@ -576,6 +570,7 @@ export default function SupplierNotesPanel({
         accept="image/*"
         onPick={() => fotosRef.current?.click()}
         onRemove={(id) => removeAttachment(supplierId, id)}
+        onPreview={setPreview}
         inputRef={fotosRef}
         onFiles={(files) => handleFiles(files, "fotos")}
       />
@@ -682,6 +677,7 @@ export default function SupplierNotesPanel({
           <AttachmentList
             items={groupAttachments("cotacoes")}
             onRemove={(id) => removeAttachment(supplierId, id)}
+            onPreview={setPreview}
             emptyText="Nenhuma planilha ou PDF de cotação anexado."
           />
         </div>
@@ -697,6 +693,7 @@ export default function SupplierNotesPanel({
         accept="*/*"
         onPick={() => outrosRef.current?.click()}
         onRemove={(id) => removeAttachment(supplierId, id)}
+        onPreview={setPreview}
         inputRef={outrosRef}
         onFiles={(files) => handleFiles(files, "outros")}
       />
@@ -730,7 +727,89 @@ export default function SupplierNotesPanel({
           </button>
         </div>
       </div>
+
+      <AttachmentPreviewModal
+        attachment={preview}
+        onClose={() => setPreview(null)}
+      />
     </div>
+  );
+}
+
+// ============================================================================
+// Modal de visualização de anexo (lightbox por cima da página)
+// Fecha ao clicar fora (backdrop) e com a tecla Esc (via Radix Dialog).
+// ============================================================================
+
+function AttachmentPreviewModal({
+  attachment,
+  onClose,
+}: {
+  attachment: SupplierAttachment | null;
+  onClose: () => void;
+}) {
+  // Gera um objectURL estável a partir do data URL enquanto o modal estiver aberto.
+  const objectUrl = useMemo(() => {
+    if (!attachment) return null;
+    const blob = dataURLToBlob(attachment.dataUrl);
+    return blob ? URL.createObjectURL(blob) : attachment.dataUrl;
+  }, [attachment]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl && objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
+    };
+  }, [objectUrl]);
+
+  const open = attachment !== null;
+  const isImg = attachment ? attachment.type.startsWith("image/") : false;
+  const isPdf = attachment ? attachment.type === "application/pdf" : false;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden bg-white">
+        <DialogHeader className="px-4 py-3 border-b" style={{ borderColor: "#e4e4e7" }}>
+          <DialogTitle className="text-sm font-semibold truncate pr-8 text-zinc-800">
+            {attachment?.name ?? "Visualizar anexo"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="bg-zinc-100" style={{ height: "78vh" }}>
+          {!objectUrl ? (
+            <div className="h-full flex items-center justify-center text-sm text-zinc-500">
+              Não foi possível carregar o arquivo.
+            </div>
+          ) : isImg ? (
+            <div className="h-full w-full flex items-center justify-center p-4">
+              <img
+                src={objectUrl}
+                alt={attachment?.name ?? ""}
+                className="max-h-full max-w-full object-contain rounded"
+              />
+            </div>
+          ) : isPdf ? (
+            <iframe
+              src={objectUrl}
+              title={attachment?.name ?? "PDF"}
+              className="h-full w-full border-0"
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+              <FileText size={40} style={{ color: "#a1a1aa" }} />
+              <p className="text-sm text-zinc-600">
+                Este tipo de arquivo não pode ser pré-visualizado aqui.
+              </p>
+              <button
+                type="button"
+                onClick={() => attachment && downloadDataURL(attachment.dataUrl, attachment.name)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 transition-colors active:scale-[0.97]"
+              >
+                <Download size={14} /> Baixar arquivo
+              </button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -749,6 +828,7 @@ interface AttachmentBucketProps {
   onRemove: (id: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onFiles: (files: FileList | null) => void;
+  onPreview?: (att: SupplierAttachment) => void;
 }
 
 function AttachmentBucket({
@@ -762,6 +842,7 @@ function AttachmentBucket({
   onRemove,
   inputRef,
   onFiles,
+  onPreview,
 }: AttachmentBucketProps) {
   return (
     <div className="mb-4">
@@ -791,7 +872,7 @@ function AttachmentBucket({
         />
       </div>
       <p className="text-xs text-zinc-500 mb-2">{subtitle}</p>
-      <AttachmentList items={items} onRemove={onRemove} />
+      <AttachmentList items={items} onRemove={onRemove} onPreview={onPreview} />
     </div>
   );
 }
@@ -799,10 +880,11 @@ function AttachmentBucket({
 interface AttachmentListProps {
   items: SupplierAttachment[];
   onRemove: (id: string) => void;
+  onPreview?: (att: SupplierAttachment) => void;
   emptyText?: string;
 }
 
-function AttachmentList({ items, onRemove, emptyText }: AttachmentListProps) {
+function AttachmentList({ items, onRemove, onPreview, emptyText }: AttachmentListProps) {
   if (items.length === 0) {
     return (
       <div
@@ -844,15 +926,17 @@ function AttachmentList({ items, onRemove, emptyText }: AttachmentListProps) {
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={() => openDataURL(att.dataUrl)}
-              className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
-              aria-label="Visualizar"
-              title="Visualizar"
-            >
-              <Eye size={14} />
-            </button>
+            {onPreview && (
+              <button
+                type="button"
+                onClick={() => onPreview(att)}
+                className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
+                aria-label="Visualizar"
+                title="Visualizar"
+              >
+                <Eye size={14} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => downloadDataURL(att.dataUrl, att.name)}

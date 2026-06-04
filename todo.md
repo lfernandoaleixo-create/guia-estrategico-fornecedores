@@ -130,3 +130,9 @@
 - [x] Download de anexo robusto (data URL → Blob + objectURL) funcionando em qualquer navegador/celular
 - [x] Botão "Visualizar" (abrir em nova aba) ao lado de Baixar
 - [x] Validar no browser (baixar = PDF íntegro 4 páginas; visualizar = abre em nova aba) e salvar checkpoint
+
+## Visualizador de anexos em overlay (lightbox)
+- [x] Botão "olho" abre o documento em um modal por cima da página (sem sair do dashboard)
+- [x] PDFs e imagens renderizam dentro do modal
+- [x] Fechar ao clicar fora (backdrop) e com tecla Esc
+- [x] Validar no browser (PDF abriu em overlay; fechou ao clicar fora) e salvar checkpoint
