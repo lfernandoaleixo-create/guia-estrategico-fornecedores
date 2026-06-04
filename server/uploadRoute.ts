@@ -17,7 +17,7 @@
 
 import type { Express, Request, Response } from "express";
 import Busboy from "busboy";
-import { storagePut } from "./storage";
+import { storagePut, storageGetSignedUrl } from "./storage";
 import { appendAttachmentToNote } from "./db";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB por arquivo
@@ -35,6 +35,43 @@ function sanitizeFilename(name: string): string {
 }
 
 export function registerUploadRoute(app: Express) {
+  // ---------------------------------------------------------------------------
+  // Stream de anexo na MESMA ORIGEM.
+  //
+  // Por que existe (e não usar direto /manus-storage)?
+  //   - /manus-storage faz redirect 307 para a S3 (cross-origin). Isso funciona
+  //     para <img>, mas o pdf.js precisa LER os bytes via fetch().arrayBuffer(),
+  //     e a S3 não envia cabeçalhos CORS → o navegador bloqueia ("Failed to fetch").
+  //   - Aqui o servidor busca a URL assinada, baixa os bytes e os repassa na
+  //     mesma origem, sem redirect e sem CORS. Serve PDFs e qualquer binário.
+  // ---------------------------------------------------------------------------
+  app.get("/api/attachment-file", async (req: Request, res: Response) => {
+    const key = typeof req.query.key === "string" ? req.query.key : "";
+    if (!key) {
+      res.status(400).send("Missing key");
+      return;
+    }
+    try {
+      const signedUrl = await storageGetSignedUrl(key);
+      const upstream = await fetch(signedUrl);
+      if (!upstream.ok || !upstream.body) {
+        res.status(502).send("Storage backend error");
+        return;
+      }
+      const contentType =
+        upstream.headers.get("content-type") || "application/octet-stream";
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Length", String(buf.length));
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Disposition", "inline");
+      res.status(200).end(buf);
+    } catch (err) {
+      console.error("[attachment-file] erro:", err);
+      res.status(502).send("Storage proxy error");
+    }
+  });
+
   app.post("/api/upload-attachment", (req: Request, res: Response) => {
     let busboy: ReturnType<typeof Busboy>;
     try {

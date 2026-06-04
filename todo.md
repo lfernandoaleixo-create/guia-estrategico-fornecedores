@@ -171,6 +171,13 @@ Causa real confirmada pelo print: o INSERT em supplier_notes falha porque attach
 
 ## Incidente durante validação (transparência)
 Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` do registro extra_mpy78fo0_rb0tz1, que continha também o anexo real "Dossie_Fornecedor_99GoldData_Vietna.pdf". O arquivo não é recuperável de forma íntegra (log truncado; chave S3 com hash desconhecido).
-- [ ] Restaurar "Dossie_Fornecedor_99GoldData_Vietna.pdf": solicitar o arquivo original ao usuário e reanexar no fornecedor 99 GOLD DATA (grupo Nº 04)
+- [x] Restaurar "Dossie_Fornecedor_99GoldData_Vietna.pdf": arquivo original reenviado pelo usuário, validado (84.623 bytes, 4 páginas), enviado ao S3 e reanexado no fornecedor 99 GOLD DATA (grupo Nº 04)
 - [x] Confirmar que a correção em si está intacta e o banco está livre de base64 (0 ocorrências)
-- [ ] Salvar checkpoint final após restaurar/encaminhar o anexo
+
+## Restauração do Dossie + correção de renderização de PDF do S3
+- [x] Identificada causa do "Não foi possível renderizar o PDF": /manus-storage faz redirect 307 para S3 (cross-origin sem CORS) e o pdf.js não consegue ler os bytes via fetch
+- [x] Nova rota REST /api/attachment-file?key=... faz stream dos bytes do S3 na MESMA ORIGEM (sem redirect/CORS) — server/uploadRoute.ts
+- [x] Helper attachmentStreamSrc no client: PDF e download passam a usar a rota de stream (compat com data URL legado)
+- [x] PdfCanvas renderiza o Dossie corretamente (validado no preview: 4 páginas legíveis)
+- [x] Testes vitest da lógica de stream (5) — total 25/25 passando
+- [x] Salvar checkpoint final

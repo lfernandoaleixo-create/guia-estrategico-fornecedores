@@ -149,14 +149,33 @@ function attachmentSrc(att: SupplierAttachment): string {
 }
 
 /**
+ * Converte uma fonte de anexo em uma URL legível por fetch().arrayBuffer() na
+ * MESMA ORIGEM. Necessária para o pdf.js, pois /manus-storage faz redirect 307
+ * para a S3 (cross-origin sem CORS), bloqueando a leitura dos bytes.
+ * - Anexos do S3 ("/manus-storage/<key>"): usa /api/attachment-file?key=<key>.
+ * - Anexos legados (data:): retorna como está (lido localmente).
+ */
+function attachmentStreamSrc(att: SupplierAttachment): string {
+  if (att.fileKey) {
+    return `/api/attachment-file?key=${encodeURIComponent(att.fileKey)}`;
+  }
+  if (att.url && att.url.startsWith("/manus-storage/")) {
+    const key = att.url.slice("/manus-storage/".length);
+    return `/api/attachment-file?key=${encodeURIComponent(key)}`;
+  }
+  return att.url ?? att.dataUrl ?? "";
+}
+
+/**
  * Baixa um anexo de forma confiável, suportando tanto url (S3) quanto dataUrl
  * (legado base64). Para URLs do S3, busca o blob e usa objectURL para garantir
  * o atributo download e o nome correto do arquivo.
  */
 async function downloadAttachment(att: SupplierAttachment) {
-  if (att.url) {
+  if (att.url || att.fileKey) {
+    const fetchUrl = attachmentStreamSrc(att);
     try {
-      const resp = await fetch(att.url, { credentials: "include" });
+      const resp = await fetch(fetchUrl, { credentials: "include" });
       const blob = await resp.blob();
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -193,18 +212,37 @@ function PdfCanvas({ src }: { src: string }) {
     container.innerHTML = "";
     setStatus("loading");
 
-    // pdf.js aceita tanto bytes (data URL) quanto uma URL HTTP diretamente.
-    const docParams = src.startsWith("data:")
-      ? { data: dataURLToBytes(src) ?? new Uint8Array() }
-      : { url: src, withCredentials: true };
+    let task: ReturnType<typeof pdfjsLib.getDocument> | null = null;
 
-    if (src.startsWith("data:") && !dataURLToBytes(src)) {
-      setStatus("error");
-      return;
-    }
+    // Carrega os bytes do PDF e renderiza. Para anexos do S3 (/manus-storage/...),
+    // buscamos os bytes via fetch (que segue o redirect 307 assinado SEM propagar
+    // credenciais ao destino S3, evitando bloqueio de CORS). Para anexos legados
+    // (data URL base64), decodificamos localmente.
+    const load = async () => {
+      let docParams: Parameters<typeof pdfjsLib.getDocument>[0];
 
-    const task = pdfjsLib.getDocument(docParams as Parameters<typeof pdfjsLib.getDocument>[0]);
-    task.promise
+      if (src.startsWith("data:")) {
+        const bytes = dataURLToBytes(src);
+        if (!bytes) {
+          if (!cancelled) setStatus("error");
+          return;
+        }
+        docParams = { data: bytes };
+      } else {
+        try {
+          const resp = await fetch(src, { credentials: "include" });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const buf = await resp.arrayBuffer();
+          if (cancelled) return;
+          docParams = { data: new Uint8Array(buf) };
+        } catch {
+          if (!cancelled) setStatus("error");
+          return;
+        }
+      }
+
+      task = pdfjsLib.getDocument(docParams);
+      await task.promise
       .then(async (pdf) => {
         if (cancelled) return;
         const width = container.clientWidth || 800;
@@ -235,10 +273,13 @@ function PdfCanvas({ src }: { src: string }) {
       .catch(() => {
         if (!cancelled) setStatus("error");
       });
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
-      task.destroy?.();
+      task?.destroy?.();
     };
   }, [src]);
 
@@ -970,7 +1011,7 @@ function AttachmentPreviewModal({
               />
             </div>
           ) : isPdf ? (
-            <PdfCanvas src={attachmentSrc(attachment!)} />
+            <PdfCanvas src={attachmentStreamSrc(attachment!)} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
               <FileText size={40} style={{ color: "#a1a1aa" }} />
