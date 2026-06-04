@@ -125,3 +125,8 @@
 - [x] Cabeçalho do card recolhido mostra status + anexos + chips dos grupos marcados (cor do grupo, tag PERS. no tooltip)
 - [x] Validado no browser (Fornecedor 1 exibe chip "Nº 05 Fornecedores de jóias")
 - [x] Teste vitest cobrindo persistência de groupIds na nota (13/13 passando)
+
+## Download/visualização de anexos
+- [x] Download de anexo robusto (data URL → Blob + objectURL) funcionando em qualquer navegador/celular
+- [x] Botão "Visualizar" (abrir em nova aba) ao lado de Baixar
+- [x] Validar no browser (baixar = PDF íntegro 4 páginas; visualizar = abre em nova aba) e salvar checkpoint

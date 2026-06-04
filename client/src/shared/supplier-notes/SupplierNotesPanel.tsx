@@ -30,6 +30,7 @@ import {
   FileText,
   Image as ImageIcon,
   Download,
+  Eye,
   Save,
   Trash2,
   Calendar,
@@ -92,13 +93,53 @@ function isSpreadsheet(att: SupplierAttachment) {
   );
 }
 
+/**
+ * Converte um data URL (base64) em Blob. Necessário porque baixar/abrir
+ * diretamente via `a.href = dataUrl` falha em arquivos grandes e em vários
+ * navegadores mobile (limite de tamanho de URL, bloqueio de navegação).
+ */
+function dataURLToBlob(dataUrl: string): Blob | null {
+  try {
+    const [header, base64] = dataUrl.split(",");
+    if (!base64) return null;
+    const mimeMatch = header.match(/data:([^;]+)/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/** Baixa o anexo de forma confiável (Blob + objectURL), com fallback ao data URL. */
 function downloadDataURL(dataUrl: string, filename: string) {
+  const blob = dataURLToBlob(dataUrl);
+  const href = blob ? URL.createObjectURL(blob) : dataUrl;
   const a = document.createElement("a");
-  a.href = dataUrl;
+  a.href = href;
   a.download = filename;
+  a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  if (blob) setTimeout(() => URL.revokeObjectURL(href), 10_000);
+}
+
+/** Abre o anexo numa nova aba para visualização (Blob + objectURL). */
+function openDataURL(dataUrl: string) {
+  const blob = dataURLToBlob(dataUrl);
+  if (!blob) {
+    window.open(dataUrl, "_blank", "noopener");
+    return;
+  }
+  const href = URL.createObjectURL(blob);
+  const win = window.open(href, "_blank", "noopener");
+  // Se o navegador bloquear o popup, faz fallback navegando na própria aba.
+  if (!win) window.location.href = href;
+  setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }
 
 export default function SupplierNotesPanel({
@@ -803,6 +844,15 @@ function AttachmentList({ items, onRemove, emptyText }: AttachmentListProps) {
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => openDataURL(att.dataUrl)}
+              className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
+              aria-label="Visualizar"
+              title="Visualizar"
+            >
+              <Eye size={14} />
+            </button>
             <button
               type="button"
               onClick={() => downloadDataURL(att.dataUrl, att.name)}
