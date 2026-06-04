@@ -7,7 +7,7 @@
  *  - Seção "Diário de Negociação" integrada dentro de cada card expandido
  *  - Dados persistidos no banco de dados em nuvem via tRPC
  */
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import Layout from "@tapete/components/Layout";
 import { todosExportadores } from "@tapete/lib/data";
 import { getClassificacao, tipoLabel, type TipoEmpresa } from "@tapete/lib/classificacao";
@@ -16,6 +16,7 @@ import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
+import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
@@ -514,6 +515,24 @@ export default function Anotacoes() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { entries: tapeteEntries, deleteEntry: deleteTapeteEntry } = useSupplierNotes("tapete");
+  // Fornecedores cadastrados manualmente — usados para resolver o nome no
+  // relatório e nos cards de grupo (caso contrário apareceria o id interno).
+  const { list: customSuppliers } = useCustomSuppliers("tapete");
+  const resolveTapeteName = useCallback(
+    (sid: string) => {
+      const found = todosExportadores.find((e) => e.nome === sid);
+      if (found) {
+        const c = contatosFabricas[found.nome as keyof typeof contatosFabricas] as
+          | ContatoFabrica
+          | undefined;
+        return c?.nomeOficial ?? found.nome;
+      }
+      const custom = customSuppliers.find((s) => s.id === sid);
+      if (custom) return custom.name;
+      return sid;
+    },
+    [customSuppliers],
+  );
 
   // Carregar negociações do banco
   const { data: negociacoesList, refetch } = trpc.diario.listarNegociacoes.useQuery();
@@ -615,14 +634,7 @@ export default function Anotacoes() {
             scope="tapete"
             tone="light"
             accent="#dc2626"
-            resolveSupplierName={(sid) => {
-              const found = todosExportadores.find((e) => e.nome === sid);
-              if (found) {
-                const c = contatosFabricas[found.nome as keyof typeof contatosFabricas] as ContatoFabrica | undefined;
-                return c?.nomeOficial ?? found.nome;
-              }
-              return sid;
-            }}
+            resolveSupplierName={resolveTapeteName}
           />
         </div>
       </div>
@@ -634,14 +646,7 @@ export default function Anotacoes() {
           scopeLabel="Tapete Higiênico Pet · Importação"
           entries={tapeteEntries}
           allSupplierIds={todosExportadores.filter(e => e.pais === "China" || e.pais === "Hong Kong").map(e => e.nome)}
-          resolveSupplierName={(sid) => {
-            const found = todosExportadores.find((e) => e.nome === sid);
-            if (found) {
-              const c = contatosFabricas[found.nome as keyof typeof contatosFabricas] as ContatoFabrica | undefined;
-              return c?.nomeOficial ?? found.nome;
-            }
-            return sid;
-          }}
+          resolveSupplierName={resolveTapeteName}
           onDeleteEntry={deleteTapeteEntry}
         />
       </div>

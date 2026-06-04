@@ -453,7 +453,13 @@ export default function GrupoDashboard() {
   const [editingSupplier, setEditingSupplier] = useState<ExtraSupplier | null>(null);
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [diaryExpandedId, setDiaryExpandedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"fornecedores" | "diario">("fornecedores");
+  const [tab, setTab] = useState<"fornecedores" | "diario">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "diario") return "diario";
+    }
+    return "fornecedores";
+  });
 
   // Notas/diário deste dashboard promovido (scope dinâmico grupo-{id}).
   const scope = `grupo-${params.groupId}`;

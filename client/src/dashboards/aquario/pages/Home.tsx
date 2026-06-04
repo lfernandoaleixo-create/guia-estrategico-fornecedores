@@ -19,6 +19,7 @@ import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
+import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -51,6 +52,14 @@ type ViewMode = "lista" | "mapa" | "notas" | "diario" | "guia";
 
 function AquarioReportSection() {
   const { entries, deleteEntry } = useSupplierNotes("aquario");
+  const { list: customSuppliers } = useCustomSuppliers("aquario");
+  const resolveAquarioName = (sid: string) => {
+    const found = suppliers.find((s) => s.id === sid);
+    if (found) return found.name;
+    const custom = customSuppliers.find((s) => s.id === sid);
+    if (custom) return custom.name;
+    return sid;
+  };
   return (
     <div className="mb-5 p-5 rounded-xl border border-zinc-200 bg-white/80">
       <ReportPanel
@@ -58,10 +67,7 @@ function AquarioReportSection() {
         scopeLabel="Fornecedores Aquários & Terrários"
         entries={entries}
         allSupplierIds={suppliers.map((s) => s.id)}
-        resolveSupplierName={(sid) => {
-          const found = suppliers.find((s) => s.id === sid);
-          return found?.name ?? sid;
-        }}
+        resolveSupplierName={resolveAquarioName}
         onDeleteEntry={deleteEntry}
       />
     </div>
@@ -75,10 +81,24 @@ export default function Home() {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [expandedFilters, setExpandedFilters] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("lista");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      const v = new URLSearchParams(window.location.search).get("view");
+      if (v === "diario" || v === "mapa" || v === "notas" || v === "guia") return v;
+    }
+    return "lista";
+  });
 
   const { notes, upsertNote, deleteNote, getNote, totalNotes } = useNotes();
   const { totalEntries: totalDiaryEntries } = useDiary();
+  const { list: customSuppliersAquario } = useCustomSuppliers("aquario");
+  const resolveAquarioGroupName = (sid: string) => {
+    const found = suppliers.find((s) => s.id === sid);
+    if (found) return found.name;
+    const custom = customSuppliersAquario.find((s) => s.id === sid);
+    if (custom) return custom.name;
+    return sid;
+  };
 
   const filteredSuppliers = useMemo(() => {
     let result = suppliers;
@@ -786,10 +806,7 @@ export default function Home() {
                   scope="aquario"
                   tone="light"
                   accent="#dc2626"
-                  resolveSupplierName={(sid) => {
-                    const found = suppliers.find((s) => s.id === sid);
-                    return found?.name ?? sid;
-                  }}
+                  resolveSupplierName={resolveAquarioGroupName}
                 />
               </div>
 

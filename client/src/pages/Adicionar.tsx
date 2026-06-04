@@ -5,7 +5,7 @@
 // Quando um grupo crescer, ele pode ser "promovido" a dashboard independente.
 // =============================================================================
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   ArrowLeft,
   Plus,
@@ -17,6 +17,8 @@ import {
   Building2,
   Sparkles,
   Rocket,
+  ArrowRight,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +31,25 @@ import {
   useExtraSuppliers,
   type ExtraSupplier,
 } from "@/shared/supplier-notes/useExtraSuppliers";
+import {
+  useCustomSuppliers,
+  genContactId,
+  type SupplierScope,
+} from "@/shared/supplier-notes/useCustomSuppliers";
+
+// Destinos fixos: os 3 dashboards principais. O id usa o prefixo "fixed:" para
+// nunca colidir com ids de grupos personalizados.
+interface FixedDashboard {
+  id: string; // "fixed:aquario" etc.
+  scope: SupplierScope;
+  label: string;
+  diaryRoute: string; // rota que abre direto as Anotações / Diário do dashboard
+}
+const FIXED_DASHBOARDS: FixedDashboard[] = [
+  { id: "fixed:aquario", scope: "aquario", label: "Aquário", diaryRoute: "/aquario?view=diario" },
+  { id: "fixed:tapete", scope: "tapete", label: "Tapete higiênico Pet", diaryRoute: "/tapete/anotacoes" },
+  { id: "fixed:yiwu", scope: "yiwu", label: "Yiwu", diaryRoute: "/yiwu/anotacoes" },
+];
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -53,7 +74,7 @@ interface GroupDraft {
 }
 
 interface SupplierDraft {
-  groupId: string;
+  destination: string; // "fixed:<scope>" ou groupId de grupo personalizado
   name: string;
   chineseName: string;
   category: string;
@@ -72,7 +93,7 @@ interface SupplierDraft {
 }
 
 const EMPTY_SUPPLIER: SupplierDraft = {
-  groupId: "",
+  destination: "",
   name: "",
   chineseName: "",
   category: "",
@@ -104,6 +125,23 @@ export default function AdicionarPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const { list: suppliers, create: createSupplier, remove: removeSupplier } =
     useExtraSuppliers();
+
+  // Hooks dos 3 dashboards fixos (chamadas fixas, respeitando as regras de hooks).
+  const aquarioSuppliers = useCustomSuppliers("aquario");
+  const tapeteSuppliers = useCustomSuppliers("tapete");
+  const yiwuSuppliers = useCustomSuppliers("yiwu");
+  const fixedCreators: Record<SupplierScope, (input: Parameters<typeof aquarioSuppliers.create>[0]) => Promise<unknown>> = {
+    aquario: aquarioSuppliers.create,
+    tapete: tapeteSuppliers.create,
+    yiwu: yiwuSuppliers.create,
+  };
+
+  const [, navigate] = useLocation();
+
+  // Banner pós-cadastro com link para o diário do destino.
+  const [lastSaved, setLastSaved] = useState<{ label: string; route: string } | null>(
+    null,
+  );
 
   // Modal de grupo
   const [groupModalOpen, setGroupModalOpen] = useState(false);
@@ -226,39 +264,82 @@ export default function AdicionarPage() {
   }
 
   async function handleSaveSupplier() {
-    if (!supplierDraft.groupId) {
-      toast.error("Selecione um grupo para o fornecedor.");
+    if (!supplierDraft.destination) {
+      toast.error("Selecione um destino (dashboard ou grupo) para o fornecedor.");
       return;
     }
     if (!supplierDraft.name.trim()) {
       toast.error("Informe o nome do fornecedor.");
       return;
     }
-    await createSupplier({
-      groupId: supplierDraft.groupId,
-      name: supplierDraft.name.trim(),
-      chineseName: supplierDraft.chineseName.trim() || undefined,
-      category: supplierDraft.category.trim() || undefined,
-      city: supplierDraft.city.trim() || undefined,
-      province: supplierDraft.province.trim() || undefined,
-      address: supplierDraft.address.trim() || undefined,
-      contactName: supplierDraft.contactName.trim() || undefined,
-      contactRole: supplierDraft.contactRole.trim() || undefined,
-      moq: supplierDraft.moq.trim() || undefined,
-      priceFob: supplierDraft.priceFob.trim() || undefined,
-      leadTime: supplierDraft.leadTime.trim() || undefined,
-      notes: supplierDraft.notes.trim() || undefined,
-      phones: supplierDraft.whatsapp.trim()
-        ? [{ id: `c-${Date.now()}`, label: "WhatsApp", value: supplierDraft.whatsapp.trim() }]
-        : [],
-      emails: supplierDraft.email.trim()
-        ? [{ id: `c-${Date.now()}`, value: supplierDraft.email.trim() }]
-        : [],
-      links: supplierDraft.link.trim()
-        ? [{ id: `c-${Date.now()}`, value: supplierDraft.link.trim() }]
-        : [],
-    });
-    toast.success(`Fornecedor "${supplierDraft.name}" cadastrado`);
+
+    const name = supplierDraft.name.trim();
+    const fixed = FIXED_DASHBOARDS.find((d) => d.id === supplierDraft.destination);
+
+    if (fixed) {
+      // Destino fixo: cadastra no mesmo modelo dos fornecedores manuais do dashboard.
+      const phones = supplierDraft.whatsapp.trim()
+        ? [{ id: genContactId(), label: "WhatsApp", value: supplierDraft.whatsapp.trim() }]
+        : [];
+      const emails = supplierDraft.email.trim()
+        ? [{ id: genContactId(), value: supplierDraft.email.trim() }]
+        : [];
+      const links = supplierDraft.link.trim()
+        ? [{ id: genContactId(), value: supplierDraft.link.trim() }]
+        : [];
+      await fixedCreators[fixed.scope]({
+        name,
+        chineseName: supplierDraft.chineseName.trim() || undefined,
+        category: supplierDraft.category.trim() || undefined,
+        city: supplierDraft.city.trim() || undefined,
+        province: supplierDraft.province.trim() || undefined,
+        address: supplierDraft.address.trim() || undefined,
+        contactName: supplierDraft.contactName.trim() || undefined,
+        contactRole: supplierDraft.contactRole.trim() || undefined,
+        moq: supplierDraft.moq.trim() || undefined,
+        priceFob: supplierDraft.priceFob.trim() || undefined,
+        leadTime: supplierDraft.leadTime.trim() || undefined,
+        notes: supplierDraft.notes.trim() || undefined,
+        phones,
+        emails,
+        links,
+      });
+      toast.success(`Fornecedor "${name}" cadastrado em ${fixed.label}`);
+      setLastSaved({ label: fixed.label, route: fixed.diaryRoute });
+    } else {
+      // Grupo personalizado: modelo atual (ExtraSupplier com groupId).
+      const group = groups.find((g) => g.id === supplierDraft.destination);
+      await createSupplier({
+        groupId: supplierDraft.destination,
+        name,
+        chineseName: supplierDraft.chineseName.trim() || undefined,
+        category: supplierDraft.category.trim() || undefined,
+        city: supplierDraft.city.trim() || undefined,
+        province: supplierDraft.province.trim() || undefined,
+        address: supplierDraft.address.trim() || undefined,
+        contactName: supplierDraft.contactName.trim() || undefined,
+        contactRole: supplierDraft.contactRole.trim() || undefined,
+        moq: supplierDraft.moq.trim() || undefined,
+        priceFob: supplierDraft.priceFob.trim() || undefined,
+        leadTime: supplierDraft.leadTime.trim() || undefined,
+        notes: supplierDraft.notes.trim() || undefined,
+        phones: supplierDraft.whatsapp.trim()
+          ? [{ id: genContactId(), label: "WhatsApp", value: supplierDraft.whatsapp.trim() }]
+          : [],
+        emails: supplierDraft.email.trim()
+          ? [{ id: genContactId(), value: supplierDraft.email.trim() }]
+          : [],
+        links: supplierDraft.link.trim()
+          ? [{ id: genContactId(), value: supplierDraft.link.trim() }]
+          : [],
+      });
+      toast.success(`Fornecedor "${name}" cadastrado${group ? ` no grupo “${group.name}”` : ""}`);
+      if (group) {
+        const label = `Grupo Nº ${String(group.number ?? 0).padStart(2, "0")} · ${group.name}`;
+        setLastSaved({ label, route: `/grupo/${group.id}?tab=diario` });
+      }
+    }
+
     setSupplierDraft(EMPTY_SUPPLIER);
     setShowSupplierForm(false);
   }
@@ -563,11 +644,11 @@ export default function AdicionarPage() {
             <button
               type="button"
               onClick={() => {
-                if (groups.length === 0) {
-                  toast.error("Crie pelo menos um grupo antes de cadastrar fornecedores.");
-                  return;
-                }
-                setSupplierDraft({ ...EMPTY_SUPPLIER, groupId: groups[0].id });
+                setLastSaved(null);
+                setSupplierDraft({
+                  ...EMPTY_SUPPLIER,
+                  destination: FIXED_DASHBOARDS[0].id,
+                });
                 setShowSupplierForm(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
@@ -582,17 +663,70 @@ export default function AdicionarPage() {
           )}
         </div>
 
+        {/* Banner pós-cadastro: leva o fornecedor recém-criado ao diário do destino */}
+        {lastSaved && !showSupplierForm && (
+          <div
+            className="rounded-2xl border p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4"
+            style={{
+              background: "oklch(0.78 0.16 75 / 0.08)",
+              borderColor: "oklch(0.78 0.16 75 / 0.35)",
+            }}
+          >
+            <div className="flex items-start gap-3 flex-1">
+              <Check
+                className="w-5 h-5 mt-0.5 shrink-0"
+                style={{ color: "oklch(0.82 0.15 145)" }}
+              />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: TEXT_PRIMARY }}>
+                  Fornecedor cadastrado em {lastSaved.label}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: TEXT_MUTED }}>
+                  Abra as Anotações / Diário desse destino para registrar notas e anexar arquivos.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setLastSaved(null)}
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{
+                  background: "transparent",
+                  color: TEXT_MUTED,
+                  border: `1px solid ${BORDER}`,
+                }}
+              >
+                Dispensar
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(lastSaved.route)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition-transform active:scale-[0.97]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.78 0.16 75), oklch(0.55 0.18 25))",
+                  color: "oklch(0.10 0.02 250)",
+                }}
+              >
+                <BookOpen className="w-4 h-4" /> Ir para Anotações / Diário
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {showSupplierForm && (
           <div
             className="rounded-2xl border p-6 mb-4"
             style={{ background: SURFACE, borderColor: BORDER }}
           >
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Grupo">
+              <Field label="Destino (dashboard ou grupo)">
                 <select
-                  value={supplierDraft.groupId}
+                  value={supplierDraft.destination}
                   onChange={(e) =>
-                    setSupplierDraft({ ...supplierDraft, groupId: e.target.value })
+                    setSupplierDraft({ ...supplierDraft, destination: e.target.value })
                   }
                   className="w-full rounded-lg px-3 py-2 text-sm"
                   style={{
@@ -601,13 +735,24 @@ export default function AdicionarPage() {
                     border: `1px solid ${BORDER}`,
                   }}
                 >
-                  <option value="">— Selecione um grupo —</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      Grupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
-                      {g.branch ? ` · ${g.branch}` : ""}
-                    </option>
-                  ))}
+                  <option value="">— Selecione um destino —</option>
+                  <optgroup label="Dashboards principais">
+                    {FIXED_DASHBOARDS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {groups.length > 0 && (
+                    <optgroup label="Grupos personalizados">
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          Grupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
+                          {g.branch ? ` · ${g.branch}` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </Field>
               <Field label="Nome do fornecedor">

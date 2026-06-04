@@ -181,3 +181,20 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] PdfCanvas renderiza o Dossie corretamente (validado no preview: 4 páginas legíveis)
 - [x] Testes vitest da lógica de stream (5) — total 25/25 passando
 - [x] Salvar checkpoint final
+
+## Barra de pesquisa de fornecedores na aba "Anotações / Diário"
+- [x] Adicionar campo de busca por nome do fornecedor na aba Diário de cada dashboard (centralizado no ReportPanel, compartilhado por Aquário, Tapete, Yiwu e dashboards promovidos/grupos)
+- [x] Filtrar a lista de fornecedores do diário em tempo real pelo termo digitado (case-insensitive, ignora acentos)
+- [x] Estado vazio quando nenhum fornecedor casa com a busca + botão limpar (X) + contador "N de M"
+- [x] Teste vitest da lógica de busca (5) — total 30/30 passando
+- [x] Validar no preview (busca "gold" filtra; "xyz" mostra estado vazio) e salvar checkpoint
+
+## Cadastro: destinos completos + enviar ao diário do dashboard
+- [x] Seletor de grupo no /adicionar lista TODOS os destinos: 3 dashboards fixos (Aquário/Tapete/Yiwu) + todos os grupos personalizados (optgroups)
+- [x] Ao salvar em destino fixo, cadastrar via useCustomSuppliers(scope) (aparece no diário do dashboard fixo)
+- [x] Ao salvar em grupo personalizado, manter modelo ExtraSupplier (comportamento atual)
+- [x] Após salvar, banner com botão "Ir para Anotações/Diário" que navega ao destino certo (Aquário: ?view=diario; Tapete/Yiwu: /anotacoes; grupo: /grupo/:id?tab=diario)
+- [x] Abrir aba Diário via query param nos dashboards fixos (Aquário ?view) e no GrupoDashboard (?tab)
+- [x] Relatório e cards de grupo dos 3 dashboards fixos resolvem o NOME do fornecedor manual (antes mostravam o id interno)
+- [x] Teste vitest do ciclo create/list/delete de custom suppliers por scope (31/31 passando)
+- [x] Validar no preview (destino Tapete: toast + banner + nome resolvido no relatório) e salvar checkpoint

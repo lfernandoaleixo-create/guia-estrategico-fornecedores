@@ -5,7 +5,7 @@
 // busca por nome/categoria/distrito + filtro por status + paginação.
 // =============================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { FileText, Search, X, Filter, ChevronDown } from "lucide-react";
 import Header from "@yiwu/components/Header";
 import suppliersData from "@yiwu/data/suppliers.json";
@@ -21,6 +21,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
+import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 
@@ -102,6 +103,7 @@ function buildYiwuPrefilledFields(s: YiwuSupplier): PrefilledField[] {
 export default function YiwuAnotacoes() {
   const { entries, loaded, deleteEntry } = useSupplierNotes("yiwu");
   const { groups: allGroups } = useSupplierGroups();
+  const { list: customSuppliers } = useCustomSuppliers("yiwu");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | "all" | "with-notes">("all");
   const [groupFilter, setGroupFilter] = useState<string | "all">("all");
@@ -109,6 +111,17 @@ export default function YiwuAnotacoes() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const allSuppliers = (suppliersData as { suppliers: YiwuSupplier[] }).suppliers;
+  // Resolve nome priorizando o dataset estático e, em fallback, fornecedores manuais.
+  const resolveYiwuName = useCallback(
+    (sid: string) => {
+      const found = allSuppliers.find((s) => String(s.id) === sid);
+      if (found) return found.name;
+      const custom = customSuppliers.find((s) => s.id === sid);
+      if (custom) return custom.name;
+      return sid;
+    },
+    [allSuppliers, customSuppliers],
+  );
 
   // Status de cada fornecedor (default = nao-visitado)
   const statusOf = (id: number): SupplierStatus =>
@@ -216,10 +229,7 @@ export default function YiwuAnotacoes() {
             scope="yiwu"
             tone="dark"
             accent="#0891b2"
-            resolveSupplierName={(sid) => {
-              const found = allSuppliers.find((s) => String(s.id) === sid);
-              return found?.name ?? sid;
-            }}
+            resolveSupplierName={resolveYiwuName}
           />
         </div>
 
@@ -230,10 +240,7 @@ export default function YiwuAnotacoes() {
             scopeLabel="Yiwu Intel · Mercado Internacional"
             entries={entries}
             allSupplierIds={allSuppliers.map((s) => String(s.id))}
-            resolveSupplierName={(sid) => {
-              const found = allSuppliers.find((s) => String(s.id) === sid);
-              return found?.name ?? sid;
-            }}
+            resolveSupplierName={resolveYiwuName}
             onDeleteEntry={deleteEntry}
           />
         </div>

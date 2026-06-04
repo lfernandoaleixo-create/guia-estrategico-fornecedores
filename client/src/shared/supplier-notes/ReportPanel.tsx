@@ -11,7 +11,15 @@ import {
   STATUS_ORDER,
   AttachmentCategory,
 } from "./useSupplierNotes";
-import { FileText, Download, Filter, BarChart3, Calendar, Trash2 } from "lucide-react";
+import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X } from "lucide-react";
+
+// Normaliza texto para busca: minúsculas + remove acentos.
+function normalizeSearch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 // ---------- Types ----------
 interface ReportPanelProps {
@@ -110,6 +118,7 @@ export default function ReportPanel({
   const [customEnd, setCustomEnd] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -139,6 +148,15 @@ export default function ReportPanel({
       isWithinPeriod(e.updatedAt, period, customStart, customEnd)
     );
   }, [allEntries, period, customStart, customEnd]);
+
+  // Filtra a lista detalhada pelo nome do fornecedor (busca em tempo real).
+  const searchedEntries = useMemo(() => {
+    const q = normalizeSearch(searchTerm.trim());
+    if (!q) return filteredEntries;
+    return filteredEntries.filter((e) =>
+      normalizeSearch(resolveSupplierName(e.supplierId)).includes(q)
+    );
+  }, [filteredEntries, searchTerm, resolveSupplierName]);
 
   // Summary by status
   const statusSummary = useMemo(() => {
@@ -573,17 +591,51 @@ export default function ReportPanel({
         <div className="flex items-center gap-2 mb-3">
           <FileText size={14} className={dark ? 'text-zinc-400' : 'text-zinc-500'} />
           <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-            Detalhamento ({filteredEntries.length} fornecedores)
+            Detalhamento ({searchedEntries.length}
+            {searchTerm.trim() ? ` de ${filteredEntries.length}` : ''} fornecedores)
           </span>
+        </div>
+
+        {/* Barra de pesquisa por nome do fornecedor */}
+        <div className="relative mb-3">
+          <Search
+            size={15}
+            className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}
+          />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Pesquisar fornecedor pelo nome…"
+            className={`w-full rounded-lg border pl-9 pr-9 py-2 text-sm outline-none transition-colors focus:ring-2 ${
+              dark
+                ? 'border-zinc-700 bg-zinc-900/60 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:ring-zinc-700/50'
+                : 'border-zinc-200 bg-white text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-zinc-200'
+            }`}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors ${dark ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}`}
+              title="Limpar busca"
+              type="button"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {filteredEntries.length === 0 ? (
           <div className="text-center py-8 text-zinc-500 text-sm">
             Nenhum fornecedor encontrado no período selecionado.
           </div>
+        ) : searchedEntries.length === 0 ? (
+          <div className="text-center py-8 text-zinc-500 text-sm">
+            Nenhum fornecedor encontrado para <span className="font-medium">“{searchTerm.trim()}”</span>.
+          </div>
         ) : (
           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {filteredEntries
+            {searchedEntries
               .sort((a, b) => {
                 const dateA = parseBRDate(a.updatedAt)?.getTime() || 0;
                 const dateB = parseBRDate(b.updatedAt)?.getTime() || 0;
