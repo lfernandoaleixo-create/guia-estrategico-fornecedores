@@ -48,7 +48,12 @@ import {
   DollarSign,
   Folder,
   Plus,
+  Loader2,
 } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 /** Campo apenas leitura (vem do cadastro do fornecedor) */
 export interface PrefilledField {
@@ -118,6 +123,99 @@ function dataURLToBlob(dataUrl: string): Blob | null {
   } catch {
     return null;
   }
+}
+
+/** Extrai os bytes (Uint8Array) de um data URL base64. */
+function dataURLToBytes(dataUrl: string): Uint8Array | null {
+  try {
+    const base64 = dataUrl.split(",")[1];
+    if (!base64) return null;
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Renderiza um PDF (data URL) inteiramente em <canvas> usando pdf.js.
+ * Evita o uso de <iframe src="blob:">, que o Chrome bloqueia por segurança
+ * em sites publicados ("Esta página foi bloqueada pelo Chrome").
+ */
+function PdfCanvas({ dataUrl }: { dataUrl: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+    if (!container) return;
+    container.innerHTML = "";
+    setStatus("loading");
+
+    const bytes = dataURLToBytes(dataUrl);
+    if (!bytes) {
+      setStatus("error");
+      return;
+    }
+
+    const task = pdfjsLib.getDocument({ data: bytes });
+    task.promise
+      .then(async (pdf) => {
+        if (cancelled) return;
+        const width = container.clientWidth || 800;
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          if (cancelled) return;
+          const page = await pdf.getPage(pageNum);
+          const baseViewport = page.getViewport({ scale: 1 });
+          // Escala para caber na largura do container, com nitidez (devicePixelRatio).
+          const cssScale = (width - 24) / baseViewport.width;
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          const viewport = page.getViewport({ scale: cssScale * dpr });
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = `${viewport.width / dpr}px`;
+          canvas.style.height = `${viewport.height / dpr}px`;
+          canvas.style.display = "block";
+          canvas.style.margin = "0 auto 12px";
+          canvas.style.borderRadius = "6px";
+          canvas.style.boxShadow = "0 1px 6px rgba(0,0,0,0.15)";
+          container.appendChild(canvas);
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+        if (!cancelled) setStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+      task.destroy?.();
+    };
+  }, [dataUrl]);
+
+  return (
+    <div className="h-full w-full overflow-auto bg-zinc-200/60">
+      {status === "loading" && (
+        <div className="h-full flex items-center justify-center text-sm text-zinc-500 gap-2">
+          <Loader2 size={16} className="animate-spin" /> Carregando PDF…
+        </div>
+      )}
+      {status === "error" && (
+        <div className="h-full flex items-center justify-center text-sm text-zinc-500">
+          Não foi possível renderizar o PDF. Use o botão Baixar.
+        </div>
+      )}
+      <div ref={containerRef} className="p-3" style={{ display: status === "ready" ? "block" : "none" }} />
+    </div>
+  );
 }
 
 /** Baixa o anexo de forma confiável (Blob + objectURL), com fallback ao data URL. */
@@ -769,9 +867,20 @@ function AttachmentPreviewModal({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden bg-white">
         <DialogHeader className="px-4 py-3 border-b" style={{ borderColor: "#e4e4e7" }}>
-          <DialogTitle className="text-sm font-semibold truncate pr-8 text-zinc-800">
-            {attachment?.name ?? "Visualizar anexo"}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="text-sm font-semibold truncate text-zinc-800">
+              {attachment?.name ?? "Visualizar anexo"}
+            </DialogTitle>
+            {attachment && (
+              <button
+                type="button"
+                onClick={() => downloadDataURL(attachment.dataUrl, attachment.name)}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 bg-zinc-800 text-white hover:bg-zinc-900 transition-colors active:scale-[0.97]"
+              >
+                <Download size={13} /> Baixar
+              </button>
+            )}
+          </div>
         </DialogHeader>
         <div className="bg-zinc-100" style={{ height: "78vh" }}>
           {!objectUrl ? (
@@ -787,11 +896,7 @@ function AttachmentPreviewModal({
               />
             </div>
           ) : isPdf ? (
-            <iframe
-              src={objectUrl}
-              title={attachment?.name ?? "PDF"}
-              className="h-full w-full border-0"
-            />
+            <PdfCanvas dataUrl={attachment!.dataUrl} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
               <FileText size={40} style={{ color: "#a1a1aa" }} />

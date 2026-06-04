@@ -136,3 +136,10 @@
 - [x] PDFs e imagens renderizam dentro do modal
 - [x] Fechar ao clicar fora (backdrop) e com tecla Esc
 - [x] Validar no browser (PDF abriu em overlay; fechou ao clicar fora) e salvar checkpoint
+
+## Correção: PDF bloqueado pelo Chrome no lightbox
+- [x] Substituir iframe(blob) por pdf.js renderizando em canvas dentro do modal
+- [x] Paginação/scroll de todas as páginas do PDF
+- [x] Imagens continuam funcionando no modal
+- [x] Fallback de download para tipos não suportados
+- [x] Validar no preview e salvar checkpoint
