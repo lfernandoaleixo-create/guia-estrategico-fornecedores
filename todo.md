@@ -219,3 +219,11 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Scroll horizontal para ver todas as colunas sem cortes
 - [x] Ajustar testes vitest (40/40 passando) e validar no preview (tela cheia confirmada 1280x1100)
 - [x] Salvar checkpoint
+
+## Classificação de preço ao aprovar fornecedor
+- [x] Ao marcar "Fornecedor aprovado", exibir 3 opções: Preço Excelente / Preço Bom / Preço Ruim
+- [x] Salvar a classificação em fields.precoClassificacao (excelente|bom|ruim) por fornecedor, no banco compartilhado
+- [x] Exibir selo da classificação no card/cabeçalho do fornecedor (cor por tipo) — Tapete (2 locais), GrupoDashboard, Aquário (DiaryCard), Yiwu
+- [x] Selo desaparece se o status deixar de ser "fornecedor-aprovado"
+- [x] Teste vitest: persistência da classificação e remoção ao desaprovar (41/41 passando)
+- [x] Validar no preview + checkpoint

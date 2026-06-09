@@ -15,7 +15,7 @@ import { contatosFabricas } from "@tapete/lib/contatos";
 import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
-import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
@@ -727,7 +727,12 @@ export default function Anotacoes() {
                              const tEntry = tapeteEntries[fab.nome];
                              const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                              const cfg = STATUS_CONFIG[tStatus];
+                             const precoKey = tStatus === "fornecedor-aprovado"
+                               ? (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
+                               : undefined;
+                             const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
                              return (
+                               <>
                                <span
                                  className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
                                  style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
@@ -735,6 +740,16 @@ export default function Anotacoes() {
                                >
                                  <span className="mr-1">{cfg.emoji}</span>{cfg.label}
                                </span>
+                               {pcfg && (
+                                 <span
+                                   className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                                   style={{ background: pcfg.bg, color: pcfg.color, border: `1px solid ${pcfg.border}` }}
+                                   title={pcfg.label}
+                                 >
+                                   <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
+                                 </span>
+                               )}
+                               </>
                              );
                            })()}
                            <p className="text-sm font-semibold text-slate-900">{fab.nome}</p>
@@ -958,7 +973,12 @@ export default function Anotacoes() {
                       const tEntry = tapeteEntries[fab.nome];
                       const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                       const cfg = STATUS_CONFIG[tStatus];
+                      const precoKey = tStatus === "fornecedor-aprovado"
+                        ? (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
+                        : undefined;
+                      const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
                       return (
+                        <>
                         <span
                           className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
                           style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
@@ -966,6 +986,16 @@ export default function Anotacoes() {
                         >
                           <span className="mr-1">{cfg.emoji}</span>{cfg.label}
                         </span>
+                        {pcfg && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                            style={{ background: pcfg.bg, color: pcfg.color, border: `1px solid ${pcfg.border}` }}
+                            title={pcfg.label}
+                          >
+                            <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
+                          </span>
+                        )}
+                        </>
                       );
                     })()}
                     <p className="text-sm font-semibold text-slate-800">{fab.nome}</p>

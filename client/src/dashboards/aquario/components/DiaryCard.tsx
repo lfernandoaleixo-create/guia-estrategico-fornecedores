@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
-import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -94,6 +94,10 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
   const cat = categoryStyles[supplier.category];
   const status = entry?.status ?? "nao-visitado";
   const statusCfg = STATUS_CONFIG[status];
+  const precoKey = status === "fornecedor-aprovado"
+    ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
+    : undefined;
+  const precoCfg = precoKey ? PRECO_CONFIG[precoKey] : null;
   const attachments = entry?.attachments ?? [];
   const hasContent =
     (entry?.observacoes?.length ?? 0) > 0 ||
@@ -138,6 +142,20 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             >
               {statusCfg.label.toUpperCase()}
             </span>
+            {precoCfg && (
+              <span
+                className="eyebrow px-2 py-0.5 rounded font-bold"
+                style={{
+                  background: precoCfg.bg,
+                  color: precoCfg.color,
+                  border: `1px solid ${precoCfg.border}`,
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {precoCfg.emoji} {precoCfg.label.toUpperCase()}
+              </span>
+            )}
             <span
               className="eyebrow px-2 py-0.5 rounded"
               style={{ background: cat.tint, color: "oklch(0.32 0.06 60)", fontSize: "0.6rem" }}

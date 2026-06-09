@@ -36,7 +36,7 @@ import {
 } from "@/shared/supplier-notes/useExtraSuppliers";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
-import { useSupplierNotes, STATUS_CONFIG } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
@@ -1001,6 +1001,10 @@ export default function GrupoDashboard() {
               const isOpen = diaryExpandedId === s.id;
               const entry = getEntry(s.id);
               const st = STATUS_CONFIG[entry?.status ?? "nao-visitado"];
+              const precoKey = entry?.status === "fornecedor-aprovado"
+                ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
+                : undefined;
+              const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
               const attachCount = entry?.attachments?.length ?? 0;
               return (
                 <article
@@ -1046,6 +1050,15 @@ export default function GrupoDashboard() {
                             <span>{st.emoji}</span>
                             {st.label}
                           </span>
+                          {pcfg && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: pcfg.bg, color: pcfg.color, border: `1px solid ${pcfg.border}` }}
+                            >
+                              <span>{pcfg.emoji}</span>
+                              {pcfg.label}
+                            </span>
+                          )}
                           {attachCount > 0 && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full"

@@ -715,3 +715,81 @@ describe("appendAttachmentToNote (upload incremental sem perda de dados)", () =>
     await caller.data.notes.delete({ scope: SCOPE2, supplierId: SUP2 });
   });
 });
+
+describe("classificação de preço ao aprovar fornecedor (fields.precoClassificacao)", () => {
+  const PC_SCOPE = "tapete";
+  const PC_SUPPLIER = "supplier-preco-vitest";
+
+  afterAll(async () => {
+    await caller.data.notes
+      .delete({ scope: PC_SCOPE, supplierId: PC_SUPPLIER })
+      .catch(() => {});
+  });
+
+  it("salva a classificação ao aprovar e a remove quando o fornecedor deixa de ser aprovado", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const now = new Date().toISOString();
+
+    // 1) fornecedor aprovado com preço "excelente"
+    await caller.data.notes.upsert({
+      scope: PC_SCOPE,
+      supplierId: PC_SUPPLIER,
+      status: "fornecedor-aprovado",
+      observacoes: "preço fechado",
+      fields: { precoClassificacao: "excelente", contato: "Mr. Lee" },
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    let list = await caller.data.notes.listByScope({ scope: PC_SCOPE });
+    let note = list.find((n) => n.supplierId === PC_SUPPLIER);
+    expect(note).toBeDefined();
+    expect(note?.status).toBe("fornecedor-aprovado");
+    let fields =
+      typeof note!.fields === "string" ? JSON.parse(note!.fields) : note!.fields;
+    expect(fields?.precoClassificacao).toBe("excelente");
+    expect(fields?.contato).toBe("Mr. Lee");
+
+    // 2) altera a classificação para "bom" (alternância entre opções)
+    await caller.data.notes.upsert({
+      scope: PC_SCOPE,
+      supplierId: PC_SUPPLIER,
+      status: "fornecedor-aprovado",
+      observacoes: "preço fechado",
+      fields: { precoClassificacao: "bom", contato: "Mr. Lee" },
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    });
+    list = await caller.data.notes.listByScope({ scope: PC_SCOPE });
+    note = list.find((n) => n.supplierId === PC_SUPPLIER);
+    fields =
+      typeof note!.fields === "string" ? JSON.parse(note!.fields) : note!.fields;
+    expect(fields?.precoClassificacao).toBe("bom");
+
+    // 3) desaprova: a classificação de preço deve ser removida do fields
+    await caller.data.notes.upsert({
+      scope: PC_SCOPE,
+      supplierId: PC_SUPPLIER,
+      status: "negociando",
+      observacoes: "preço fechado",
+      fields: { contato: "Mr. Lee" },
+      attachments: "[]",
+      groupIds: [],
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    });
+    list = await caller.data.notes.listByScope({ scope: PC_SCOPE });
+    note = list.find((n) => n.supplierId === PC_SUPPLIER);
+    expect(note?.status).toBe("negociando");
+    fields =
+      typeof note!.fields === "string" ? JSON.parse(note!.fields) : note!.fields;
+    expect(fields?.precoClassificacao).toBeUndefined();
+    // demais campos preservados
+    expect(fields?.contato).toBe("Mr. Lee");
+  });
+});

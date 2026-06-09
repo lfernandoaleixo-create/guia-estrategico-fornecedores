@@ -124,6 +124,38 @@ export const STATUS_CONFIG: Record<
   },
 };
 
+// Classificação de preço (aplicável quando o fornecedor é aprovado).
+export type PrecoClassificacao = "excelente" | "bom" | "ruim";
+
+export const PRECO_CONFIG: Record<
+  PrecoClassificacao,
+  { label: string; emoji: string; color: string; bg: string; border: string }
+> = {
+  excelente: {
+    label: "Preço Excelente",
+    emoji: "🟢",
+    color: "#166534",
+    bg: "#dcfce7",
+    border: "#86efac",
+  },
+  bom: {
+    label: "Preço Bom",
+    emoji: "🟡",
+    color: "#854d0e",
+    bg: "#fef9c3",
+    border: "#fde047",
+  },
+  ruim: {
+    label: "Preço Ruim",
+    emoji: "🔴",
+    color: "#991b1b",
+    bg: "#fee2e2",
+    border: "#fca5a5",
+  },
+};
+
+export const PRECO_ORDER: PrecoClassificacao[] = ["excelente", "bom", "ruim"];
+
 export const STATUS_ORDER: SupplierStatus[] = [
   "nao-visitado",
   "contato-feito",

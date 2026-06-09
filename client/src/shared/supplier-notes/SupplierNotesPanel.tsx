@@ -23,10 +23,13 @@ import ViabilitySheetDialog from "./ViabilitySheetDialog";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
+  PRECO_CONFIG,
+  PRECO_ORDER,
   ATTACHMENT_CATEGORY_LABEL,
   formatBytes,
   useSupplierNotes,
   type AttachmentCategory,
+  type PrecoClassificacao,
   type QuoteRow,
   type SupplierAttachment,
   type SupplierStatus,
@@ -376,9 +379,33 @@ export default function SupplierNotesPanel({
         : a.category === cat
     );
 
+  // Classificação de preço atual (somente quando aprovado).
+  const precoClass = (fields.precoClassificacao as PrecoClassificacao | undefined) ?? undefined;
+
   const handleStatusClick = (s: SupplierStatus) => {
     setStatus(s);
-    upsertEntry(supplierId, { status: s, observacoes });
+    // Se deixar de ser aprovado, remove a classificação de preço.
+    if (s !== "fornecedor-aprovado" && fields.precoClassificacao) {
+      const nextFields = { ...fields };
+      delete nextFields.precoClassificacao;
+      setFields(nextFields);
+      upsertEntry(supplierId, { status: s, observacoes, fields: nextFields });
+    } else {
+      upsertEntry(supplierId, { status: s, observacoes });
+    }
+    flashSaved();
+  };
+
+  const handlePrecoClick = (p: PrecoClassificacao) => {
+    // Alterna: clicar na mesma opção remove a classificação.
+    const nextFields = { ...fields };
+    if (nextFields.precoClassificacao === p) {
+      delete nextFields.precoClassificacao;
+    } else {
+      nextFields.precoClassificacao = p;
+    }
+    setFields(nextFields);
+    upsertEntry(supplierId, { status: "fornecedor-aprovado", observacoes, fields: nextFields });
     flashSaved();
   };
 
@@ -634,6 +661,61 @@ export default function SupplierNotesPanel({
             );
           })}
         </div>
+
+        {/* CLASSIFICAÇÃO DE PREÇO — aparece somente quando aprovado */}
+        {status === "fornecedor-aprovado" && (
+          <div
+            className="mt-3 rounded-lg border p-3"
+            style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}
+          >
+            <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-green-800 mb-2">
+              Classificação do preço
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {PRECO_ORDER.map((p) => {
+                const cfg = PRECO_CONFIG[p];
+                const active = precoClass === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handlePrecoClick(p)}
+                    className="relative text-left rounded-lg px-3 py-2.5 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
+                    style={{
+                      background: active ? cfg.bg : "#ffffff",
+                      borderWidth: active ? "2px" : "1.5px",
+                      borderStyle: "solid",
+                      borderColor: active ? cfg.border : "#e4e4e7",
+                      color: active ? cfg.color : "#3f3f46",
+                      fontWeight: active ? 700 : 500,
+                      boxShadow: active
+                        ? `0 0 0 3px ${cfg.bg}, 0 1px 2px rgba(0,0,0,0.05)`
+                        : "none",
+                    }}
+                    aria-pressed={active}
+                  >
+                    <span className="text-lg leading-none">{cfg.emoji}</span>
+                    <span className="flex-1">{cfg.label}</span>
+                    {active && (
+                      <span
+                        className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full"
+                        style={{ background: cfg.color, color: "#fff" }}
+                        aria-hidden
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {!precoClass && (
+              <div className="text-[11px] text-green-700/80 mt-2">
+                Selecione como foi o preço analisado para registrar no card deste fornecedor.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* DADOS DO FORNECEDOR (auto-preenchidos) */}

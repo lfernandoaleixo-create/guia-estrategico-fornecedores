@@ -12,7 +12,9 @@ import suppliersData from "@yiwu/data/suppliers.json";
 import {
   useSupplierNotes,
   STATUS_CONFIG,
+  PRECO_CONFIG,
   type SupplierStatus,
+  type PrecoClassificacao,
 } from "@/shared/supplier-notes/useSupplierNotes";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -392,6 +394,10 @@ export default function YiwuAnotacoes() {
               const status = statusOf(s.id);
               const cfg = STATUS_CONFIG[status];
               const entry = entries[String(s.id)];
+              const precoKey = status === "fornecedor-aprovado"
+                ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
+                : undefined;
+              const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
               const isOpen = expandedId === s.id;
               return (
                 <div
@@ -423,6 +429,18 @@ export default function YiwuAnotacoes() {
                         >
                           {cfg.label}
                         </span>
+                        {pcfg && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                            style={{
+                              background: pcfg.bg,
+                              color: pcfg.color,
+                              border: `1px solid ${pcfg.border}`,
+                            }}
+                          >
+                            {pcfg.emoji} {pcfg.label}
+                          </span>
+                        )}
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
                           {s.category} · ID #{s.id}
                           {s.district ? ` · D${s.district}` : ""}
