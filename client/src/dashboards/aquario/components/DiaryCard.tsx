@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
-import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
+import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import {
@@ -84,11 +84,7 @@ function buildAquarioPrefilledFields(s: Supplier): PrefilledField[] {
 
 export default function DiaryCard({ supplier, defaultExpanded = false }: Props) {
   const { getEntry } = useSupplierNotes("aquario");
-  const { groups: allGroups } = useSupplierGroups();
   const entry = getEntry(supplier.id);
-  const supplierGroups = (entry?.groupIds ?? [])
-    .map((gid) => allGroups.find((g) => g.id === gid))
-    .filter((g): g is NonNullable<typeof g> => Boolean(g));
   const [expanded, setExpanded] = useState(defaultExpanded || !!entry);
 
   const cat = categoryStyles[supplier.category];
@@ -187,34 +183,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 {attachments.length === 1 ? "anexo" : "anexos"}
               </span>
             )}
-            {supplierGroups.map((g) => (
-              <span
-                key={g.id}
-                className="eyebrow px-2 py-0.5 rounded inline-flex items-center gap-1"
-                style={{
-                  background: `${g.color}1f`,
-                  color: g.color,
-                  border: `1px solid ${g.color}55`,
-                  fontSize: "0.6rem",
-                  fontWeight: 700,
-                }}
-                title={g.legend || g.name}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: 999, background: g.color }} />
-                <span
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: "0.55rem",
-                    background: `${g.color}33`,
-                    padding: "0 4px",
-                    borderRadius: 3,
-                  }}
-                >
-                  Nº {String(g.number ?? 0).padStart(2, "0")}
-                </span>
-                {g.name}
-              </span>
-            ))}
+            <GroupBadges groupIds={entry?.groupIds} />
           </div>
           <h3
             className="font-display font-semibold leading-tight"

@@ -16,6 +16,7 @@ import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
+import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
@@ -749,6 +750,7 @@ export default function Anotacoes() {
                                    <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
                                  </span>
                                )}
+                               <GroupBadges groupIds={tEntry?.groupIds} />
                                </>
                              );
                            })()}
@@ -995,6 +997,7 @@ export default function Anotacoes() {
                             <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
                           </span>
                         )}
+                        <GroupBadges groupIds={tEntry?.groupIds} />
                         </>
                       );
                     })()}

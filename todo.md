@@ -227,3 +227,20 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Selo desaparece se o status deixar de ser "fornecedor-aprovado"
 - [x] Teste vitest: persistência da classificação e remoção ao desaprovar (41/41 passando)
 - [x] Validar no preview + checkpoint
+
+## Selos de grupos no card RECOLHIDO (todos os dashboards)
+- [ ] Criar componente reutilizável GroupBadges (lê grupos compartilhados + personalizados por groupIds)
+- [ ] Selos com cor/número/nome do grupo; só aparecem se o fornecedor tiver groupIds
+- [ ] Inserir no cabeçalho do card recolhido: Tapete, Aquário (DiaryCard), Yiwu, CustomSuppliersSection (GrupoDashboard já tem)
+- [ ] Validar no preview + checkpoint
+
+
+## Selos de grupos no card RECOLHIDO de todos os dashboards (CONCLUÍDO Jun/2026)
+- [x] Criar componente reutilizável GroupBadges (grupos compartilhados + personalizados)
+- [x] Tapete: exibir selos de grupo no cabeçalho recolhido (2 locais)
+- [x] Aquário (DiaryCard): trocar render local por GroupBadges (inclui grupos personalizados)
+- [x] Yiwu (Anotacoes): trocar render local por GroupBadges (inclui grupos personalizados)
+- [x] GrupoDashboard: já exibia chips de grupo (mantido)
+- [x] Validado no preview: selo "Nº 02 Tapete Higiênico Pet" aparece nos cards recolhidos do Tapete
+- [x] 41/41 testes vitest passando + 0 erros TypeScript
+- [x] Salvar checkpoint

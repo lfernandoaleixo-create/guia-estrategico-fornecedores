@@ -23,6 +23,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
+import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
@@ -502,35 +503,7 @@ export default function YiwuAnotacoes() {
                       )}
                       {entry?.groupIds && entry.groupIds.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {entry.groupIds.map((gid) => {
-                            const g = allGroups.find((x) => x.id === gid);
-                            if (!g) return null;
-                            return (
-                              <span
-                                key={gid}
-                                className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1"
-                                style={{
-                                  background: `${g.color}22`,
-                                  border: `1px solid ${g.color}66`,
-                                  color: g.color,
-                                }}
-                                title={g.legend || g.name}
-                              >
-                                <span style={{ width: 6, height: 6, borderRadius: 999, background: g.color }} />
-                                <span
-                                  style={{
-                                    fontFamily: "'JetBrains Mono', monospace",
-                                    background: `${g.color}44`,
-                                    padding: "0 4px",
-                                    borderRadius: 3,
-                                  }}
-                                >
-                                  Nº {String(g.number ?? 0).padStart(2, "0")}
-                                </span>
-                                {g.name}
-                              </span>
-                            );
-                          })}
+                          <GroupBadges groupIds={entry.groupIds} />
                         </div>
                       )}
                       {entry?.observacoes && (
