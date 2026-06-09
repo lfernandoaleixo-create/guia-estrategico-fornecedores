@@ -147,3 +147,24 @@ export const customSuppliers = mysqlTable("custom_suppliers", {
 
 export type CustomSupplierRow = typeof customSuppliers.$inferSelect;
 export type InsertCustomSupplierRow = typeof customSuppliers.$inferInsert;
+
+/**
+ * Planilhas de análise de viabilidade de compra (calculadora) por fornecedor.
+ * Uma planilha por (scope, supplierId). O conteúdo completo (seções, linhas,
+ * valores) é guardado como JSON em `data`. Espelha a interface ViabilitySheet
+ * do frontend. Inicialmente usada no dashboard Tapete, mas o schema é genérico
+ * e serve a qualquer escopo.
+ */
+export const viabilitySheets = mysqlTable("viability_sheets", {
+  /** Escopo do dashboard: "aquario" | "tapete" | "yiwu" | "grupo-<id>" ... */
+  scope: varchar("scope", { length: 96 }).notNull(),
+  /** ID do fornecedor (estático, custom-..., extra_..., grupo). */
+  supplierId: varchar("supplierId", { length: 191 }).notNull(),
+  /** Documento completo da planilha serializado (título, seções, linhas). */
+  data: longtext("data").notNull(),
+  createdAt: varchar("createdAt", { length: 40 }).notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type ViabilitySheetRow = typeof viabilitySheets.$inferSelect;
+export type InsertViabilitySheetRow = typeof viabilitySheets.$inferInsert;

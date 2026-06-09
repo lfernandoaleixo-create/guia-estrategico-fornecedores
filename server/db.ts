@@ -362,3 +362,34 @@ export async function seedSupplierGroups(): Promise<void> {
     });
   }
 }
+
+// =============================================================================
+// Planilhas de análise de viabilidade (calculadora) por (scope, supplierId).
+// =============================================================================
+import { viabilitySheets, type InsertViabilitySheetRow } from "../drizzle/schema";
+
+export async function getViabilitySheet(scope: string, supplierId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(viabilitySheets)
+    .where(and(eq(viabilitySheets.scope, scope), eq(viabilitySheets.supplierId, supplierId)));
+  return rows[0] ?? null;
+}
+
+export async function upsertViabilitySheet(row: InsertViabilitySheetRow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  // Chave lógica (scope, supplierId) — não há PK composta declarada, então
+  // fazemos update se existir, senão insert.
+  const existing = await getViabilitySheet(row.scope, row.supplierId);
+  if (existing) {
+    await db
+      .update(viabilitySheets)
+      .set({ data: row.data, updatedAt: row.updatedAt })
+      .where(and(eq(viabilitySheets.scope, row.scope), eq(viabilitySheets.supplierId, row.supplierId)));
+  } else {
+    await db.insert(viabilitySheets).values(row);
+  }
+}

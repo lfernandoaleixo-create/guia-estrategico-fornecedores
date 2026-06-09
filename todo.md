@@ -198,3 +198,15 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Relatório e cards de grupo dos 3 dashboards fixos resolvem o NOME do fornecedor manual (antes mostravam o id interno)
 - [x] Teste vitest do ciclo create/list/delete de custom suppliers por scope (31/31 passando)
 - [x] Validar no preview (destino Tapete: toast + banner + nome resolvido no relatório) e salvar checkpoint
+
+## Planilha de Análise de Viabilidade (Tapete) — calculadora em cotações/catálogos
+- [x] Tabela `viability_sheets` (scope, supplierId, data JSON com seções/linhas, createdAt, updatedAt) + migração aplicada
+- [x] Helpers em server/db.ts (getViabilitySheet, upsertViabilitySheet) + procedures tRPC (data.viabilitySheets.get/upsert)
+- [x] Hook client useViabilitySheet(scope, supplierId) com auto-save no banco compartilhado
+- [x] Componente ViabilitySheetDialog: colunas Produto|Qtd|Preço Venda|Margem%|Preço Unit Fornecedor|Preço Unit Desejado|Preço pacote Desejado|Preço pacote Atual|Atende?
+- [x] Fórmulas: G=H/C, I=C*F, J=IF(I<H,"SIM","NÃO"); campos editáveis amarelo (D,H) e laranja fornecedor (F)
+- [x] Adicionar Seção e Adicionar Linha + remover; cores de seção alternadas
+- [x] Ícone/botão de calculadora ("Calcular") nas seções Cotações e Catálogos do painel do fornecedor
+- [x] Modal abre a planilha do fornecedor, recalcula automaticamente e salva no banco; não fecha por clique acidental fora
+- [x] Teste vitest das fórmulas + ciclo get/upsert/update da planilha (40/40 passando) + validação no preview
+- [x] Checkpoint salvo

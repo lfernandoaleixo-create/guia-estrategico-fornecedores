@@ -19,6 +19,8 @@ import {
   listCustomSuppliers,
   upsertCustomSupplier,
   deleteCustomSupplier,
+  getViabilitySheet,
+  upsertViabilitySheet,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -95,6 +97,15 @@ const customSupplierInput = z.object({
   id: z.string(),
   scope: z.string(),
   name: z.string(),
+  data: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const viabilitySheetInput = z.object({
+  scope: z.string(),
+  supplierId: z.string(),
+  // Documento completo da planilha serializado em JSON (string).
   data: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -224,5 +235,16 @@ export const dataRouter = router({
         await deleteCustomSupplier(input.id);
         return { success: true } as const;
       }),
+  }),
+
+  // ---------- Planilhas de análise de viabilidade (calculadora) ----------
+  viabilitySheets: router({
+    get: publicProcedure
+      .input(z.object({ scope: z.string(), supplierId: z.string() }))
+      .query(({ input }) => getViabilitySheet(input.scope, input.supplierId)),
+    upsert: publicProcedure.input(viabilitySheetInput).mutation(async ({ input }) => {
+      await upsertViabilitySheet(input);
+      return { success: true } as const;
+    }),
   }),
 });

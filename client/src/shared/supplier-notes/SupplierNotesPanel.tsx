@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { GroupPicker } from "./GroupPicker";
 import { MigrateButton } from "./MigrateButton";
+import ViabilitySheetDialog from "./ViabilitySheetDialog";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
@@ -49,6 +50,7 @@ import {
   Folder,
   Plus,
   Loader2,
+  Calculator,
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -348,6 +350,8 @@ export default function SupplierNotesPanel({
   >({});
   const [savedHint, setSavedHint] = useState(false);
   const [preview, setPreview] = useState<SupplierAttachment | null>(null);
+  // Abre o modal da planilha de análise de viabilidade (calculadora).
+  const [calcOpen, setCalcOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const catalogosRef = useRef<HTMLInputElement>(null);
@@ -764,6 +768,8 @@ export default function SupplierNotesPanel({
         inputRef={catalogosRef}
         onFiles={(files) => handleFiles(files, "catalogos")}
         uploadProgress={uploadProgress.catalogos}
+        headerExtra={<CalcButton onClick={() => setCalcOpen(true)} />}
+        onCalc={() => setCalcOpen(true)}
       />
 
       {/* FOTOS */}
@@ -788,6 +794,8 @@ export default function SupplierNotesPanel({
           <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 inline-flex items-center gap-1.5">
             <DollarSign size={13} style={{ color: "#16a34a" }} /> {ATTACHMENT_CATEGORY_LABEL.cotacoes}
           </label>
+          <div className="flex items-center gap-2">
+          <CalcButton onClick={() => setCalcOpen(true)} />
           <button
             type="button"
             onClick={() => cotacoesRef.current?.click()}
@@ -796,6 +804,7 @@ export default function SupplierNotesPanel({
           >
             <Paperclip size={13} /> Anexar planilha/PDF
           </button>
+          </div>
           <input
             ref={cotacoesRef}
             type="file"
@@ -886,6 +895,7 @@ export default function SupplierNotesPanel({
             items={groupAttachments("cotacoes")}
             onRemove={(id) => removeAttachment(supplierId, id)}
             onPreview={setPreview}
+            onCalc={() => setCalcOpen(true)}
             emptyText="Nenhuma planilha ou PDF de cotação anexado."
           />
         </div>
@@ -941,6 +951,14 @@ export default function SupplierNotesPanel({
         attachment={preview}
         onClose={() => setPreview(null)}
       />
+
+      <ViabilitySheetDialog
+        open={calcOpen}
+        onOpenChange={setCalcOpen}
+        scope={scope}
+        supplierId={supplierId}
+        supplierName={supplierName}
+      />
     </div>
   );
 }
@@ -949,6 +967,25 @@ export default function SupplierNotesPanel({
 // Modal de visualização de anexo (lightbox por cima da página)
 // Fecha ao clicar fora (backdrop) e com a tecla Esc (via Radix Dialog).
 // ============================================================================
+
+/**
+ * Botão com ícone de calculadora que abre a planilha de análise de viabilidade.
+ * Usado nos cabeçalhos de "Catálogos" e "Cotações".
+ */
+function CalcButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Abrir planilha de análise de viabilidade"
+      aria-label="Abrir planilha de análise de viabilidade"
+      className="px-2.5 py-1.5 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 text-white transition-all active:scale-[0.95]"
+      style={{ background: "#1e3a5f" }}
+    >
+      <Calculator size={13} /> Calcular
+    </button>
+  );
+}
 
 function AttachmentPreviewModal({
   attachment,
@@ -1097,6 +1134,10 @@ interface AttachmentBucketProps {
   onFiles: (files: FileList | null) => void;
   onPreview?: (att: SupplierAttachment) => void;
   uploadProgress?: { name: string; percent: number; index: number; total: number };
+  /** Elemento extra renderizado no cabeçalho, antes do botão "Anexar". */
+  headerExtra?: React.ReactNode;
+  /** Quando definido, mostra um botão de calculadora em cada item anexado. */
+  onCalc?: () => void;
 }
 
 function AttachmentBucket({
@@ -1112,6 +1153,8 @@ function AttachmentBucket({
   onFiles,
   onPreview,
   uploadProgress,
+  headerExtra,
+  onCalc,
 }: AttachmentBucketProps) {
   return (
     <div className="mb-4">
@@ -1123,6 +1166,8 @@ function AttachmentBucket({
             · {items.length}
           </span>
         </label>
+        <div className="flex items-center gap-2">
+        {headerExtra}
         <button
           type="button"
           onClick={onPick}
@@ -1139,10 +1184,11 @@ function AttachmentBucket({
           onChange={(e) => onFiles(e.target.files)}
           className="hidden"
         />
+        </div>
       </div>
       <p className="text-xs text-zinc-500 mb-2">{subtitle}</p>
       <UploadProgressBar progress={uploadProgress} accent={accent} />
-      <AttachmentList items={items} onRemove={onRemove} onPreview={onPreview} />
+      <AttachmentList items={items} onRemove={onRemove} onPreview={onPreview} onCalc={onCalc} />
     </div>
   );
 }
@@ -1152,9 +1198,10 @@ interface AttachmentListProps {
   onRemove: (id: string) => void;
   onPreview?: (att: SupplierAttachment) => void;
   emptyText?: string;
+  onCalc?: () => void;
 }
 
-function AttachmentList({ items, onRemove, onPreview, emptyText }: AttachmentListProps) {
+function AttachmentList({ items, onRemove, onPreview, emptyText, onCalc }: AttachmentListProps) {
   if (items.length === 0) {
     return (
       <div
@@ -1196,6 +1243,17 @@ function AttachmentList({ items, onRemove, onPreview, emptyText }: AttachmentLis
             </div>
           </div>
           <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            {onCalc && (
+              <button
+                type="button"
+                onClick={onCalc}
+                className="p-1.5 rounded-md hover:bg-blue-50 transition-colors text-blue-600"
+                aria-label="Abrir calculadora de viabilidade"
+                title="Calcular viabilidade"
+              >
+                <Calculator size={14} />
+              </button>
+            )}
             {onPreview && (
               <button
                 type="button"
