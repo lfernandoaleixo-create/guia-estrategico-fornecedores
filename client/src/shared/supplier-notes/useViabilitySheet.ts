@@ -114,15 +114,69 @@ export function makeEmptySection(index = 0, title = ""): ViabilitySection {
   };
 }
 
+/** Cria uma linha pré-preenchida do template-base. */
+function makeRow(
+  produto: string,
+  qtd: number,
+  precoVenda: number,
+  margem: number,
+  precoPacoteDesejado: number,
+): ViabilityRow {
+  return {
+    id: genId("vr"),
+    produto,
+    qtd,
+    precoVenda,
+    margem,
+    precoUnitForn: null, // laranja: preenchido por fornecedor
+    precoPacoteDesejado,
+  };
+}
+
+/**
+ * Template-base IDÊNTICO ao Excel enviado pelo usuário (Tapete Higiênico).
+ * Duas seções (60x80 e 55x60), 4 linhas cada, com os valores e fórmulas originais.
+ * O "Preço Unit. Fornecedor" (laranja) fica vazio para ser preenchido por fornecedor.
+ */
+export function makeTapeteTemplateSections(): ViabilitySection[] {
+  return [
+    {
+      id: genId("vs"),
+      title: "Tapete Higiênico 60x80 cm",
+      color: nextSectionColor(0),
+      rows: [
+        makeRow("Tapete Higiênico 60x80 cm", 30, 49.9, 0.2, 1.66),
+        makeRow("Tapete Higiênico 60x80 cm", 30, 49.9, 0.25, 1.38),
+        makeRow("Tapete Higiênico 60x80 cm", 50, 69.9, 0.2, 2.96),
+        makeRow("Tapete Higiênico 60x80 cm", 50, 69.9, 0.26, 2.4),
+      ],
+    },
+    {
+      id: genId("vs"),
+      title: "Tapete Higiênico 55x60 cm",
+      color: nextSectionColor(1),
+      rows: [
+        makeRow("Tapete Higiênico 55x60 cm", 30, 38, 0.2, 1.2),
+        makeRow("Tapete Higiênico 55x60 cm", 30, 38, 0.25, 0.92),
+        makeRow("Tapete Higiênico 55x60 cm", 50, 48, 0.2, 1.75),
+        makeRow("Tapete Higiênico 55x60 cm", 50, 48, 0.25, 1.38),
+      ],
+    },
+  ];
+}
+
 /** Documento inicial padrão para um fornecedor sem planilha ainda. */
 export function makeDefaultSheet(scope: string, supplierId: string): ViabilitySheet {
   const now = Date.now();
+  // No dashboard Tapete, todos os fornecedores começam com o template-base idêntico ao Excel.
+  const sections =
+    scope === "tapete" ? makeTapeteTemplateSections() : [makeEmptySection(0, "Nova seção")];
   return {
     scope,
     supplierId,
     title: "Análise de Viabilidade de Compra",
     note: "Campos em AMARELO são editáveis. Campos em LARANJA são do fornecedor. Preencha para calcular automaticamente.",
-    sections: [makeEmptySection(0, "Nova seção")],
+    sections,
     createdAt: now,
     updatedAt: now,
   };

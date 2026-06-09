@@ -210,3 +210,12 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Modal abre a planilha do fornecedor, recalcula automaticamente e salva no banco; não fecha por clique acidental fora
 - [x] Teste vitest das fórmulas + ciclo get/upsert/update da planilha (40/40 passando) + validação no preview
 - [x] Checkpoint salvo
+
+## Planilha de Viabilidade (Tapete) — tela cheia + template idêntico ao Excel
+- [x] Definir template-base idêntico ao Excel (seções 60x80 e 55x60 com 4 linhas cada, valores e fórmulas)
+- [x] makeDefaultSheet do scope "tapete" usa o template-base pré-preenchido
+- [x] Todos os fornecedores de Tapete iniciam com o template; edições salvam por fornecedor
+- [x] Converter o modal em visão de tela cheia (largura total via style inline 100vw/100vh)
+- [x] Scroll horizontal para ver todas as colunas sem cortes
+- [x] Ajustar testes vitest (40/40 passando) e validar no preview (tela cheia confirmada 1280x1100)
+- [x] Salvar checkpoint

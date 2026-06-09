@@ -196,12 +196,19 @@ export default function ViabilitySheetDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[min(96vw,1080px)] max-h-[92vh] overflow-y-auto p-0 gap-0"
-        style={{ background: "#f8fafc" }}
+        className="p-0 gap-0 flex flex-col overflow-hidden sm:rounded-xl !w-screen !max-w-none"
+        style={{
+          background: "#f8fafc",
+          width: "100vw",
+          maxWidth: "100vw",
+          height: "100vh",
+          maxHeight: "100vh",
+          borderRadius: 0,
+        }}
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader className="px-5 pt-5 pb-3 border-b" style={{ borderColor: "#e2e8f0" }}>
+        <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0" style={{ borderColor: "#e2e8f0" }}>
           <DialogTitle className="flex items-center gap-2 text-base">
             <span
               className="inline-flex items-center justify-center w-7 h-7 rounded-md text-white"
@@ -217,11 +224,11 @@ export default function ViabilitySheetDialog({
         </DialogHeader>
 
         {!draft ? (
-          <div className="flex items-center justify-center py-16 text-zinc-400">
+          <div className="flex flex-1 items-center justify-center text-zinc-400">
             <Loader2 className="animate-spin mr-2" size={18} /> Carregando planilha…
           </div>
         ) : (
-          <div className="px-5 py-4">
+          <div className="flex-1 overflow-auto px-5 py-4">
             {/* Legenda */}
             <div
               className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] mb-4 px-3 py-2 rounded-lg"
@@ -250,37 +257,42 @@ export default function ViabilitySheetDialog({
               ))}
             </div>
 
-            {/* Ações globais */}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          </div>
+        )}
+
+        {draft && (
+          <div
+            className="shrink-0 border-t bg-white px-5 py-3 flex flex-wrap items-center justify-between gap-3"
+            style={{ borderColor: "#e2e8f0" }}
+          >
+            <button
+              type="button"
+              onClick={addSection}
+              className="px-3.5 py-2 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 text-white transition-all active:scale-[0.97]"
+              style={{ background: "#1e3a5f" }}
+            >
+              <Layers size={14} /> Adicionar seção
+            </button>
+
+            <div className="flex items-center gap-3">
+              {justSaved && (
+                <span className="text-xs text-emerald-600 inline-flex items-center gap-1">
+                  <Check size={13} /> Salvo
+                </span>
+              )}
+              {saving && (
+                <span className="text-xs text-zinc-400 inline-flex items-center gap-1">
+                  <Loader2 size={13} className="animate-spin" /> Salvando…
+                </span>
+              )}
               <button
                 type="button"
-                onClick={addSection}
-                className="px-3.5 py-2 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 text-white transition-all active:scale-[0.97]"
-                style={{ background: "#1e3a5f" }}
+                onClick={handleManualSave}
+                className="px-4 py-2 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 text-white transition-all active:scale-[0.97]"
+                style={{ background: "#16a34a" }}
               >
-                <Layers size={14} /> Adicionar seção
+                <Check size={14} /> Salvar agora
               </button>
-
-              <div className="flex items-center gap-3">
-                {justSaved && (
-                  <span className="text-xs text-emerald-600 inline-flex items-center gap-1">
-                    <Check size={13} /> Salvo
-                  </span>
-                )}
-                {saving && (
-                  <span className="text-xs text-zinc-400 inline-flex items-center gap-1">
-                    <Loader2 size={13} className="animate-spin" /> Salvando…
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={handleManualSave}
-                  className="px-4 py-2 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 text-white transition-all active:scale-[0.97]"
-                  style={{ background: "#16a34a" }}
-                >
-                  <Check size={14} /> Salvar agora
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -343,18 +355,18 @@ function SectionTable({
       </div>
 
       <div className="overflow-x-auto bg-white">
-        <table className="w-full text-xs border-collapse min-w-[860px]">
+        <table className="w-full text-xs border-collapse min-w-[1180px]">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wider" style={{ background: "#eef2f6", color: "#475569" }}>
-              <Th className="min-w-[160px]">Produto</Th>
-              <Th>Qtd (un)</Th>
-              <Th>Preço Venda (R$)</Th>
-              <Th>Margem (%)</Th>
-              <Th>Preço Unit. Fornecedor (R$)</Th>
-              <Th>Preço Unit. Desejado (R$)</Th>
-              <Th>Preço Pacote Desejado (R$)</Th>
-              <Th>Preço Pacote Atual (R$)</Th>
-              <Th>Atende?</Th>
+              <Th className="min-w-[180px]">Produto</Th>
+              <Th className="min-w-[90px]">Qtd (un)</Th>
+              <Th className="min-w-[120px]">Preço Venda (R$)</Th>
+              <Th className="min-w-[100px]">Margem (%)</Th>
+              <Th className="min-w-[150px]">Preço Unit. Fornecedor (R$)</Th>
+              <Th className="min-w-[150px]">Preço Unit. Desejado (R$)</Th>
+              <Th className="min-w-[150px]">Preço Pacote Desejado (R$)</Th>
+              <Th className="min-w-[150px]">Preço Pacote Atual (R$)</Th>
+              <Th className="min-w-[90px]">Atende?</Th>
               <th className="px-1 py-2 w-8" aria-label="ações" />
             </tr>
           </thead>
