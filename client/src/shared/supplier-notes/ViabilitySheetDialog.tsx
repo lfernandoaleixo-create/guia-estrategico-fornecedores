@@ -27,6 +27,7 @@ import {
 import {
   useViabilitySheet,
   computeRow,
+  linkFornecedorPrice,
   makeDefaultSheet,
   makeEmptyRow,
   makeEmptySection,
@@ -185,6 +186,29 @@ export default function ViabilitySheetDialog({
       ),
     }));
 
+  // Vínculo bidirecional Preço Unit. Fornecedor <-> Preço Pacote Atual (via Qtd).
+  // field = "unit"  → usuário digitou o unitário; recalcula o pacote atual (unit * qtd)
+  // field = "pacote"→ usuário digitou o pacote;  recalcula o unitário (pacote / qtd)
+  const setFornLinked = (
+    sectionId: string,
+    rowId: string,
+    field: "unit" | "pacote",
+    value: number | null,
+  ) =>
+    mutate((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              rows: s.rows.map((r) =>
+                r.id === rowId ? linkFornecedorPrice(r, field, value) : r,
+              ),
+            }
+          : s,
+      ),
+    }));
+
   const handleManualSave = async () => {
     if (!draft) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -238,7 +262,7 @@ export default function ViabilitySheetDialog({
                 <Info size={12} /> Como preencher:
               </span>
               <LegendChip color={FILL_EDIT} border={FILL_EDIT_BORDER} label="Amarelo = você edita" />
-              <LegendChip color={FILL_FORN} border={FILL_FORN_BORDER} label="Laranja = preço do fornecedor" />
+              <LegendChip color={FILL_FORN} border={FILL_FORN_BORDER} label="Laranja = preço do fornecedor (unit. ⇄ pacote calculam-se entre si pela Qtd)" />
               <LegendChip color={FILL_CALC} border="#bcd4ea" label="Azul = calculado automaticamente" />
             </div>
 
@@ -253,6 +277,7 @@ export default function ViabilitySheetDialog({
                   onAddRow={() => addRow(section.id)}
                   onRemoveRow={(rowId) => removeRow(section.id, rowId)}
                   onCell={(rowId, key, value) => setCell(section.id, rowId, key, value)}
+                  onLinked={(rowId, field, value) => setFornLinked(section.id, rowId, field, value)}
                 />
               ))}
             </div>
@@ -321,6 +346,7 @@ interface SectionTableProps {
   onAddRow: () => void;
   onRemoveRow: (rowId: string) => void;
   onCell: (rowId: string, key: keyof ViabilityRow, value: string | number | null) => void;
+  onLinked: (rowId: string, field: "unit" | "pacote", value: number | null) => void;
 }
 
 function SectionTable({
@@ -330,6 +356,7 @@ function SectionTable({
   onAddRow,
   onRemoveRow,
   onCell,
+  onLinked,
 }: SectionTableProps) {
   return (
     <div className="rounded-xl overflow-hidden shadow-sm border" style={{ borderColor: "#e2e8f0" }}>
@@ -416,11 +443,11 @@ function SectionTable({
                         placeholder="20"
                       />
                     </Td>
-                    {/* Preço Unit. Fornecedor (laranja) */}
+                    {/* Preço Unit. Fornecedor (laranja) — vinculado ao Preço Pacote Atual */}
                     <Td fill={FILL_FORN} border={FILL_FORN_BORDER}>
                       <NumInput
                         value={row.precoUnitForn}
-                        onChange={(n) => onCell(row.id, "precoUnitForn", n)}
+                        onChange={(n) => onLinked(row.id, "unit", n)}
                         placeholder="1,6600"
                       />
                     </Td>
@@ -436,9 +463,13 @@ function SectionTable({
                         placeholder="1,6600"
                       />
                     </Td>
-                    {/* Preço Pacote Atual (calculado) */}
-                    <Td fill={FILL_CALC}>
-                      <CalcCell text={fmt(calc.precoPacoteAtual, 4)} />
+                    {/* Preço Pacote Atual (laranja) — vinculado ao Preço Unit. Fornecedor */}
+                    <Td fill={FILL_FORN} border={FILL_FORN_BORDER}>
+                      <NumInput
+                        value={row.precoPacoteAtual ?? calc.precoPacoteAtual}
+                        onChange={(n) => onLinked(row.id, "pacote", n)}
+                        placeholder="49,8000"
+                      />
                     </Td>
                     {/* Atende? (calculado) */}
                     <Td>

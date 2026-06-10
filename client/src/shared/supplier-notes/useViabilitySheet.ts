@@ -35,6 +35,8 @@ export interface ViabilityRow {
   precoUnitForn: number | null;
   /** Preço pacote Desejado (R$) — H (editável amarelo) */
   precoPacoteDesejado: number | null;
+  /** Preço Pacote Atual (R$) — I (editável; vinculado a precoUnitForn via qtd) */
+  precoPacoteAtual?: number | null;
 }
 
 export interface ViabilitySection {
@@ -72,7 +74,15 @@ export function computeRow(row: ViabilityRow): ViabilityComputed {
 
   const precoUnitDesejado =
     h != null && c != null && c !== 0 ? h / c : null;
-  const precoPacoteAtual = c != null && f != null ? c * f : null;
+
+  // Preço Pacote Atual agora é um campo editável (vinculado a precoUnitForn).
+  // Se o valor estiver salvo na linha, usa-o; senão, deriva de qtd * precoUnitForn (compat. com dados antigos).
+  const precoPacoteAtual =
+    row.precoPacoteAtual != null
+      ? row.precoPacoteAtual
+      : c != null && f != null
+        ? c * f
+        : null;
 
   let atende: "SIM" | "NÃO" | "" = "";
   if (h != null) {
@@ -81,6 +91,32 @@ export function computeRow(row: ViabilityRow): ViabilityComputed {
     }
   }
   return { precoUnitDesejado, precoPacoteAtual, atende };
+}
+
+/**
+ * Vínculo bidirecional entre Preço Unit. Fornecedor e Preço Pacote Atual,
+ * usando a Qtd como fator. Retorna a linha atualizada (não muta a original).
+ *   field = "unit"   → usuário digitou o unitário; pacote = unit * qtd
+ *   field = "pacote" → usuário digitou o pacote;   unit  = pacote / qtd
+ * Quando a Qtd está ausente/zero, mantém o outro campo como estava
+ * (apenas grava o valor digitado), evitando divisão por zero.
+ */
+export function linkFornecedorPrice(
+  row: ViabilityRow,
+  field: "unit" | "pacote",
+  value: number | null,
+): ViabilityRow {
+  const qtd = row.qtd;
+  if (field === "unit") {
+    const pacote =
+      value != null && qtd != null ? value * qtd : row.precoPacoteAtual ?? null;
+    return { ...row, precoUnitForn: value, precoPacoteAtual: pacote };
+  }
+  const unit =
+    value != null && qtd != null && qtd !== 0
+      ? value / qtd
+      : row.precoUnitForn ?? null;
+  return { ...row, precoPacoteAtual: value, precoUnitForn: unit };
 }
 
 const SECTION_COLORS = ["#2E75B6", "#548235", "#7030A0", "#C55A11", "#0F9488"];
@@ -102,6 +138,7 @@ export function makeEmptyRow(): ViabilityRow {
     margem: null,
     precoUnitForn: null,
     precoPacoteDesejado: null,
+    precoPacoteAtual: null,
   };
 }
 

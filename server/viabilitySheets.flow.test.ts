@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import {
   computeRow,
+  linkFornecedorPrice,
   makeEmptyRow,
   makeDefaultSheet,
   type ViabilityRow,
@@ -64,7 +65,56 @@ describe("computeRow — fórmulas da planilha de viabilidade", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// 1b) Vínculo bidirecional Preço Unit. Fornecedor ⇄ Preço Pacote Atual
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+describe("linkFornecedorPrice — vínculo unitário ⇄ pacote", () => {
+  it("digita Preço Unit. Fornecedor → calcula Pacote Atual (unit * qtd)", () => {
+    const r = linkFornecedorPrice(row({ qtd: 30 }), "unit", 1.66);
+    expect(r.precoUnitForn).toBeCloseTo(1.66, 6);
+    expect(r.precoPacoteAtual).toBeCloseTo(49.8, 6);
+  });
+
+  it("digita Preço Pacote Atual → calcula Unit. Fornecedor (pacote / qtd)", () => {
+    const r = linkFornecedorPrice(row({ qtd: 30 }), "pacote", 49.8);
+    expect(r.precoPacoteAtual).toBeCloseTo(49.8, 6);
+    expect(r.precoUnitForn).toBeCloseTo(1.66, 6);
+  });
+
+  it("ida e volta são consistentes (unit → pacote → unit)", () => {
+    const a = linkFornecedorPrice(row({ qtd: 50 }), "unit", 0.07);
+    expect(a.precoPacoteAtual).toBeCloseTo(3.5, 6);
+    const b = linkFornecedorPrice(a, "pacote", a.precoPacoteAtual!);
+    expect(b.precoUnitForn).toBeCloseTo(0.07, 6);
+  });
+
+  it("sem Qtd: grava o valor digitado sem quebrar o outro campo (unit)", () => {
+    const r = linkFornecedorPrice(row({ qtd: null, precoPacoteAtual: 10 }), "unit", 2);
+    expect(r.precoUnitForn).toBe(2);
+    expect(r.precoPacoteAtual).toBe(10);
+  });
+
+  it("Qtd = 0: ao digitar pacote não divide por zero (mantém unit)", () => {
+    const r = linkFornecedorPrice(row({ qtd: 0, precoUnitForn: 5 }), "pacote", 100);
+    expect(r.precoPacoteAtual).toBe(100);
+    expect(r.precoUnitForn).toBe(5);
+  });
+
+  it("limpar o campo (null) propaga null mantendo o outro", () => {
+    const r = linkFornecedorPrice(row({ qtd: 30, precoPacoteAtual: 49.8 }), "unit", null);
+    expect(r.precoUnitForn).toBeNull();
+    expect(r.precoPacoteAtual).toBe(49.8);
+  });
+
+  it("Pacote Atual editado alimenta o Atende? via computeRow", () => {
+    const r = linkFornecedorPrice(row({ qtd: 30, precoPacoteDesejado: 60 }), "pacote", 54);
+    const c = computeRow(r);
+    expect(c.precoPacoteAtual).toBeCloseTo(54, 6);
+    expect(c.atende).toBe("SIM");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 2) Fluxo do router: get (vazio) → upsert → get → upsert (atualiza)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("data.viabilitySheets flow", () => {
