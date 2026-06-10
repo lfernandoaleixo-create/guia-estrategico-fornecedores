@@ -405,7 +405,7 @@ function SectionTable({
                       <NumInput
                         value={row.precoVenda}
                         onChange={(n) => onCell(row.id, "precoVenda", n)}
-                        placeholder="49,90"
+                        placeholder="49,9000"
                       />
                     </Td>
                     {/* Margem % (editável) — guarda fração 0..1, exibe % */}
@@ -421,7 +421,7 @@ function SectionTable({
                       <NumInput
                         value={row.precoUnitForn}
                         onChange={(n) => onCell(row.id, "precoUnitForn", n)}
-                        placeholder="1,66"
+                        placeholder="1,6600"
                       />
                     </Td>
                     {/* Preço Unit. Desejado (calculado) */}
@@ -433,12 +433,12 @@ function SectionTable({
                       <NumInput
                         value={row.precoPacoteDesejado}
                         onChange={(n) => onCell(row.id, "precoPacoteDesejado", n)}
-                        placeholder="1,66"
+                        placeholder="1,6600"
                       />
                     </Td>
                     {/* Preço Pacote Atual (calculado) */}
                     <Td fill={FILL_CALC}>
-                      <CalcCell text={fmt(calc.precoPacoteAtual, 2)} />
+                      <CalcCell text={fmt(calc.precoPacoteAtual, 4)} />
                     </Td>
                     {/* Atende? (calculado) */}
                     <Td>
@@ -527,13 +527,14 @@ function NumInput({
   value,
   onChange,
   placeholder,
-  digits = 2,
+  digits = 4,
 }: {
   value: number | null;
   onChange: (n: number | null) => void;
   placeholder?: string;
   digits?: number;
 }) {
+  // digits === 0 → inteiro (ex.: quantidade); caso contrário usa as casas pedidas (padrão 4 p/ valores monetários).
   const [focused, setFocused] = useState(false);
   const [raw, setRaw] = useState("");
 
@@ -542,8 +543,8 @@ function NumInput({
     : value == null
       ? ""
       : value.toLocaleString("pt-BR", {
-          minimumFractionDigits: digits === 0 ? 0 : 2,
-          maximumFractionDigits: digits === 0 ? 0 : 2,
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
         });
 
   return (
