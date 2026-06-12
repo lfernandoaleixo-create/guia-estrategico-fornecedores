@@ -11,6 +11,7 @@ import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import {
@@ -183,6 +184,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 {attachments.length === 1 ? "anexo" : "anexos"}
               </span>
             )}
+            <TipoBadge fields={entry?.fields} />
             <GroupBadges groupIds={entry?.groupIds} />
           </div>
           <h3

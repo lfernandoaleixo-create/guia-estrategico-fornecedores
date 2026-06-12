@@ -37,6 +37,7 @@ import {
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
+import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
@@ -1059,6 +1060,7 @@ export default function GrupoDashboard() {
                               {pcfg.label}
                             </span>
                           )}
+                          <TipoBadge fields={entry?.fields} />
                           {attachCount > 0 && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full"

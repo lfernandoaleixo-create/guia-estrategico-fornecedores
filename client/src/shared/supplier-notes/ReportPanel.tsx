@@ -11,6 +11,10 @@ import {
   STATUS_ORDER,
   AttachmentCategory,
   filterEntriesByStatus,
+  TIPO_CONFIG,
+  TIPO_ORDER,
+  TipoFornecedor,
+  filterEntriesByTipo,
 } from "./useSupplierNotes";
 import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X } from "lucide-react";
 
@@ -122,6 +126,8 @@ export default function ReportPanel({
   const [searchTerm, setSearchTerm] = useState("");
   // Filtro por status acionado pelos cards de resumo (clique = filtra; clique de novo = limpa).
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | null>(null);
+  // Filtro por tipo de fornecedor (Fabricante Direto x Trader/Intermediário).
+  const [tipoFilter, setTipoFilter] = useState<TipoFornecedor | null>(null);
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -158,14 +164,30 @@ export default function ReportPanel({
     [filteredEntries, statusFilter],
   );
 
+  // Filtra pelo tipo de fornecedor selecionado (null = todos).
+  const tipoFiltered = useMemo<SupplierNoteEntry[]>(
+    () => filterEntriesByTipo(statusFiltered, tipoFilter),
+    [statusFiltered, tipoFilter],
+  );
+
   // Filtra a lista detalhada pelo nome do fornecedor (busca em tempo real).
   const searchedEntries = useMemo(() => {
     const q = normalizeSearch(searchTerm.trim());
-    if (!q) return statusFiltered;
-    return statusFiltered.filter((e) =>
+    if (!q) return tipoFiltered;
+    return tipoFiltered.filter((e) =>
       normalizeSearch(resolveSupplierName(e.supplierId)).includes(q)
     );
-  }, [statusFiltered, searchTerm, resolveSupplierName]);
+  }, [tipoFiltered, searchTerm, resolveSupplierName]);
+
+  // Contagem por tipo de fornecedor (no período, respeitando o filtro de status).
+  const tipoSummary = useMemo(() => {
+    const counts: Record<TipoFornecedor, number> = { direto: 0, trader: 0 };
+    statusFiltered.forEach((e) => {
+      const t = e.fields?.tipoFornecedor as TipoFornecedor | undefined;
+      if (t === "direto" || t === "trader") counts[t]++;
+    });
+    return counts;
+  }, [statusFiltered]);
 
   // Summary by status
   const statusSummary = useMemo(() => {
@@ -569,6 +591,37 @@ export default function ReportPanel({
         })}
       </div>
 
+      {/* Filtro por tipo de fornecedor (Fabricante Direto x Trader) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+          Tipo:
+        </span>
+        {TIPO_ORDER.map((t) => {
+          const cfg = TIPO_CONFIG[t];
+          const active = tipoFilter === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTipoFilter((prev) => (prev === t ? null : t))}
+              aria-pressed={active}
+              title={active ? `Mostrando só “${cfg.label}” · clique para ver todos` : `Filtrar por “${cfg.label}”`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer active:scale-[0.97] focus:outline-none"
+              style={{
+                borderColor: active ? cfg.color : cfg.border,
+                background: active ? `${cfg.bg}` : "transparent",
+                color: active ? cfg.color : (dark ? "#a1a1aa" : "#52525b"),
+                boxShadow: active ? `0 0 0 1.5px ${cfg.color}` : "none",
+              }}
+            >
+              <span>{cfg.emoji}</span>
+              {cfg.label}
+              <span className="opacity-70">({tipoSummary[t]})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Aviso de filtro ativo por status */}
       {statusFilter && (
         <div className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg border text-xs ${dark ? 'bg-zinc-800/60 border-zinc-700/40 text-zinc-300' : 'bg-amber-50 border-amber-200 text-zinc-700'}`}>
@@ -623,7 +676,7 @@ export default function ReportPanel({
           <FileText size={14} className={dark ? 'text-zinc-400' : 'text-zinc-500'} />
           <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
             Detalhamento ({searchedEntries.length}
-            {(searchTerm.trim() || statusFilter) ? ` de ${filteredEntries.length}` : ''} fornecedores)
+            {(searchTerm.trim() || statusFilter || tipoFilter) ? ` de ${filteredEntries.length}` : ''} fornecedores)
           </span>
         </div>
 
@@ -666,6 +719,8 @@ export default function ReportPanel({
               <>Nenhum fornecedor encontrado para <span className="font-medium">“{searchTerm.trim()}”</span>.</>
             ) : statusFilter ? (
               <>Nenhum fornecedor com o status <span className="font-medium">“{STATUS_CONFIG[statusFilter].label}”</span> no período.</>
+            ) : tipoFilter ? (
+              <>Nenhum fornecedor do tipo <span className="font-medium">“{TIPO_CONFIG[tipoFilter].label}”</span> no período.</>
             ) : (
               <>Nenhum fornecedor encontrado.</>
             )}

@@ -156,6 +156,45 @@ export const PRECO_CONFIG: Record<
 
 export const PRECO_ORDER: PrecoClassificacao[] = ["excelente", "bom", "ruim"];
 
+// -----------------------------------------------------------------------------
+// Tipo do fornecedor: Fabricante Direto x Trader/Intermediário.
+// Marcado manualmente pelo operador no card. Salvo em fields.tipoFornecedor.
+// -----------------------------------------------------------------------------
+export type TipoFornecedor = "direto" | "trader";
+
+export const TIPO_CONFIG: Record<
+  TipoFornecedor,
+  { label: string; shortLabel: string; emoji: string; color: string; bg: string; border: string }
+> = {
+  direto: {
+    label: "Fabricante Direto",
+    shortLabel: "Direto",
+    emoji: "\u2713",
+    color: "#166534",
+    bg: "#dcfce7",
+    border: "#86efac",
+  },
+  trader: {
+    label: "Trader / Intermedi\u00e1rio",
+    shortLabel: "Trader",
+    emoji: "\u26a0",
+    color: "#9a3412",
+    bg: "#ffedd5",
+    border: "#fdba74",
+  },
+};
+
+export const TIPO_ORDER: TipoFornecedor[] = ["direto", "trader"];
+
+/** Filtra entradas por tipo de fornecedor (null = sem filtro). */
+export function filterEntriesByTipo<T extends { fields?: Record<string, string> | null }>(
+  entries: T[],
+  tipo: TipoFornecedor | null,
+): T[] {
+  if (!tipo) return entries;
+  return entries.filter((e) => (e.fields?.tipoFornecedor ?? "") === tipo);
+}
+
 export const STATUS_ORDER: SupplierStatus[] = [
   "nao-visitado",
   "contato-feito",

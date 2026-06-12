@@ -24,6 +24,7 @@ import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSecti
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
@@ -442,6 +443,7 @@ export default function YiwuAnotacoes() {
                             {pcfg.emoji} {pcfg.label}
                           </span>
                         )}
+                        <TipoBadge fields={entry?.fields} />
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
                           {s.category} · ID #{s.id}
                           {s.district ? ` · D${s.district}` : ""}

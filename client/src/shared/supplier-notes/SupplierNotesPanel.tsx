@@ -25,11 +25,14 @@ import {
   STATUS_ORDER,
   PRECO_CONFIG,
   PRECO_ORDER,
+  TIPO_CONFIG,
+  TIPO_ORDER,
   ATTACHMENT_CATEGORY_LABEL,
   formatBytes,
   useSupplierNotes,
   type AttachmentCategory,
   type PrecoClassificacao,
+  type TipoFornecedor,
   type QuoteRow,
   type SupplierAttachment,
   type SupplierStatus,
@@ -382,6 +385,22 @@ export default function SupplierNotesPanel({
   // Classificação de preço atual (somente quando aprovado).
   const precoClass = (fields.precoClassificacao as PrecoClassificacao | undefined) ?? undefined;
 
+  // Tipo do fornecedor atual (Fabricante Direto x Trader/Intermediário).
+  const tipoFornecedor = (fields.tipoFornecedor as TipoFornecedor | undefined) ?? undefined;
+
+  const handleTipoClick = (t: TipoFornecedor) => {
+    // Alterna e é mutuamente exclusivo: clicar no mesmo desmarca; clicar no outro troca.
+    const nextFields = { ...fields };
+    if (nextFields.tipoFornecedor === t) {
+      delete nextFields.tipoFornecedor;
+    } else {
+      nextFields.tipoFornecedor = t;
+    }
+    setFields(nextFields);
+    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    flashSaved();
+  };
+
   const handleStatusClick = (s: SupplierStatus) => {
     setStatus(s);
     // Se deixar de ser aprovado, remove a classificação de preço.
@@ -660,6 +679,57 @@ export default function SupplierNotesPanel({
               </button>
             );
           })}
+        </div>
+
+        {/* TIPO DO FORNECEDOR — Fabricante Direto x Trader/Intermediário */}
+        <div className="mt-3 rounded-lg border p-3" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-slate-600 mb-2">
+            Tipo do fornecedor
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {TIPO_ORDER.map((t) => {
+              const cfg = TIPO_CONFIG[t];
+              const active = tipoFornecedor === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => handleTipoClick(t)}
+                  className="relative text-left rounded-lg px-3 py-2.5 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
+                  style={{
+                    background: active ? cfg.bg : "#ffffff",
+                    borderWidth: active ? "2px" : "1.5px",
+                    borderStyle: "solid",
+                    borderColor: active ? cfg.border : "#e4e4e7",
+                    color: active ? cfg.color : "#3f3f46",
+                    fontWeight: active ? 700 : 500,
+                    boxShadow: active
+                      ? `0 0 0 3px ${cfg.bg}, 0 1px 2px rgba(0,0,0,0.05)`
+                      : "none",
+                  }}
+                  aria-pressed={active}
+                >
+                  <span
+                    className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded border"
+                    style={{
+                      background: active ? cfg.color : "#ffffff",
+                      borderColor: active ? cfg.color : "#cbd5e1",
+                      color: "#fff",
+                    }}
+                    aria-hidden
+                  >
+                    {active && <Check size={12} strokeWidth={3} />}
+                  </span>
+                  <span className="flex-1">{cfg.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {!tipoFornecedor && (
+            <div className="text-[11px] text-slate-500 mt-2">
+              Marque se este fornecedor é fabricante direto ou trader/intermediário — aparecerá no card mesmo recolhido.
+            </div>
+          )}
         </div>
 
         {/* CLASSIFICAÇÃO DE PREÇO — aparece somente quando aprovado */}

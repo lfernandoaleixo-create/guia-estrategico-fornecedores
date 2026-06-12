@@ -229,10 +229,10 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Validar no preview + checkpoint
 
 ## Selos de grupos no card RECOLHIDO (todos os dashboards)
-- [ ] Criar componente reutilizável GroupBadges (lê grupos compartilhados + personalizados por groupIds)
-- [ ] Selos com cor/número/nome do grupo; só aparecem se o fornecedor tiver groupIds
-- [ ] Inserir no cabeçalho do card recolhido: Tapete, Aquário (DiaryCard), Yiwu, CustomSuppliersSection (GrupoDashboard já tem)
-- [ ] Validar no preview + checkpoint
+- [x] Criar componente reutilizável GroupBadges (lê grupos compartilhados + personalizados por groupIds)
+- [x] Selos com cor/número/nome do grupo; só aparecem se o fornecedor tiver groupIds
+- [x] Inserir no cabeçalho do card recolhido: Tapete, Aquário (DiaryCard), Yiwu (GrupoDashboard já tem; CustomSuppliersSection não exibe status/grupos no recolhido)
+- [x] Validar no preview + checkpoint
 
 
 ## Selos de grupos no card RECOLHIDO de todos os dashboards (CONCLUÍDO Jun/2026)
@@ -247,16 +247,24 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 
 
 ## Filtro por clique nos cards de status (ReportPanel — todos os dashboards)
-- [ ] Card de status clicável: filtra a lista de detalhamento por aquele status
-- [ ] Clicar de novo no mesmo card desmarca (volta a mostrar todos)
-- [ ] Destaque visual (anel/borda) no card ativo + acessibilidade (button/aria-pressed)
-- [ ] Aplicar o filtro junto com período e busca por nome (statusFiltered)
-- [ ] Teste vitest do helper de filtro por status
-- [ ] Validar no preview + checkpoint
+- [x] Card de status clicável: filtra a lista de detalhamento por aquele status
+- [x] Clicar de novo no mesmo card desmarca (volta a mostrar todos) + botão Limpar filtro
+- [x] Destaque visual (anel/borda) no card ativo + acessibilidade (button/aria-pressed)
+- [x] Aplicar o filtro junto com período e busca por nome (statusFiltered)
+- [x] Teste vitest do helper de filtro por status (6 testes)
+- [x] Validar no preview + checkpoint
 
 
 ## Seção "Grupos de Fornecedores": listar TODOS os grupos (todos os dashboards)
-- [ ] Incluir grupos personalizados (custom_groups) + compartilhados na listagem, ordenados por número
-- [ ] Atualização automática conforme novos grupos são criados (polling/refetch já existente)
-- [ ] Tag PERS. nos personalizados; manter editar/excluir conforme a fonte
+- [x] Incluir grupos personalizados (custom_groups) + compartilhados na listagem, ordenados por número
+- [x] Atualização automática conforme novos grupos são criados (polling/refetch já existente)
+- [x] Tag PERS. nos personalizados (somente leitura; criados/editados na aba Adicionar Fornecedores)
+- [x] Validar no preview + checkpoint
+
+
+## Classificação Fabricante Direto x Trader/Intermediário (todos os dashboards)
+- [ ] Dois checkboxes no card expandido do fornecedor (Direto / Trader), mutuamente exclusivos, salvos em fields.tipoFornecedor
+- [ ] Selo claro no card RECOLHIDO mostrando Direto ou Trader (Tapete, Aquário, Yiwu, GrupoDashboard)
+- [ ] Filtro por tipo (Direto / Trader) no ReportPanel
+- [ ] Teste vitest do helper (persistência + filtro)
 - [ ] Validar no preview + checkpoint
