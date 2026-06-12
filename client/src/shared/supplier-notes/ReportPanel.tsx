@@ -16,7 +16,7 @@ import {
   TipoFornecedor,
   filterEntriesByTipo,
 } from "./useSupplierNotes";
-import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X } from "lucide-react";
+import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown } from "lucide-react";
 
 // Normaliza texto para busca: minúsculas + remove acentos.
 function normalizeSearch(text: string): string {
@@ -128,6 +128,8 @@ export default function ReportPanel({
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | null>(null);
   // Filtro por tipo de fornecedor (Fabricante Direto x Trader/Intermediário).
   const [tipoFilter, setTipoFilter] = useState<TipoFornecedor | null>(null);
+  // O card de Detalhamento começa recolhido para otimizar espaço; o usuário expande quando quiser.
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -670,15 +672,27 @@ export default function ReportPanel({
         ))}
       </div>
 
-      {/* Detailed List */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
+      {/* Detailed List — card recolhível para otimizar espaço */}
+      <div className={`rounded-xl border ${dark ? 'border-zinc-700/50 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-50/60'}`}>
+        <button
+          type="button"
+          onClick={() => setDetailOpen((o) => !o)}
+          aria-expanded={detailOpen}
+          className={`w-full flex items-center gap-2 px-4 py-3 text-left transition-colors rounded-xl ${dark ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-100/70'}`}
+        >
           <FileText size={14} className={dark ? 'text-zinc-400' : 'text-zinc-500'} />
           <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
             Detalhamento ({searchedEntries.length}
             {(searchTerm.trim() || statusFilter || tipoFilter) ? ` de ${filteredEntries.length}` : ''} fornecedores)
           </span>
-        </div>
+          <ChevronDown
+            size={16}
+            className={`ml-auto shrink-0 transition-transform duration-200 ${detailOpen ? 'rotate-180' : ''} ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}
+          />
+        </button>
+
+        {detailOpen && (
+        <div className="px-4 pb-4">
 
         {/* Barra de pesquisa por nome do fornecedor */}
         <div className="relative mb-3">
@@ -883,6 +897,8 @@ export default function ReportPanel({
                 );
               })}
           </div>
+        )}
+        </div>
         )}
       </div>
     </div>

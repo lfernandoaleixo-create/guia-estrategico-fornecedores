@@ -263,8 +263,8 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 
 
 ## Classificação Fabricante Direto x Trader/Intermediário (todos os dashboards)
-- [ ] Dois checkboxes no card expandido do fornecedor (Direto / Trader), mutuamente exclusivos, salvos em fields.tipoFornecedor
-- [ ] Selo claro no card RECOLHIDO mostrando Direto ou Trader (Tapete, Aquário, Yiwu, GrupoDashboard)
-- [ ] Filtro por tipo (Direto / Trader) no ReportPanel
-- [ ] Teste vitest do helper (persistência + filtro)
-- [ ] Validar no preview + checkpoint
+- [x] Dois checkboxes no card expandido do fornecedor (Direto / Trader), mutuamente exclusivos, salvos em fields.tipoFornecedor
+- [x] Selo claro no card RECOLHIDO mostrando Direto ou Trader (Tapete, Aquário, Yiwu, GrupoDashboard)
+- [x] Filtro por tipo (Direto / Trader) no ReportPanel
+- [x] Teste vitest do helper (persistência + filtro) — server/tipoFilter.test.ts, 11 testes
+- [x] Validar no preview + checkpoint (cfe88d83)
