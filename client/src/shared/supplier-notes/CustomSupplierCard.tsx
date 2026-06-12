@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import SupplierNotesPanel, { type PrefilledField } from "./SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "./field-presets";
 import { type CustomSupplier, formatCreatedDateBR } from "./useCustomSuppliers";
+import { useSupplierNotes } from "./useSupplierNotes";
+import { TipoBadge } from "./TipoBadge";
 
 interface Props {
   supplier: CustomSupplier;
@@ -18,6 +20,11 @@ interface Props {
 export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isDark = tone === "dark";
+
+  // Lê a anotação deste fornecedor manual para exibir o tipo (Direto/Trader)
+  // no cabeçalho recolhido, sem precisar expandir o card.
+  const { entries } = useSupplierNotes(supplier.scope);
+  const tipoFields = entries[supplier.id]?.fields;
 
   const prefilled = useMemo<PrefilledField[]>(() => {
     const fields: PrefilledField[] = [];
@@ -104,6 +111,7 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
             <span className={`text-[10px] ${palette.sub}`}>
               Adicionado em {formatCreatedDateBR(supplier.createdAt)}
             </span>
+            <TipoBadge fields={tipoFields} />
           </div>
           <h3 className={`text-base sm:text-lg font-bold leading-tight ${palette.title}`}>
             {supplier.name}
