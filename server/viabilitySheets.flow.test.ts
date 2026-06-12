@@ -4,7 +4,9 @@ import type { TrpcContext } from "./_core/context";
 import {
   computeRow,
   linkFornecedorPrice,
+  moveSectionInList,
   makeEmptyRow,
+  makeEmptySection,
   makeDefaultSheet,
   type ViabilityRow,
 } from "../client/src/shared/supplier-notes/useViabilitySheet";
@@ -114,7 +116,59 @@ describe("linkFornecedorPrice — vínculo unitário ⇄ pacote", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// 1b) Reordenação de seções (setas para cima/baixo)
+// ─────────────────────────────────────────────────────────────────────────────
+describe("moveSectionInList — reordenar seções", () => {
+  function sections() {
+    const a = makeEmptySection(0, "Azul");
+    const b = makeEmptySection(1, "Verde");
+    const c = makeEmptySection(2, "Roxo");
+    a.id = "a";
+    b.id = "b";
+    c.id = "c";
+    return [a, b, c];
+  }
+
+  it("desce a primeira seção (dir +1): [a,b,c] → [b,a,c]", () => {
+    const out = moveSectionInList(sections(), "a", 1);
+    expect(out.map((s) => s.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("sobe a última seção (dir -1): [a,b,c] → [a,c,b]", () => {
+    const out = moveSectionInList(sections(), "c", -1);
+    expect(out.map((s) => s.id)).toEqual(["a", "c", "b"]);
+  });
+
+  it("não move além do topo (primeira para cima retorna lista igual)", () => {
+    const input = sections();
+    const out = moveSectionInList(input, "a", -1);
+    expect(out).toBe(input);
+    expect(out.map((s) => s.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("não move além do fim (última para baixo retorna lista igual)", () => {
+    const input = sections();
+    const out = moveSectionInList(input, "c", 1);
+    expect(out).toBe(input);
+    expect(out.map((s) => s.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("id inexistente não altera a lista", () => {
+    const input = sections();
+    const out = moveSectionInList(input, "zzz", 1);
+    expect(out).toBe(input);
+  });
+
+  it("não muta a lista original ao reordenar", () => {
+    const input = sections();
+    const out = moveSectionInList(input, "b", -1);
+    expect(input.map((s) => s.id)).toEqual(["a", "b", "c"]);
+    expect(out.map((s) => s.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 2) Fluxo do router: get (vazio) → upsert → get → upsert (atualiza)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("data.viabilitySheets flow", () => {

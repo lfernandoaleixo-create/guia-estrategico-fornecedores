@@ -119,6 +119,23 @@ export function linkFornecedorPrice(
   return { ...row, precoPacoteAtual: value, precoUnitForn: unit };
 }
 
+// Reordena um item da lista de seções movendo `sectionId` em `dir` (-1 = sobe, +1 = desce).
+// Retorna a mesma lista (referência) quando o movimento for inválido (fora dos limites).
+export function moveSectionInList(
+  sections: ViabilitySection[],
+  sectionId: string,
+  dir: -1 | 1,
+): ViabilitySection[] {
+  const idx = sections.findIndex((s) => s.id === sectionId);
+  if (idx === -1) return sections;
+  const target = idx + dir;
+  if (target < 0 || target >= sections.length) return sections;
+  const next = [...sections];
+  const [moved] = next.splice(idx, 1);
+  next.splice(target, 0, moved);
+  return next;
+}
+
 const SECTION_COLORS = ["#2E75B6", "#548235", "#7030A0", "#C55A11", "#0F9488"];
 
 export function nextSectionColor(index: number): string {

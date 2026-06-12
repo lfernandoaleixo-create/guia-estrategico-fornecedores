@@ -23,11 +23,14 @@ import {
   Check,
   Info,
   Layers,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   useViabilitySheet,
   computeRow,
   linkFornecedorPrice,
+  moveSectionInList,
   makeDefaultSheet,
   makeEmptyRow,
   makeEmptySection,
@@ -138,6 +141,13 @@ export default function ViabilitySheetDialog({
     mutate((prev) => ({
       ...prev,
       sections: prev.sections.filter((s) => s.id !== sectionId),
+    }));
+
+  // Reordena uma seção para cima (dir = -1) ou para baixo (dir = +1).
+  const moveSection = (sectionId: string, dir: -1 | 1) =>
+    mutate((prev) => ({
+      ...prev,
+      sections: moveSectionInList(prev.sections, sectionId, dir),
     }));
 
   const setSectionTitle = (sectionId: string, title: string) =>
@@ -268,12 +278,16 @@ export default function ViabilitySheetDialog({
 
             {/* Seções */}
             <div className="space-y-5">
-              {draft.sections.map((section) => (
+              {draft.sections.map((section, idx) => (
                 <SectionTable
                   key={section.id}
                   section={section}
                   onTitle={(t) => setSectionTitle(section.id, t)}
                   onRemoveSection={() => removeSection(section.id)}
+                  onMoveUp={() => moveSection(section.id, -1)}
+                  onMoveDown={() => moveSection(section.id, 1)}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < draft.sections.length - 1}
                   onAddRow={() => addRow(section.id)}
                   onRemoveRow={(rowId) => removeRow(section.id, rowId)}
                   onCell={(rowId, key, value) => setCell(section.id, rowId, key, value)}
@@ -343,6 +357,10 @@ interface SectionTableProps {
   section: ViabilitySection;
   onTitle: (title: string) => void;
   onRemoveSection: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onAddRow: () => void;
   onRemoveRow: (rowId: string) => void;
   onCell: (rowId: string, key: keyof ViabilityRow, value: string | number | null) => void;
@@ -353,6 +371,10 @@ function SectionTable({
   section,
   onTitle,
   onRemoveSection,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onAddRow,
   onRemoveRow,
   onCell,
@@ -369,16 +391,36 @@ function SectionTable({
           value={section.title}
           onChange={(e) => onTitle(e.target.value)}
           placeholder="Nome da seção (ex.: Tapete Higiênico 60x80 cm)"
-          className="bg-transparent text-white placeholder-white/60 font-semibold text-sm px-1 py-0.5 rounded outline-none focus:bg-white/15 transition-colors w-full max-w-[80%]"
+          className="bg-transparent text-white placeholder-white/60 font-semibold text-sm px-1 py-0.5 rounded outline-none focus:bg-white/15 transition-colors w-full"
         />
-        <button
-          type="button"
-          onClick={onRemoveSection}
-          className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/15 transition-colors shrink-0"
-          title="Remover seção"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0 ml-2">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title="Mover seção para cima"
+          >
+            <ChevronUp size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title="Mover seção para baixo"
+          >
+            <ChevronDown size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemoveSection}
+            className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/15 transition-colors"
+            title="Remover seção"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto bg-white">
