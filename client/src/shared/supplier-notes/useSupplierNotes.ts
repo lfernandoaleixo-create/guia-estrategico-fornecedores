@@ -168,7 +168,7 @@ export const TIPO_CONFIG: Record<
 > = {
   direto: {
     label: "Fabricante Direto",
-    shortLabel: "Direto",
+    shortLabel: "Fabricante Direto",
     emoji: "\u2713",
     color: "#166534",
     bg: "#dcfce7",

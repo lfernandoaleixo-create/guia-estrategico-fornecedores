@@ -881,7 +881,7 @@ export default function SupplierNotesPanel({
         <textarea
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Ex: Visitei em junho 2026. MOQ negociado para 50 unidades. Contato: Mr. Wang (+86 139…). Aguardando catálogo atualizado…"
+          placeholder="Anote aqui detalhes da negociação, contatos, prazos, condições…"
           rows={5}
           className="w-full px-3.5 py-3 rounded-lg resize-y text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
           style={{
