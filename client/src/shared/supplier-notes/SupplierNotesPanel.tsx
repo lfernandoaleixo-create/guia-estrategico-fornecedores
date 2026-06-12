@@ -909,11 +909,11 @@ export default function SupplierNotesPanel({
       {/* CATÁLOGOS */}
       <AttachmentBucket
         title={ATTACHMENT_CATEGORY_LABEL.catalogos}
-        subtitle="Catálogos, brochuras, line sheets e folders do fornecedor (PDF, JPG, PNG)"
+        subtitle="Catálogos, brochuras, line sheets e folders do fornecedor (qualquer formato de arquivo)"
         icon={<BookOpen size={14} />}
         accent="#0ea5e9"
         items={groupAttachments("catalogos")}
-        accept="image/*,application/pdf"
+        accept="*/*"
         onPick={() => catalogosRef.current?.click()}
         onRemove={(id) => removeAttachment(supplierId, id)}
         onPreview={setPreview}
@@ -927,11 +927,11 @@ export default function SupplierNotesPanel({
       {/* FOTOS */}
       <AttachmentBucket
         title={ATTACHMENT_CATEGORY_LABEL.fotos}
-        subtitle="Fotos do showroom, fábrica, embalagens e produtos avulsos (JPG, PNG)"
+        subtitle="Fotos do showroom, fábrica, embalagens e produtos avulsos (qualquer formato de arquivo)"
         icon={<Camera size={14} />}
         accent="#db2777"
         items={groupAttachments("fotos")}
-        accept="image/*"
+        accept="*/*"
         onPick={() => fotosRef.current?.click()}
         onRemove={(id) => removeAttachment(supplierId, id)}
         onPreview={setPreview}
@@ -954,20 +954,20 @@ export default function SupplierNotesPanel({
             className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-zinc-100 active:scale-[0.97] border bg-white"
             style={{ borderColor: "#e4e4e7", color: "#3f3f46" }}
           >
-            <Paperclip size={13} /> Anexar planilha/PDF
+            <Paperclip size={13} /> Anexar arquivo
           </button>
           </div>
           <input
             ref={cotacoesRef}
             type="file"
             multiple
-            accept=".xls,.xlsx,.csv,.ods,application/pdf,image/*"
+            accept="*/*"
             onChange={(e) => handleFiles(e.target.files, "cotacoes")}
             className="hidden"
           />
         </div>
         <p className="text-xs text-zinc-500 mb-2">
-          Preencha a tabela abaixo conforme o fornecedor for cotando, e/ou anexe planilhas e PDFs de cotação que ele enviar.
+          Preencha a tabela abaixo conforme o fornecedor for cotando, e/ou anexe arquivos de cotação em qualquer formato (planilha, PDF, imagem, etc.).
         </p>
 
         {/* TABELA EDITÁVEL */}
@@ -1048,7 +1048,7 @@ export default function SupplierNotesPanel({
             onRemove={(id) => removeAttachment(supplierId, id)}
             onPreview={setPreview}
             onCalc={() => setCalcOpen(true)}
-            emptyText="Nenhuma planilha ou PDF de cotação anexado."
+            emptyText="Nenhum arquivo de cotação anexado. (Qualquer formato, até 20 MB por arquivo.)"
           />
         </div>
       </div>
@@ -1360,7 +1360,7 @@ function AttachmentList({ items, onRemove, onPreview, emptyText, onCalc }: Attac
         className="text-center py-4 rounded-lg border border-dashed text-xs text-zinc-500"
         style={{ borderColor: "#e4e4e7", background: "#fafafa" }}
       >
-        {emptyText ?? "Nenhum arquivo anexado nesta categoria. (Limite 8 MB por arquivo, salvos no banco compartilhado.)"}
+        {emptyText ?? "Nenhum arquivo anexado nesta categoria. (Qualquer formato, até 20 MB por arquivo, salvos no banco compartilhado.)"}
       </div>
     );
   }
