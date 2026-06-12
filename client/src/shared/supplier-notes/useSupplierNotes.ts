@@ -167,6 +167,19 @@ export const STATUS_ORDER: SupplierStatus[] = [
 ];
 
 // ---------- Utilidades ----------
+/**
+ * Filtra uma lista de entradas pelo status selecionado nos cards de resumo.
+ * `status === null` significa "sem filtro" e retorna a lista inalterada.
+ * Usado pelo ReportPanel (filtro por clique nos cards) e coberto por testes.
+ */
+export function filterEntriesByStatus<T extends { status: SupplierStatus }>(
+  entries: T[],
+  status: SupplierStatus | null,
+): T[] {
+  if (!status) return entries;
+  return entries.filter((e) => e.status === status);
+}
+
 function nowDate(): string {
   return new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",

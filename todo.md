@@ -244,3 +244,19 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Validado no preview: selo "Nº 02 Tapete Higiênico Pet" aparece nos cards recolhidos do Tapete
 - [x] 41/41 testes vitest passando + 0 erros TypeScript
 - [x] Salvar checkpoint
+
+
+## Filtro por clique nos cards de status (ReportPanel — todos os dashboards)
+- [ ] Card de status clicável: filtra a lista de detalhamento por aquele status
+- [ ] Clicar de novo no mesmo card desmarca (volta a mostrar todos)
+- [ ] Destaque visual (anel/borda) no card ativo + acessibilidade (button/aria-pressed)
+- [ ] Aplicar o filtro junto com período e busca por nome (statusFiltered)
+- [ ] Teste vitest do helper de filtro por status
+- [ ] Validar no preview + checkpoint
+
+
+## Seção "Grupos de Fornecedores": listar TODOS os grupos (todos os dashboards)
+- [ ] Incluir grupos personalizados (custom_groups) + compartilhados na listagem, ordenados por número
+- [ ] Atualização automática conforme novos grupos são criados (polling/refetch já existente)
+- [ ] Tag PERS. nos personalizados; manter editar/excluir conforme a fonte
+- [ ] Validar no preview + checkpoint

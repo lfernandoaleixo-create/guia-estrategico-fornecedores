@@ -10,6 +10,7 @@ import {
   STATUS_CONFIG,
   STATUS_ORDER,
   AttachmentCategory,
+  filterEntriesByStatus,
 } from "./useSupplierNotes";
 import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X } from "lucide-react";
 
@@ -119,6 +120,8 @@ export default function ReportPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  // Filtro por status acionado pelos cards de resumo (clique = filtra; clique de novo = limpa).
+  const [statusFilter, setStatusFilter] = useState<SupplierStatus | null>(null);
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -149,14 +152,20 @@ export default function ReportPanel({
     );
   }, [allEntries, period, customStart, customEnd]);
 
+  // Filtra pelo status selecionado nos cards de resumo (null = todos).
+  const statusFiltered = useMemo<SupplierNoteEntry[]>(
+    () => filterEntriesByStatus(filteredEntries, statusFilter),
+    [filteredEntries, statusFilter],
+  );
+
   // Filtra a lista detalhada pelo nome do fornecedor (busca em tempo real).
   const searchedEntries = useMemo(() => {
     const q = normalizeSearch(searchTerm.trim());
-    if (!q) return filteredEntries;
-    return filteredEntries.filter((e) =>
+    if (!q) return statusFiltered;
+    return statusFiltered.filter((e) =>
       normalizeSearch(resolveSupplierName(e.supplierId)).includes(q)
     );
-  }, [filteredEntries, searchTerm, resolveSupplierName]);
+  }, [statusFiltered, searchTerm, resolveSupplierName]);
 
   // Summary by status
   const statusSummary = useMemo(() => {
@@ -532,27 +541,49 @@ export default function ReportPanel({
         )}
       </div>
 
-      {/* Status Summary Cards */}
+      {/* Status Summary Cards — clicáveis para filtrar a lista (toggle) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {STATUS_ORDER.map((s) => {
           const cfg = STATUS_CONFIG[s];
           const count = statusSummary[s];
+          const active = statusFilter === s;
           return (
-            <div
+            <button
               key={s}
-              className="p-3 rounded-lg border text-center transition-all"
+              type="button"
+              onClick={() => setStatusFilter((prev) => (prev === s ? null : s))}
+              aria-pressed={active}
+              title={active ? `Mostrando só “${cfg.label}” · clique para ver todos` : `Filtrar por “${cfg.label}”`}
+              className="p-3 rounded-lg border text-center transition-all cursor-pointer hover:-translate-y-0.5 active:scale-[0.97] focus:outline-none"
               style={{
-                borderColor: count > 0 ? cfg.border : "rgba(63,63,70,0.4)",
-                background: count > 0 ? `${cfg.bg}15` : "transparent",
+                borderColor: active ? cfg.bg : count > 0 ? cfg.border : "rgba(63,63,70,0.4)",
+                background: active ? `${cfg.bg}26` : count > 0 ? `${cfg.bg}15` : "transparent",
+                boxShadow: active ? `0 0 0 2px ${cfg.bg}` : "none",
               }}
             >
               <div className="text-lg mb-0.5">{cfg.emoji}</div>
               <div className={`text-xl font-bold ${dark ? 'text-zinc-100' : 'text-zinc-800'}`}>{count}</div>
               <div className={`text-[9px] leading-tight mt-0.5 ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>{cfg.label}</div>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Aviso de filtro ativo por status */}
+      {statusFilter && (
+        <div className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg border text-xs ${dark ? 'bg-zinc-800/60 border-zinc-700/40 text-zinc-300' : 'bg-amber-50 border-amber-200 text-zinc-700'}`}>
+          <span className="inline-flex items-center gap-1.5">
+            <Filter size={12} /> Filtrando por <strong>{STATUS_CONFIG[statusFilter].label}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(null)}
+            className={`inline-flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${dark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-amber-100 text-amber-700'}`}
+          >
+            <X size={12} /> Limpar filtro
+          </button>
+        </div>
+      )}
 
       {/* Total bar */}
       <div className={`flex items-center justify-between px-4 py-3 rounded-lg border ${dark ? 'bg-zinc-800/60 border-zinc-700/40' : 'bg-amber-50 border-amber-200'}`}>
@@ -592,7 +623,7 @@ export default function ReportPanel({
           <FileText size={14} className={dark ? 'text-zinc-400' : 'text-zinc-500'} />
           <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
             Detalhamento ({searchedEntries.length}
-            {searchTerm.trim() ? ` de ${filteredEntries.length}` : ''} fornecedores)
+            {(searchTerm.trim() || statusFilter) ? ` de ${filteredEntries.length}` : ''} fornecedores)
           </span>
         </div>
 
@@ -631,7 +662,13 @@ export default function ReportPanel({
           </div>
         ) : searchedEntries.length === 0 ? (
           <div className="text-center py-8 text-zinc-500 text-sm">
-            Nenhum fornecedor encontrado para <span className="font-medium">“{searchTerm.trim()}”</span>.
+            {searchTerm.trim() ? (
+              <>Nenhum fornecedor encontrado para <span className="font-medium">“{searchTerm.trim()}”</span>.</>
+            ) : statusFilter ? (
+              <>Nenhum fornecedor com o status <span className="font-medium">“{STATUS_CONFIG[statusFilter].label}”</span> no período.</>
+            ) : (
+              <>Nenhum fornecedor encontrado.</>
+            )}
           </div>
         ) : (
           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">

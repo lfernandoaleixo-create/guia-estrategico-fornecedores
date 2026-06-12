@@ -4,6 +4,7 @@ import {
   type SupplierGroup,
   useSupplierGroups,
 } from "./useSupplierGroups";
+import { useCustomGroups } from "./useCustomGroups";
 
 interface Props {
   /** "dark" para dashboard escuro (Yiwu); "light" para Aquário/Tapete. */
@@ -17,6 +18,9 @@ interface Props {
  */
 export function GroupsManager({ tone = "light" }: Props) {
   const { groups, createGroup, updateGroup, deleteGroup } = useSupplierGroups();
+  // Grupos personalizados (criados na aba "Adicionar Fornecedores"). Exibidos aqui
+  // em modo somente leitura para dar visão completa em todos os dashboards.
+  const { groups: customGroups } = useCustomGroups();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ name: string; legend: string; color: string; number: number }>(
@@ -162,6 +166,94 @@ export function GroupsManager({ tone = "light" }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Grupos personalizados (somente leitura aqui; geridos em "Adicionar Fornecedores") */}
+      {customGroups.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              opacity: 0.6,
+              marginBottom: 8,
+            }}
+          >
+            Grupos personalizados ({customGroups.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {customGroups.map((g) => (
+              <div
+                key={g.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: `2px solid ${g.color}`,
+                  background: `${g.color}1a`,
+                  color: isDark ? "#f1f5f9" : "#1f2937",
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+                title={g.description || g.branch || g.name}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: g.color,
+                    display: "inline-block",
+                  }}
+                />
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    opacity: 0.85,
+                    background: `${g.color}33`,
+                    padding: "1px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  Nº {String(g.number ?? 0).padStart(2, "0")}
+                </span>
+                <span>{g.name}</span>
+                {g.branch && <span style={{ opacity: 0.7, fontWeight: 400 }}>· {g.branch}</span>}
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    opacity: 0.7,
+                    background: isDark ? "rgba(148,163,184,0.25)" : "rgba(15,23,42,0.08)",
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                  }}
+                  title="Grupo personalizado — criado em Adicionar Fornecedores"
+                >
+                  PERS.
+                </span>
+                {g.promotedToDashboard && (
+                  <span
+                    style={{ fontSize: 11, opacity: 0.8 }}
+                    title="Promovido a dashboard independente"
+                  >
+                    ★
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8, fontStyle: "italic" }}>
+            Grupos personalizados são criados e editados na aba “Adicionar Fornecedores”. Esta lista se atualiza automaticamente.
+          </div>
+        </div>
+      )}
 
       {open && (
         <div
