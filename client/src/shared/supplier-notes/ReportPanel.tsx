@@ -118,6 +118,12 @@ export default function ReportPanel({
 }: ReportPanelProps) {
   // Dashboards promovidos (grupo-*) e Yiwu usam tom escuro por padrão.
   const dark = tone ? tone === "dark" : (scope === "yiwu" || scope.startsWith("grupo-"));
+  // Cor de destaque por dashboard, usada no card de Detalhamento.
+  const accentHex =
+    scope === "tapete" ? "#0891b2" // ciano
+    : scope === "aquario" ? "#ea580c" // laranja
+    : scope === "yiwu" ? "#ca8a04" // âmbar
+    : "#ea580c"; // grupos promovidos → laranja editorial
   const [period, setPeriod] = useState<PeriodFilter>("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -672,27 +678,55 @@ export default function ReportPanel({
         ))}
       </div>
 
-      {/* Detailed List — card recolhível para otimizar espaço */}
-      <div className={`rounded-xl border ${dark ? 'border-zinc-700/50 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-50/60'}`}>
+      {/* Detailed List — card recolhível, colorido e destacado */}
+      <div
+        className="rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+        style={{
+          border: `1.5px solid ${accentHex}55`,
+          background: detailOpen
+            ? (dark ? "rgba(24,24,27,0.55)" : "#ffffff")
+            : `linear-gradient(135deg, ${accentHex}1f 0%, ${accentHex}0d 55%, transparent 100%)`,
+        }}
+      >
         <button
           type="button"
           onClick={() => setDetailOpen((o) => !o)}
           aria-expanded={detailOpen}
-          className={`w-full flex items-center gap-2 px-4 py-3 text-left transition-colors rounded-xl ${dark ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-100/70'}`}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors cursor-pointer active:scale-[0.997] focus:outline-none"
         >
-          <FileText size={14} className={dark ? 'text-zinc-400' : 'text-zinc-500'} />
-          <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-            Detalhamento ({searchedEntries.length}
-            {(searchTerm.trim() || statusFilter || tipoFilter) ? ` de ${filteredEntries.length}` : ''} fornecedores)
+          <span
+            className="inline-flex items-center justify-center h-9 w-9 rounded-xl shrink-0 shadow-sm"
+            style={{ background: accentHex, color: "#ffffff" }}
+          >
+            <FileText size={17} />
           </span>
-          <ChevronDown
-            size={16}
-            className={`ml-auto shrink-0 transition-transform duration-200 ${detailOpen ? 'rotate-180' : ''} ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}
-          />
+          <div className="min-w-0">
+            <div
+              className="text-sm font-bold uppercase tracking-wide"
+              style={{ color: accentHex }}
+            >
+              Detalhamento de Fornecedores
+            </div>
+            <div className={`text-[11px] font-medium ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              {searchedEntries.length}
+              {(searchTerm.trim() || statusFilter || tipoFilter) ? ` de ${filteredEntries.length}` : ''} fornecedor(es)
+              {detailOpen ? '' : ' · toque para expandir'}
+            </div>
+          </div>
+          <span
+            className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-full shrink-0 transition-transform duration-200"
+            style={{
+              background: `${accentHex}1f`,
+              color: accentHex,
+              transform: detailOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          >
+            <ChevronDown size={16} />
+          </span>
         </button>
 
         {detailOpen && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-1">
 
         {/* Barra de pesquisa por nome do fornecedor */}
         <div className="relative mb-3">
