@@ -140,10 +140,12 @@ export default function Home() {
     const sortedPromoted = [...promotedDashboards].sort(
       (a, b) => a.groupNumber - b.groupNumber,
     );
-    const zeroGroups = sortedPromoted.filter((g) => g.groupNumber === 0);
+    // NOTE: O Grupo Nº 00 (Central de Documentos) está OCULTO da Home por enquanto
+    // (a pedido do usuário). Os dados e o acesso via URL /grupo/<id> continuam intactos.
+    // Para reexibir, volte a incluir `zeroGroups` no início de `ordered`.
     const otherPromoted = sortedPromoted.filter((g) => g.groupNumber !== 0);
 
-    const ordered = [...zeroGroups, ...main, ...otherPromoted];
+    const ordered = [...main, ...otherPromoted];
     const totalCount = ordered.length + (addCardBase ? 1 : 0);
 
     // Reatribui o eyebrow por posição: grupo número 0 = "DASHBOARD 00",
