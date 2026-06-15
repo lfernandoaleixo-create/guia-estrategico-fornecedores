@@ -25,6 +25,8 @@ import {
   ListChecks,
   NotebookPen,
   Folder,
+  FolderArchive,
+  FileStack,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
@@ -41,6 +43,7 @@ import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
+import PartnerTopicsPanel from "@/shared/supplier-notes/PartnerTopicsPanel";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -114,9 +117,11 @@ interface SupplierModalProps {
   /** Recebe os valores tratados. Em edição, `id` vem preenchido; em criação, `null`. */
   onSubmit: (id: string | null, values: SupplierFormValues) => Promise<void>;
   onClose: () => void;
+  /** Modo enxuto (Central de Documentos / Grupo Nº 00): só Nome + Nome Chinês. */
+  simplified?: boolean;
 }
 
-function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalProps) {
+function SupplierModal({ supplier, accent, onSubmit, onClose, simplified = false }: SupplierModalProps) {
   const isEdit = !!supplier;
   const [form, setForm] = useState({
     name: supplier?.name || "",
@@ -208,7 +213,9 @@ function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalPro
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold" style={{ color: TEXT_PRIMARY, fontFamily: "'Fraunces', serif" }}>
-            {isEdit ? "Editar fornecedor" : "Cadastrar fornecedor"}
+            {isEdit
+              ? simplified ? "Editar parceiro" : "Editar fornecedor"
+              : simplified ? "Cadastrar parceiro" : "Cadastrar fornecedor"}
           </h2>
           <button onClick={onClose} className="p-1 rounded hover:opacity-70" style={{ color: TEXT_MUTED }}>
             <X className="w-5 h-5" />
@@ -222,21 +229,33 @@ function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalPro
               <label style={labelStyle}>Nome *</label>
               <input value={form.name} onChange={(e) => set("name", e.target.value)} style={inputStyle} />
             </div>
-            <div>
+            <div className={simplified ? "col-span-2" : undefined}>
               <label style={labelStyle}>Nome Chinês</label>
               <input value={form.chineseName} onChange={(e) => set("chineseName", e.target.value)} style={inputStyle} />
             </div>
-            <div>
-              <label style={labelStyle}>Categoria/Setor</label>
-              <input value={form.category} onChange={(e) => set("category", e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>NCM</label>
-              <input value={form.ncm} onChange={(e) => set("ncm", e.target.value)} style={inputStyle} />
-            </div>
+            {!simplified && (
+              <div>
+                <label style={labelStyle}>Categoria/Setor</label>
+                <input value={form.category} onChange={(e) => set("category", e.target.value)} style={inputStyle} />
+              </div>
+            )}
+            {!simplified && (
+              <div>
+                <label style={labelStyle}>NCM</label>
+                <input value={form.ncm} onChange={(e) => set("ncm", e.target.value)} style={inputStyle} />
+              </div>
+            )}
           </div>
 
+          {simplified && (
+            <p className="text-xs" style={{ color: TEXT_MUTED, lineHeight: 1.5 }}>
+              Cadastre o parceiro com o nome. Depois, dentro dele, você cria os assuntos
+              (ex.: “Vidro”) e anexa cotações, catálogos, fotos, vídeos e documentos.
+            </p>
+          )}
+
           {/* Localização */}
+          {!simplified && (<>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label style={labelStyle}>Cidade</label>
@@ -401,6 +420,7 @@ function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalPro
               style={{ ...inputStyle, resize: "vertical" }}
             />
           </div>
+          </>)}
         </div>
 
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t" style={{ borderColor: BORDER }}>
@@ -417,7 +437,7 @@ function SupplierModal({ supplier, accent, onSubmit, onClose }: SupplierModalPro
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97] disabled:opacity-60"
             style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
           >
-            {saving ? "Salvando…" : isEdit ? "Salvar alterações" : "Cadastrar fornecedor"}
+            {saving ? "Salvando…" : isEdit ? "Salvar alterações" : simplified ? "Cadastrar parceiro" : "Cadastrar fornecedor"}
           </button>
         </div>
       </div>
@@ -527,6 +547,9 @@ export default function GrupoDashboard() {
   }
 
   const accent = group.color;
+  // Central de Documentos: o Grupo Nº 00 opera num modelo diferente
+  // (Parceiros -> Assuntos -> Anexos), em vez do modelo comercial padrão.
+  const isCentral = (group.number ?? 0) === 0;
 
   async function handleDemote() {
     if (
@@ -635,7 +658,7 @@ export default function GrupoDashboard() {
               className="text-[10px] uppercase tracking-[0.18em] mb-1"
               style={{ color: TEXT_MUTED, fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Fornecedores
+              {isCentral ? "Parceiros" : "Fornecedores"}
             </div>
             <div
               className="text-2xl font-bold"
@@ -677,7 +700,7 @@ export default function GrupoDashboard() {
             }}
           >
             <Plus className="w-4 h-4" />
-            Adicionar fornecedor
+            {isCentral ? "Adicionar parceiro" : "Adicionar fornecedor"}
           </button>
           <button
             onClick={handleDemote}
@@ -709,8 +732,8 @@ export default function GrupoDashboard() {
               color: tab === "fornecedores" ? "oklch(0.10 0.02 250)" : TEXT_MUTED,
             }}
           >
-            <ListChecks className="w-4 h-4" />
-            Fornecedores
+            {isCentral ? <FileStack className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
+            {isCentral ? "Documentos" : "Fornecedores"}
           </button>
           <button
             onClick={() => setTab("diario")}
@@ -736,7 +759,7 @@ export default function GrupoDashboard() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome, cidade, contato…"
+            placeholder={isCentral ? "Buscar parceiro pelo nome…" : "Buscar por nome, cidade, contato…"}
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: TEXT_PRIMARY }}
           />
@@ -752,18 +775,23 @@ export default function GrupoDashboard() {
             className="rounded-2xl border-2 border-dashed p-12 text-center"
             style={{ borderColor: BORDER, color: TEXT_MUTED }}
           >
-            <Building2
-              className="w-10 h-10 mx-auto mb-3 opacity-40"
-              style={{ color: accent }}
-            />
-            <p className="mb-3">Nenhum fornecedor encontrado neste dashboard ainda.</p>
+            {isCentral ? (
+              <FolderArchive className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: accent }} />
+            ) : (
+              <Building2 className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: accent }} />
+            )}
+            <p className="mb-3">
+              {isCentral
+                ? "Nenhum parceiro cadastrado ainda. Crie um parceiro (ex.: Betty) e depois adicione os assuntos e anexos."
+                : "Nenhum fornecedor encontrado neste dashboard ainda."}
+            </p>
             <button
               onClick={() => setCreatingSupplier(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
               style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
             >
               <Plus className="w-4 h-4" />
-              Cadastrar primeiro fornecedor
+              {isCentral ? "Cadastrar primeiro parceiro" : "Cadastrar primeiro fornecedor"}
             </button>
           </div>
         ) : (
@@ -845,6 +873,7 @@ export default function GrupoDashboard() {
                       </div>
                     </div>
 
+                    {!isCentral && (
                     <div
                       className="flex flex-wrap gap-x-3 gap-y-1 text-xs mb-2"
                       style={{ color: TEXT_MUTED }}
@@ -853,7 +882,9 @@ export default function GrupoDashboard() {
                       {s.province && <span>· {s.province}</span>}
                       {s.contactName && <span>· {s.contactName}</span>}
                     </div>
+                    )}
 
+                    {!isCentral && (
                     <div className="flex flex-col gap-1 text-xs">
                       {s.phones.slice(0, 1).map((p) => (
                         <span key={p.id} className="inline-flex items-center gap-1.5" style={{ color: TEXT_PRIMARY }}>
@@ -882,6 +913,14 @@ export default function GrupoDashboard() {
                         </a>
                       ))}
                     </div>
+                    )}
+
+                    {isCentral && (
+                      <div className="flex items-center gap-1.5 text-xs" style={{ color: TEXT_MUTED }}>
+                        <FileStack className="w-3.5 h-3.5" style={{ color: accent }} />
+                        <span>Toque para ver os assuntos e anexos deste parceiro</span>
+                      </div>
+                    )}
 
                     <div
                       className="text-[10px] mt-3 pt-2 border-t font-mono"
@@ -891,19 +930,27 @@ export default function GrupoDashboard() {
                     </div>
                   </div>
 
-                  {/* Painel de anotações expandido */}
+                  {/* Painel expandido: assuntos (Central) ou anotações (padrão) */}
                   {isOpen && (
                     <div className="px-5 pb-5 pt-2 border-t" style={{ borderColor: BORDER }}>
-                      <SupplierNotesPanel
-                        scope={`grupo-${group.id}`}
-                        supplierId={s.id}
-                        supplierName={s.name}
-                        accent={accent}
-                        compact
-                        prefilledFields={buildPrefilled(s)}
-                        editableFields={DEFAULT_EDITABLE_FIELDS}
-                        onSaved={() => setExpandedId(null)}
-                      />
+                      {isCentral ? (
+                        <PartnerTopicsPanel
+                          partnerId={s.id}
+                          dashboardScope={scope}
+                          accent={accent}
+                        />
+                      ) : (
+                        <SupplierNotesPanel
+                          scope={`grupo-${group.id}`}
+                          supplierId={s.id}
+                          supplierName={s.name}
+                          accent={accent}
+                          compact
+                          prefilledFields={buildPrefilled(s)}
+                          editableFields={DEFAULT_EDITABLE_FIELDS}
+                          onSaved={() => setExpandedId(null)}
+                        />
+                      )}
                     </div>
                   )}
                 </article>
@@ -1151,6 +1198,7 @@ export default function GrupoDashboard() {
         <SupplierModal
           supplier={editingSupplier}
           accent={accent}
+          simplified={isCentral}
           onSubmit={handleSubmitSupplier}
           onClose={() => {
             setEditingSupplier(null);

@@ -319,3 +319,19 @@ Causa: handleSubtipoClick faz `delete nextFields.subtipoAquario` ao desmarcar, m
 - [x] Tratar subtipoAquario "" como ausência em: painel (active), CustomSupplierCard (selo), Home do Aquário (effectiveCategory, contadores, ClassifiedCustomList)
 - [x] Validar no preview: marcar -> selo aparece; trocar -> muda; desmarcar -> some após reload (contador Terrários 12->11->12; selo some/volta no card recolhido)
 - [x] Teste vitest de regressão (string vazia persiste no merge; delete não) — 80/80 passando
+
+
+## Central de Documentos — Grupo Nº 00 (Fornecedores Parceiros → Assuntos → Anexos)
+Escopo: SOMENTE o dashboard do Grupo Nº 00. Demais dashboards/grupos intocados.
+Modelo: Parceiro (nome + nome chinês opcional) → vários Assuntos/Temas (título + observações) → vários Anexos (qualquer tipo, via S3, até 20 MB).
+- [x] Schema: tabela `partner_topics` (id, partnerId, scope, title, notes, sortOrder, createdAt, updatedAt) + push
+- [x] db.ts: helpers list/upsert/delete de partner_topics (por partnerId/scope)
+- [x] routers/data.ts: router `partnerTopics` (list, upsert, delete) com zod
+- [x] uploadRoute.ts: upload genérico aceita scope=`parceiro-<partnerId>` e supplierId=`<topicId>` (validado)
+- [x] Hook client `usePartnerTopics(partnerId)` (tRPC, polling + reload pós-mutação)
+- [x] UI: detectar Grupo Nº 00 (number === 0) no GrupoDashboard e renderizar a Central de Documentos (em vez do modelo comercial), mantendo a aba Anotações/Diário
+- [x] UI: formulário simplificado de Parceiro (só Nome + Nome Chinês) ao cadastrar/editar no Grupo 00 (título e botão do modal ajustados para "parceiro")
+- [x] UI: dentro do parceiro expandido, listar/criar/editar/excluir Assuntos; cada assunto com título, observações e área de anexos (reuso do uploader S3 + TopicAttachments com preview/visualizar/baixar/remover)
+- [x] Teste vitest: helper/normalização de partner_topics e ordenação (84/84 passando)
+- [x] Validar no preview: criar parceiro Betty → assunto "Vidro" → anexar PDF → reload persiste (confirmado)
+- [x] Checkpoint

@@ -168,3 +168,31 @@ export const viabilitySheets = mysqlTable("viability_sheets", {
 
 export type ViabilitySheetRow = typeof viabilitySheets.$inferSelect;
 export type InsertViabilitySheetRow = typeof viabilitySheets.$inferInsert;
+
+/**
+ * Assuntos/Temas de Fornecedores Parceiros — usado SOMENTE no dashboard do
+ * Grupo Nº 00 (Central de Documentos). Cada parceiro (extraSupplier do grupo 00)
+ * pode ter vários assuntos (ex.: "Vidro"), e cada assunto guarda um título e
+ * observações livres. Os ANEXOS de cada assunto reaproveitam a tabela
+ * supplier_notes via escopo lógico `parceiro-<partnerId>` e supplierId=<topicId>,
+ * para herdar o fluxo de upload S3 já existente (sem base64 no banco).
+ */
+export const partnerTopics = mysqlTable("partner_topics", {
+  /** ID textual gerado no cliente (ex.: "ptopic_xxx"). Chave primária. */
+  id: varchar("id", { length: 96 }).primaryKey(),
+  /** ID do fornecedor parceiro (extraSupplier) ao qual o assunto pertence. */
+  partnerId: varchar("partnerId", { length: 96 }).notNull(),
+  /** Escopo lógico do dashboard que contém o parceiro (ex.: "grupo-<id>"). */
+  scope: varchar("scope", { length: 96 }).notNull(),
+  /** Título do assunto/tema (ex.: "Vidro", "Cotação frete"). */
+  title: varchar("title", { length: 255 }).notNull(),
+  /** Observações livres sobre o assunto. */
+  notes: text("notes"),
+  /** Ordem de exibição (menor = primeiro). */
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: varchar("createdAt", { length: 40 }).notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type PartnerTopicRow = typeof partnerTopics.$inferSelect;
+export type InsertPartnerTopicRow = typeof partnerTopics.$inferInsert;

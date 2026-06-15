@@ -367,6 +367,7 @@ export async function seedSupplierGroups(): Promise<void> {
 // Planilhas de análise de viabilidade (calculadora) por (scope, supplierId).
 // =============================================================================
 import { viabilitySheets, type InsertViabilitySheetRow } from "../drizzle/schema";
+import { partnerTopics, type InsertPartnerTopicRow } from "../drizzle/schema";
 
 export async function getViabilitySheet(scope: string, supplierId: string) {
   const db = await getDb();
@@ -392,4 +393,32 @@ export async function upsertViabilitySheet(row: InsertViabilitySheetRow) {
   } else {
     await db.insert(viabilitySheets).values(row);
   }
+}
+
+// =============================================================================
+// Partner Topics (Assuntos/Temas) — Central de Documentos do Grupo Nº 00.
+// =============================================================================
+export async function listPartnerTopics(scope: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(partnerTopics).where(eq(partnerTopics.scope, scope));
+}
+
+export async function listPartnerTopicsByPartner(partnerId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(partnerTopics).where(eq(partnerTopics.partnerId, partnerId));
+}
+
+export async function upsertPartnerTopic(row: InsertPartnerTopicRow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const { id, ...rest } = row;
+  await db.insert(partnerTopics).values(row).onDuplicateKeyUpdate({ set: rest });
+}
+
+export async function deletePartnerTopic(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.delete(partnerTopics).where(eq(partnerTopics.id, id));
 }

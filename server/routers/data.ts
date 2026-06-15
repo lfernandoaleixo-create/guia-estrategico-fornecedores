@@ -21,6 +21,10 @@ import {
   deleteCustomSupplier,
   getViabilitySheet,
   upsertViabilitySheet,
+  listPartnerTopics,
+  listPartnerTopicsByPartner,
+  upsertPartnerTopic,
+  deletePartnerTopic,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -107,6 +111,17 @@ const viabilitySheetInput = z.object({
   supplierId: z.string(),
   // Documento completo da planilha serializado em JSON (string).
   data: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const partnerTopicInput = z.object({
+  id: z.string(),
+  partnerId: z.string(),
+  scope: z.string(),
+  title: z.string(),
+  notes: z.string().nullable().optional(),
+  sortOrder: z.number().int().default(0),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -246,5 +261,25 @@ export const dataRouter = router({
       await upsertViabilitySheet(input);
       return { success: true } as const;
     }),
+  }),
+
+  // ---------- Partner Topics (Assuntos) — Central de Documentos / Grupo Nº 00 ----------
+  partnerTopics: router({
+    listByScope: publicProcedure
+      .input(z.object({ scope: z.string() }))
+      .query(({ input }) => listPartnerTopics(input.scope)),
+    listByPartner: publicProcedure
+      .input(z.object({ partnerId: z.string() }))
+      .query(({ input }) => listPartnerTopicsByPartner(input.partnerId)),
+    upsert: publicProcedure.input(partnerTopicInput).mutation(async ({ input }) => {
+      await upsertPartnerTopic({ ...input, notes: input.notes ?? null });
+      return { success: true } as const;
+    }),
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        await deletePartnerTopic(input.id);
+        return { success: true } as const;
+      }),
   }),
 });
