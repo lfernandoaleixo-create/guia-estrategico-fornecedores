@@ -304,3 +304,10 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Tapete: "Anotações / Diário" já era o 1º item do menu (confirmado)
 - [x] Yiwu: "Anotações / Diário" já era o 1º item do menu (confirmado)
 - [x] Validar no preview: Aquário confirmado com Anotações/Diário no topo
+
+## Replicar fornecedores nas abas Aquário/Terrário conforme classificação no Diário
+- [x] Ler entradas de notas (useSupplierNotes "aquario") e montar mapa supplierId -> subtipoAquario (aquario/terrario)
+- [x] No filtro de categoria do Aquário, a especialidade marcada no Diário tem prioridade sobre s.category (replica nas abas, sem remover do Diário)
+- [x] Incluir fornecedores manuais (customSuppliers) classificados na lista filtrada por categoria (faixa "Cadastrados manualmente" via ClassifiedCustomList)
+- [x] Atualizar contadores das categorias (Aquários/Terrários) para refletir os classificados (Aquário subiu para 12)
+- [x] Validar no preview: manuais classificados como Aquário aparecem na aba Aquários de Vidro; Terrário sem manuais; nada removido do Diário (confirmado)

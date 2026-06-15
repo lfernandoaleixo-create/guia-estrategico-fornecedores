@@ -15,11 +15,12 @@ import DiaryCard from "@aquario/components/DiaryCard";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
+import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
-import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
-import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
+import { useSupplierNotes, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
+import { useCustomSuppliers, type CustomSupplier } from "@/shared/supplier-notes/useCustomSuppliers";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
 import {
   Search,
@@ -92,6 +93,24 @@ export default function Home() {
   const { notes, upsertNote, deleteNote, getNote, totalNotes } = useNotes();
   const { totalEntries: totalDiaryEntries } = useDiary();
   const { list: customSuppliersAquario } = useCustomSuppliers("aquario");
+  // Anotações/Diário deste dashboard: usadas para REPLICAR a classificação
+  // (🐟 Aquário / 🦎 Terrário) marcada no painel para dentro das abas/categorias.
+  const { entries: notesEntries } = useSupplierNotes("aquario");
+  // Mapa supplierId -> especialidade marcada manualmente no Diário.
+  const specialtyById = useMemo<Record<string, SubtipoAquario>>(() => {
+    const map: Record<string, SubtipoAquario> = {};
+    for (const [sid, entry] of Object.entries(notesEntries)) {
+      const sub = entry?.fields?.subtipoAquario;
+      if (sub === "aquario" || sub === "terrario") map[sid] = sub;
+    }
+    return map;
+  }, [notesEntries]);
+  // Categoria EFETIVA de um fornecedor do catálogo: a classificação do Diário
+  // tem prioridade; na ausência dela, usa a categoria original do catálogo.
+  const effectiveCategory = useCallback(
+    (s: Supplier): string => specialtyById[s.id] ?? s.category,
+    [specialtyById],
+  );
   const resolveAquarioGroupName = (sid: string) => {
     const found = suppliers.find((s) => s.id === sid);
     if (found) return found.name;
@@ -104,7 +123,9 @@ export default function Home() {
     let result = suppliers;
 
     if (selectedCategory !== "all") {
-      result = result.filter((s) => s.category === selectedCategory);
+      // Categoria efetiva: a classificação feita no Diário (subtipoAquario)
+      // tem prioridade sobre s.category, replicando o fornecedor na aba certa.
+      result = result.filter((s) => effectiveCategory(s) === selectedCategory);
     }
 
     if (selectedSubCategories.length > 0) {
@@ -136,7 +157,7 @@ export default function Home() {
       const pb = priorityOrder[b.priority || "low"];
       return pa - pb;
     });
-  }, [selectedCategory, selectedSubCategories, searchQuery]);
+  }, [selectedCategory, selectedSubCategories, searchQuery, effectiveCategory]);
 
   const toggleSubCategory = useCallback((sc: string) => {
     setSelectedSubCategories((prev) =>
@@ -163,6 +184,30 @@ export default function Home() {
     () => suppliers.filter((s) => notes[s.id]),
     [notes]
   );
+
+  // Fornecedores MANUAIS classificados no Diário (aquario/terrario), por categoria.
+  const classifiedCustomByCat = useMemo<Record<string, CustomSupplier[]>>(() => {
+    const map: Record<string, CustomSupplier[]> = { aquario: [], terrario: [] };
+    for (const cs of customSuppliersAquario) {
+      const sub = specialtyById[cs.id];
+      if (sub === "aquario" || sub === "terrario") map[sub].push(cs);
+    }
+    return map;
+  }, [customSuppliersAquario, specialtyById]);
+
+  // Contagem por categoria para a sidebar: usa categoria efetiva do catálogo
+  // (classificação do Diário tem prioridade) + manuais classificados.
+  const categoryCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    for (const s of suppliers) {
+      const cat = effectiveCategory(s);
+      counts[cat] = (counts[cat] ?? 0) + 1;
+    }
+    counts["aquario"] = (counts["aquario"] ?? 0) + classifiedCustomByCat.aquario.length;
+    counts["terrario"] = (counts["terrario"] ?? 0) + classifiedCustomByCat.terrario.length;
+    counts["all"] = suppliers.length + customSuppliersAquario.length;
+    return counts;
+  }, [effectiveCategory, classifiedCustomByCat, customSuppliersAquario]);
 
   return (
     <div
@@ -294,10 +339,7 @@ export default function Home() {
             {sidebarOpen ? "Categorias" : ""}
           </div>
           {categories.map((cat) => {
-            const count =
-              cat.id === "all"
-                ? suppliers.length
-                : suppliers.filter((s) => s.category === cat.id).length;
+            const count = categoryCounts[cat.id] ?? 0;
             const isActive = selectedCategory === cat.id && viewMode !== "diario";
             return (
               <button
@@ -544,7 +586,23 @@ export default function Home() {
         {/* ABA: LISTA */}
         {viewMode === "lista" && (
           <div className="flex-1 overflow-y-auto px-8 py-8">
-            {filteredSuppliers.length === 0 ? (
+            {/* Fornecedores MANUAIS classificados nesta categoria (replicados do Diário) */}
+            {(selectedCategory === "aquario" || selectedCategory === "terrario") &&
+              (classifiedCustomByCat[selectedCategory]?.length ?? 0) > 0 && (
+                <div className="max-w-5xl mx-auto mb-6">
+                  <p
+                    className="text-[11px] uppercase tracking-[0.18em] font-semibold mb-3"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    ★ Cadastrados manualmente · classificados como{" "}
+                    {selectedCategory === "aquario" ? "🐟 Aquário" : "🦎 Terrário"}
+                  </p>
+                  <ClassifiedCustomList scope="aquario" suppliers={classifiedCustomByCat[selectedCategory]} />
+                </div>
+              )}
+            {filteredSuppliers.length === 0 &&
+            ((selectedCategory !== "aquario" && selectedCategory !== "terrario") ||
+              (classifiedCustomByCat[selectedCategory]?.length ?? 0) === 0) ? (
               <div className="flex flex-col items-center justify-center h-64 gap-4">
                 <div className="text-5xl opacity-50">🔍</div>
                 <p className="font-display text-lg" style={{ color: "var(--foreground)" }}>
