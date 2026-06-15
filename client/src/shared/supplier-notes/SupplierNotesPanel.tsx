@@ -55,6 +55,7 @@ import {
   DollarSign,
   Folder,
   Plus,
+  Minus,
   Loader2,
   Calculator,
 } from "lucide-react";
@@ -212,6 +213,8 @@ async function downloadAttachment(att: SupplierAttachment) {
 function PdfCanvas({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  // Fator de zoom aplicado pelo usuário (1 = ajustado à largura do modal).
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,13 +256,16 @@ function PdfCanvas({ src }: { src: string }) {
       await task.promise
       .then(async (pdf) => {
         if (cancelled) return;
-        const width = container.clientWidth || 800;
+        const containerW = container.clientWidth || 800;
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           if (cancelled) return;
           const page = await pdf.getPage(pageNum);
           const baseViewport = page.getViewport({ scale: 1 });
-          // Escala para caber na largura do container, com nitidez (devicePixelRatio).
-          const cssScale = (width - 24) / baseViewport.width;
+          // Largura-base: ajusta à largura do modal e então aplica o zoom do usuário.
+          // Com zoom > 1 a página fica mais larga que o container, habilitando
+          // scroll HORIZONTAL; a altura natural habilita scroll VERTICAL.
+          const fitScale = (containerW - 24) / baseViewport.width;
+          const cssScale = fitScale * zoom;
           const dpr = Math.min(window.devicePixelRatio || 1, 2);
           const viewport = page.getViewport({ scale: cssScale * dpr });
           const canvas = document.createElement("canvas");
@@ -289,21 +295,69 @@ function PdfCanvas({ src }: { src: string }) {
       cancelled = true;
       task?.destroy?.();
     };
-  }, [src]);
+  }, [src, zoom]);
+
+  const clampZoom = (z: number) => Math.min(3, Math.max(0.5, Math.round(z * 10) / 10));
 
   return (
-    <div className="h-full w-full overflow-auto bg-zinc-200/60">
-      {status === "loading" && (
-        <div className="h-full flex items-center justify-center text-sm text-zinc-500 gap-2">
-          <Loader2 size={16} className="animate-spin" /> Carregando PDF…
+    <div className="relative h-full w-full bg-zinc-200/60">
+      {/* Controles de zoom flutuantes */}
+      {status === "ready" && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-lg bg-white/95 shadow-md border px-1 py-1" style={{ borderColor: "#e4e4e7" }}>
+          <button
+            type="button"
+            onClick={() => setZoom((z) => clampZoom(z - 0.25))}
+            disabled={zoom <= 0.5}
+            title="Diminuir zoom"
+            aria-label="Diminuir zoom"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 transition-colors active:scale-[0.95]"
+          >
+            <Minus size={15} />
+          </button>
+          <span className="px-1 text-xs font-semibold tabular-nums text-zinc-600 select-none w-10 text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => setZoom((z) => clampZoom(z + 0.25))}
+            disabled={zoom >= 3}
+            title="Aumentar zoom"
+            aria-label="Aumentar zoom"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 transition-colors active:scale-[0.95]"
+          >
+            <Plus size={15} />
+          </button>
+          {zoom !== 1 && (
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              title="Ajustar à largura"
+              aria-label="Ajustar à largura"
+              className="ml-0.5 px-2 h-7 inline-flex items-center justify-center rounded-md text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors active:scale-[0.95]"
+            >
+              Ajustar
+            </button>
+          )}
         </div>
       )}
-      {status === "error" && (
-        <div className="h-full flex items-center justify-center text-sm text-zinc-500">
-          Não foi possível renderizar o PDF. Use o botão Baixar.
-        </div>
-      )}
-      <div ref={containerRef} className="p-3" style={{ display: status === "ready" ? "block" : "none" }} />
+      {/* Área rolável: scroll vertical E horizontal */}
+      <div className="h-full w-full overflow-auto">
+        {status === "loading" && (
+          <div className="h-full flex items-center justify-center text-sm text-zinc-500 gap-2">
+            <Loader2 size={16} className="animate-spin" /> Carregando PDF…
+          </div>
+        )}
+        {status === "error" && (
+          <div className="h-full flex items-center justify-center text-sm text-zinc-500">
+            Não foi possível renderizar o PDF. Use o botão Baixar.
+          </div>
+        )}
+        <div
+          ref={containerRef}
+          className="p-3 w-max min-w-full"
+          style={{ display: status === "ready" ? "block" : "none" }}
+        />
+      </div>
     </div>
   );
 }
