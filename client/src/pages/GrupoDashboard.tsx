@@ -718,7 +718,8 @@ export default function GrupoDashboard() {
         </div>
       </section>
 
-      {/* Abas: Fornecedores | Anotações / Diário */}
+      {/* Abas: Fornecedores | Anotações / Diário — ocultas no modo Central (só documentos) */}
+      {!isCentral && (
       <section className="relative z-10 container max-w-6xl">
         <div
           className="inline-flex items-center gap-1 p-1 rounded-xl border mb-6"
@@ -732,8 +733,8 @@ export default function GrupoDashboard() {
               color: tab === "fornecedores" ? "oklch(0.10 0.02 250)" : TEXT_MUTED,
             }}
           >
-            {isCentral ? <FileStack className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
-            {isCentral ? "Documentos" : "Fornecedores"}
+            <ListChecks className="w-4 h-4" />
+            Fornecedores
           </button>
           <button
             onClick={() => setTab("diario")}
@@ -748,8 +749,9 @@ export default function GrupoDashboard() {
           </button>
         </div>
       </section>
+      )}
 
-      {tab === "fornecedores" && (
+      {(isCentral || tab === "fornecedores") && (
       <section className="relative z-10 container max-w-6xl pb-16">
         <div
           className="rounded-2xl border mb-5 px-3 py-2 flex items-center gap-3"
@@ -961,7 +963,7 @@ export default function GrupoDashboard() {
       </section>
       )}
 
-      {tab === "diario" && (
+      {!isCentral && tab === "diario" && (
       <section className="relative z-10 container max-w-6xl pb-16 space-y-5">
         {/* CADERNO DE CAMPO */}
         <div>

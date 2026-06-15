@@ -335,3 +335,13 @@ Modelo: Parceiro (nome + nome chinês opcional) → vários Assuntos/Temas (tít
 - [x] Teste vitest: helper/normalização de partner_topics e ordenação (84/84 passando)
 - [x] Validar no preview: criar parceiro Betty → assunto "Vidro" → anexar PDF → reload persiste (confirmado)
 - [x] Checkpoint
+
+
+## Central de Documentos — simplificar (remover Diário/status) — Grupo Nº 00
+Escopo: SOMENTE Grupo Nº 00. Demais dashboards mantêm a aba Anotações/Diário e os status comerciais.
+- [x] No modo Central (isCentral): ocultar a barra de abas (sem "Anotações / Diário"); mostrar só a Central de Documentos
+- [x] No modo Central: não renderizar a seção do Diário (status, métricas, relatório PDF)
+- [x] Garantir que ?tab=diario no Grupo 00 não exibe nada comercial (isCentral força a seção de documentos)
+- [x] Verificar TypeScript e rodar vitest (sem erros; 84/84)
+- [x] Validar no preview: Grupo 00 mostra apenas parceiros/assuntos/anexos, sem aba Diário (confirmado com ?tab=diario)
+- [x] Checkpoint
