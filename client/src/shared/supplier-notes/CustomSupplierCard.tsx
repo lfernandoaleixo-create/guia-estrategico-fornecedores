@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import SupplierNotesPanel, { type PrefilledField } from "./SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "./field-presets";
 import { type CustomSupplier, formatCreatedDateBR } from "./useCustomSuppliers";
-import { useSupplierNotes } from "./useSupplierNotes";
+import { useSupplierNotes, SUBTIPO_CONFIG, type SubtipoAquario } from "./useSupplierNotes";
 import { TipoBadge } from "./TipoBadge";
 
 interface Props {
@@ -25,6 +25,12 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
   // no cabeçalho recolhido, sem precisar expandir o card.
   const { entries } = useSupplierNotes(supplier.scope);
   const tipoFields = entries[supplier.id]?.fields;
+  // Especialidade (🐟 Aquário / 🦎 Terrário) — só no scope aquario.
+  const subtipo =
+    supplier.scope === "aquario"
+      ? (tipoFields?.subtipoAquario as SubtipoAquario | undefined)
+      : undefined;
+  const subtipoCfg = subtipo ? SUBTIPO_CONFIG[subtipo] : undefined;
 
   const prefilled = useMemo<PrefilledField[]>(() => {
     const fields: PrefilledField[] = [];
@@ -112,6 +118,20 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               Adicionado em {formatCreatedDateBR(supplier.createdAt)}
             </span>
             <TipoBadge fields={tipoFields} />
+            {subtipoCfg && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  color: subtipoCfg.color,
+                  background: subtipoCfg.bg,
+                  border: `1px solid ${subtipoCfg.border}`,
+                }}
+                title={subtipoCfg.label}
+              >
+                <span className="leading-none">{subtipoCfg.emoji}</span>
+                <span>{subtipoCfg.label}</span>
+              </span>
+            )}
           </div>
           <h3 className={`text-base sm:text-lg font-bold leading-tight ${palette.title}`}>
             {supplier.name}

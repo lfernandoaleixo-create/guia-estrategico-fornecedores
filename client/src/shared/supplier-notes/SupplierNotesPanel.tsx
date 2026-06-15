@@ -64,6 +64,7 @@ import {
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as XLSX from "xlsx";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -279,7 +280,10 @@ function PdfCanvas({ src }: { src: string }) {
           canvas.style.width = `${viewport.width / dpr}px`;
           canvas.style.height = `${viewport.height / dpr}px`;
           canvas.style.display = "block";
-          canvas.style.margin = "0 auto 12px";
+          canvas.style.marginBottom = "12px";
+          // Sem margin-inline auto: a centralização é feita pelo wrapper flex
+          // (justify-content), preservando o scroll horizontal até a borda
+          // esquerda quando a página (com zoom) fica mais larga que o container.
           canvas.style.borderRadius = "6px";
           canvas.style.boxShadow = "0 1px 6px rgba(0,0,0,0.15)";
           container.appendChild(canvas);
@@ -357,9 +361,160 @@ function PdfCanvas({ src }: { src: string }) {
         )}
         <div
           ref={containerRef}
-          className="p-3 w-max min-w-full"
-          style={{ display: status === "ready" ? "block" : "none" }}
+          className="p-3 flex flex-col items-center"
+          style={{ display: status === "ready" ? "flex" : "none", width: "max-content", minWidth: "100%" }}
         />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Renderiza uma planilha (xlsx/xls/csv/ods) como tabela HTML usando SheetJS.
+ * Baixa os bytes da mesma origem (via attachmentStreamSrc) ou decodifica um
+ * data URL legado. Permite alternar entre abas (sheets) e rola nos dois eixos.
+ */
+function SheetCanvas({ att }: { att: SupplierAttachment }) {
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [activeSheet, setActiveSheet] = useState<string>("");
+  const [rows, setRows] = useState<string[][]>([]);
+  const wbRef = useRef<XLSX.WorkBook | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    wbRef.current = null;
+
+    const parseBytes = (bytes: Uint8Array) => {
+      const wb = XLSX.read(bytes, { type: "array" });
+      if (cancelled) return;
+      wbRef.current = wb;
+      setSheetNames(wb.SheetNames);
+      setActiveSheet(wb.SheetNames[0] ?? "");
+      setStatus("ready");
+    };
+
+    const load = async () => {
+      try {
+        const src = attachmentStreamSrc(att);
+        if (src.startsWith("data:")) {
+          const bytes = dataURLToBytes(src);
+          if (!bytes) throw new Error("data URL inválido");
+          parseBytes(bytes);
+          return;
+        }
+        const resp = await fetch(src, { credentials: "include" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const buf = await resp.arrayBuffer();
+        if (cancelled) return;
+        parseBytes(new Uint8Array(buf));
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [att]);
+
+  useEffect(() => {
+    const wb = wbRef.current;
+    if (!wb || !activeSheet) return;
+    const ws = wb.Sheets[activeSheet];
+    if (!ws) return;
+    const data = XLSX.utils.sheet_to_json<string[]>(ws, {
+      header: 1,
+      raw: false,
+      defval: "",
+      blankrows: false,
+    });
+    // Normaliza o nº de colunas para a maior linha (tabela retangular).
+    const maxCols = data.reduce((m, r) => Math.max(m, r.length), 0);
+    const normalized = data.map((r) => {
+      const copy = r.slice();
+      while (copy.length < maxCols) copy.push("");
+      return copy.map((c) => (c == null ? "" : String(c)));
+    });
+    setRows(normalized);
+  }, [activeSheet]);
+
+  if (status === "loading") {
+    return (
+      <div className="h-full flex items-center justify-center text-sm text-zinc-500 gap-2">
+        <Loader2 size={16} className="animate-spin" /> Carregando planilha…
+      </div>
+    );
+  }
+  if (status === "error") {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+        <FileText size={40} style={{ color: "#a1a1aa" }} />
+        <p className="text-sm text-zinc-600">Não foi possível abrir esta planilha. Use o botão Baixar.</p>
+      </div>
+    );
+  }
+
+  const headerRow = rows[0] ?? [];
+  const bodyRows = rows.slice(1);
+
+  return (
+    <div className="h-full w-full flex flex-col bg-zinc-50">
+      {sheetNames.length > 1 && (
+        <div className="flex items-center gap-1 px-3 py-2 border-b bg-white overflow-x-auto shrink-0" style={{ borderColor: "#e4e4e7" }}>
+          {sheetNames.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setActiveSheet(name)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-colors active:scale-[0.97] ${
+                name === activeSheet ? "bg-zinc-800 text-white" : "text-zinc-600 hover:bg-zinc-100"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto">
+        {rows.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-zinc-500">Planilha vazia.</div>
+        ) : (
+          <table className="border-collapse text-xs" style={{ minWidth: "100%" }}>
+            <thead>
+              <tr>
+                <th className="sticky top-0 left-0 z-20 bg-zinc-200 text-zinc-500 font-semibold border border-zinc-300 px-2 py-1 text-center" style={{ minWidth: 40 }}>
+                  #
+                </th>
+                {headerRow.map((cell, i) => (
+                  <th
+                    key={i}
+                    className="sticky top-0 z-10 bg-zinc-100 text-zinc-700 font-semibold border border-zinc-300 px-2 py-1 text-left whitespace-nowrap"
+                    style={{ minWidth: 90 }}
+                  >
+                    {cell || "\u00A0"}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, ri) => (
+                <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-zinc-50"}>
+                  <td className="sticky left-0 z-10 bg-zinc-100 text-zinc-400 border border-zinc-200 px-2 py-1 text-center tabular-nums" style={{ minWidth: 40 }}>
+                    {ri + 2}
+                  </td>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="border border-zinc-200 px-2 py-1 text-zinc-700 whitespace-nowrap" style={{ minWidth: 90 }}>
+                      {cell || "\u00A0"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -1291,6 +1446,7 @@ function AttachmentPreviewModal({
   const open = attachment !== null;
   const isImg = attachment ? attachment.type.startsWith("image/") : false;
   const isPdf = attachment ? attachment.type === "application/pdf" : false;
+  const isSheet = attachment ? !!isSpreadsheet(attachment) : false;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -1326,6 +1482,8 @@ function AttachmentPreviewModal({
             </div>
           ) : isPdf ? (
             <PdfCanvas src={attachmentStreamSrc(attachment!)} />
+          ) : isSheet ? (
+            <SheetCanvas att={attachment!} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
               <FileText size={40} style={{ color: "#a1a1aa" }} />

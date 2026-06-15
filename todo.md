@@ -275,3 +275,12 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Selo escolhido tem prioridade sobre supplier.category no card recolhido (DiaryCard)
 - [x] Teste vitest da config/helper de subtipo (subtipoAquario.test.ts, 7 testes — 78/78 no total)
 - [x] Validar no preview + checkpoint
+
+## Correção do visualizador: planilhas e scroll horizontal
+- [ ] Visualizador embutido para planilhas (xls/xlsx/csv) no modal — renderizar como tabela (SheetJS) em vez de "não pode ser pré-visualizado"
+- [ ] Corrigir scroll horizontal do PDF no modal (atualmente só rola vertical) — container com overflow-x auto + largura mínima do conteúdo
+- [ ] Validar no preview (abrir planilha xls e PDF com zoom; rolar lateralmente) + checkpoint
+
+
+## Selo de especialidade no card recolhido de fornecedor manual
+- [x] Exibir selo 🐟 Aquário / 🦎 Terrário no card recolhido do CustomSupplierCard (scope aquario), lendo fields.subtipoAquario — validado no preview: Guangzhou Jiarong agora mostra 🐟 Aquário mesmo recolhido
