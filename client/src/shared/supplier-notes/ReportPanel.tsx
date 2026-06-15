@@ -16,7 +16,7 @@ import {
   TipoFornecedor,
   filterEntriesByTipo,
 } from "./useSupplierNotes";
-import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown } from "lucide-react";
+import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown, Factory } from "lucide-react";
 
 // Normaliza texto para busca: minúsculas + remove acentos.
 function normalizeSearch(text: string): string {
@@ -599,35 +599,49 @@ export default function ReportPanel({
         })}
       </div>
 
-      {/* Filtro por tipo de fornecedor (Fabricante Direto x Trader) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-          Tipo:
-        </span>
-        {TIPO_ORDER.map((t) => {
-          const cfg = TIPO_CONFIG[t];
-          const active = tipoFilter === t;
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTipoFilter((prev) => (prev === t ? null : t))}
-              aria-pressed={active}
-              title={active ? `Mostrando só “${cfg.label}” · clique para ver todos` : `Filtrar por “${cfg.label}”`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all cursor-pointer active:scale-[0.97] focus:outline-none"
-              style={{
-                borderColor: active ? cfg.color : cfg.border,
-                background: active ? `${cfg.bg}` : "transparent",
-                color: active ? cfg.color : (dark ? "#a1a1aa" : "#52525b"),
-                boxShadow: active ? `0 0 0 1.5px ${cfg.color}` : "none",
-              }}
-            >
-              <span>{cfg.emoji}</span>
-              {cfg.label}
-              <span className="opacity-70">({tipoSummary[t]})</span>
-            </button>
-          );
-        })}
+      {/* Card de resumo por tipo de fornecedor (Fabricante Direto x Trader).
+          Cada bloco é clicável e funciona também como filtro. */}
+      <div className={`rounded-xl border p-3 ${dark ? 'bg-zinc-800/40 border-zinc-700/50' : 'bg-white border-zinc-200'}`}>
+        <div className={`flex items-center gap-1.5 mb-2.5 text-[11px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+          <Factory size={13} /> Tipo de fornecedor
+          <span className={`font-normal normal-case tracking-normal ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>· clique para filtrar</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {TIPO_ORDER.map((t) => {
+            const cfg = TIPO_CONFIG[t];
+            const active = tipoFilter === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTipoFilter((prev) => (prev === t ? null : t))}
+                aria-pressed={active}
+                title={active ? `Mostrando só “${cfg.label}” · clique para ver todos` : `Filtrar por “${cfg.label}”`}
+                className="flex items-center gap-3 px-3.5 py-3 rounded-lg border text-left transition-all cursor-pointer active:scale-[0.98] focus:outline-none"
+                style={{
+                  borderColor: active ? cfg.color : (dark ? "#3f3f46" : cfg.border),
+                  background: active ? cfg.bg : (dark ? "rgba(255,255,255,0.02)" : `${cfg.bg}55`),
+                  boxShadow: active ? `0 0 0 1.5px ${cfg.color}` : "none",
+                }}
+              >
+                <span
+                  className="shrink-0 w-9 h-9 rounded-full inline-flex items-center justify-center text-base"
+                  style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
+                >
+                  {cfg.emoji}
+                </span>
+                <span className="flex flex-col min-w-0">
+                  <span className="text-2xl font-bold leading-none tabular-nums" style={{ color: cfg.color }}>
+                    {tipoSummary[t]}
+                  </span>
+                  <span className={`text-[11px] font-medium mt-1 leading-tight ${dark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                    {cfg.label}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Aviso de filtro ativo por status */}
