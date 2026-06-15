@@ -27,12 +27,15 @@ import {
   PRECO_ORDER,
   TIPO_CONFIG,
   TIPO_ORDER,
+  SUBTIPO_CONFIG,
+  SUBTIPO_ORDER,
   ATTACHMENT_CATEGORY_LABEL,
   formatBytes,
   useSupplierNotes,
   type AttachmentCategory,
   type PrecoClassificacao,
   type TipoFornecedor,
+  type SubtipoAquario,
   type QuoteRow,
   type SupplierAttachment,
   type SupplierStatus,
@@ -455,6 +458,22 @@ export default function SupplierNotesPanel({
     flashSaved();
   };
 
+  // Especialidade Aquário/Terrário (somente no dashboard aquário). Salvo em
+  // fields.subtipoAquario; mutuamente exclusivo com toggle (clicar de novo desmarca).
+  const subtipoAquario = (fields.subtipoAquario as SubtipoAquario | undefined) ?? undefined;
+
+  const handleSubtipoClick = (t: SubtipoAquario) => {
+    const nextFields = { ...fields };
+    if (nextFields.subtipoAquario === t) {
+      delete nextFields.subtipoAquario;
+    } else {
+      nextFields.subtipoAquario = t;
+    }
+    setFields(nextFields);
+    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    flashSaved();
+  };
+
   const handleStatusClick = (s: SupplierStatus) => {
     setStatus(s);
     // Se deixar de ser aprovado, remove a classificação de preço.
@@ -785,6 +804,58 @@ export default function SupplierNotesPanel({
             </div>
           )}
         </div>
+
+        {/* ESPECIALIDADE — Aquário x Terrário (apenas no dashboard Aquário) */}
+        {scope === "aquario" && (
+          <div className="mt-3 rounded-lg border p-3" style={{ background: "#f0fdfa", borderColor: "#99f6e4" }}>
+            <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-teal-700 mb-2">
+              Especialidade do fornecedor
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SUBTIPO_ORDER.map((t) => {
+                const cfg = SUBTIPO_CONFIG[t];
+                const active = subtipoAquario === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => handleSubtipoClick(t)}
+                    className="relative text-left rounded-lg px-3 py-2.5 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
+                    style={{
+                      background: active ? cfg.bg : "#ffffff",
+                      borderWidth: active ? "2px" : "1.5px",
+                      borderStyle: "solid",
+                      borderColor: active ? cfg.border : "#e4e4e7",
+                      color: active ? cfg.color : "#3f3f46",
+                      fontWeight: active ? 700 : 500,
+                      boxShadow: active
+                        ? `0 0 0 3px ${cfg.bg}, 0 1px 2px rgba(0,0,0,0.05)`
+                        : "none",
+                    }}
+                    aria-pressed={active}
+                  >
+                    <span
+                      className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded border"
+                      style={{
+                        background: active ? cfg.color : "#ffffff",
+                        borderColor: active ? cfg.color : "#cbd5e1",
+                        color: "#fff",
+                      }}
+                      aria-hidden
+                    >
+                      {active && <Check size={12} strokeWidth={3} />}
+                    </span>
+                    <span aria-hidden>{cfg.emoji}</span>
+                    <span className="flex-1">{cfg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-2">
+              Defina se este fornecedor é exclusivamente de Aquário ou de Terrário — o selo escolhido aparece no card mesmo recolhido.
+            </div>
+          </div>
+        )}
 
         {/* CLASSIFICAÇÃO DE PREÇO — aparece somente quando aprovado */}
         {status === "fornecedor-aprovado" && (

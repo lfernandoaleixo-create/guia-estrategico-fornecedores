@@ -268,3 +268,10 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Filtro por tipo (Direto / Trader) no ReportPanel
 - [x] Teste vitest do helper (persistência + filtro) — server/tipoFilter.test.ts, 11 testes
 - [x] Validar no preview + checkpoint (cfe88d83)
+
+## Classificação editável Aquário/Terrário (dashboard Aquário)
+- [x] SUBTIPO_CONFIG (Aquário/Terrário) + helper, salvo em fields.subtipoAquario
+- [x] Seletor de subtipo no card expandido do dashboard Aquário (SupplierNotesPanel, só escopo aquario)
+- [x] Selo escolhido tem prioridade sobre supplier.category no card recolhido (DiaryCard)
+- [x] Teste vitest da config/helper de subtipo (subtipoAquario.test.ts, 7 testes — 78/78 no total)
+- [x] Validar no preview + checkpoint

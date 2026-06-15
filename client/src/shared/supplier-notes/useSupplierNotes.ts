@@ -186,6 +186,35 @@ export const TIPO_CONFIG: Record<
 
 export const TIPO_ORDER: TipoFornecedor[] = ["direto", "trader"];
 
+// -----------------------------------------------------------------------------
+// Especialidade (subtipo) do fornecedor do grupo Aquários & Terrários.
+// Marcado manualmente pelo operador. Salvo em fields.subtipoAquario.
+// Tem PRIORIDADE sobre a categoria automática (supplier.category) no card.
+// -----------------------------------------------------------------------------
+export type SubtipoAquario = "aquario" | "terrario";
+
+export const SUBTIPO_CONFIG: Record<
+  SubtipoAquario,
+  { label: string; emoji: string; color: string; bg: string; border: string }
+> = {
+  aquario: {
+    label: "Aquário",
+    emoji: "🐟",
+    color: "#0e7490",
+    bg: "#cffafe",
+    border: "#67e8f9",
+  },
+  terrario: {
+    label: "Terrário",
+    emoji: "🦎",
+    color: "#166534",
+    bg: "#dcfce7",
+    border: "#86efac",
+  },
+};
+
+export const SUBTIPO_ORDER: SubtipoAquario[] = ["aquario", "terrario"];
+
 /** Filtra entradas por tipo de fornecedor (null = sem filtro). */
 export function filterEntriesByTipo<T extends { fields?: Record<string, string> | null }>(
   entries: T[],
