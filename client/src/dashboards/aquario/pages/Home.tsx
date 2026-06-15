@@ -245,6 +245,48 @@ export default function Home() {
 
         {/* Categorias */}
         <div className="flex-1 overflow-y-auto py-4">
+          {/* Item: Anotações / Diário (TOPO) */}
+          <button
+            onClick={() => {
+              setViewMode("diario");
+            }}
+            className={`w-full flex items-center gap-3 px-5 py-3 transition-all duration-200 ${
+              viewMode === "diario" ? "font-semibold" : "font-normal"
+            }`}
+            style={{
+              background: viewMode === "diario" ? "oklch(0.55 0.20 28 / 0.16)" : "transparent",
+              borderLeft: viewMode === "diario" ? "3px solid var(--sidebar-primary)" : "3px solid transparent",
+              color: viewMode === "diario" ? "var(--sidebar-foreground)" : "oklch(0.62 0.012 60)",
+              fontSize: "0.95rem",
+            }}
+          >
+            <span className="text-lg flex-shrink-0">📓</span>
+            {sidebarOpen && (
+              <>
+                <span className="flex-1 text-left truncate" style={{ letterSpacing: "-0.01em" }}>
+                  Anotações / Diário
+                </span>
+                {totalDiaryEntries > 0 && (
+                  <span
+                    className="num-mono text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      background:
+                        viewMode === "diario" ? "oklch(0.55 0.20 28 / 0.3)" : "var(--sidebar-accent)",
+                      color: viewMode === "diario" ? "var(--sidebar-foreground)" : "oklch(0.55 0.012 60)",
+                    }}
+                  >
+                    {totalDiaryEntries}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+
+          {/* Separador após Anotações / Diário */}
+          {sidebarOpen && (
+            <div className="mx-5 my-4 border-t" style={{ borderColor: "var(--sidebar-border)" }} />
+          )}
+
           <div
             className="px-5 mb-3 eyebrow"
             style={{ color: "oklch(0.5 0.012 60)" }}
@@ -295,50 +337,6 @@ export default function Home() {
               </button>
             );
           })}
-
-          {/* Separador antes das seções extras */}
-          {sidebarOpen && (
-            <div className="mx-5 my-4 border-t" style={{ borderColor: "var(--sidebar-border)" }} />
-          )}
-
-          {/* Item: GUIA ESTRATÉGICO DE FORNECEDORES — ocultado a pedido do usuário */}
-
-          {/* Item: Anotações / Diário */}
-          <button
-            onClick={() => {
-              setViewMode("diario");
-            }}
-            className={`w-full flex items-center gap-3 px-5 py-3 transition-all duration-200 ${
-              viewMode === "diario" ? "font-semibold" : "font-normal"
-            }`}
-            style={{
-              background: viewMode === "diario" ? "oklch(0.55 0.20 28 / 0.16)" : "transparent",
-              borderLeft: viewMode === "diario" ? "3px solid var(--sidebar-primary)" : "3px solid transparent",
-              color: viewMode === "diario" ? "var(--sidebar-foreground)" : "oklch(0.62 0.012 60)",
-              fontSize: "0.95rem",
-            }}
-          >
-            <span className="text-lg flex-shrink-0">📓</span>
-            {sidebarOpen && (
-              <>
-                <span className="flex-1 text-left truncate" style={{ letterSpacing: "-0.01em" }}>
-                  Anotações / Diário
-                </span>
-                {totalDiaryEntries > 0 && (
-                  <span
-                    className="num-mono text-xs px-2 py-0.5 rounded-full"
-                    style={{
-                      background:
-                        viewMode === "diario" ? "oklch(0.55 0.20 28 / 0.3)" : "var(--sidebar-accent)",
-                      color: viewMode === "diario" ? "var(--sidebar-foreground)" : "oklch(0.55 0.012 60)",
-                    }}
-                  >
-                    {totalDiaryEntries}
-                  </span>
-                )}
-              </>
-            )}
-          </button>
 
           {/* Subcategorias */}
           {sidebarOpen && currentSubGroups.length > 0 && (

@@ -298,3 +298,9 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Tapete: raiz redireciona para /anotacoes; menu reordenado (Anotações 1º); Painel Geral movido para /painel
 - [x] Yiwu: raiz redireciona para /anotacoes; menu reordenado (Anotações 1º); Visão Geral movida para /visao-geral; breadcrumb Home ajustado
 - [x] Validar no preview que cada dashboard abre no Diário/Anotações (Aquário, Tapete, Yiwu e GrupoDashboard confirmados)
+
+## Mover "Anotações / Diário" para o TOPO do menu lateral
+- [x] Aquário: item "Anotações / Diário" movido para o TOPO da sidebar (acima de Categorias) com separador
+- [x] Tapete: "Anotações / Diário" já era o 1º item do menu (confirmado)
+- [x] Yiwu: "Anotações / Diário" já era o 1º item do menu (confirmado)
+- [x] Validar no preview: Aquário confirmado com Anotações/Diário no topo
