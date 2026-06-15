@@ -277,9 +277,9 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Validar no preview + checkpoint
 
 ## Correção do visualizador: planilhas e scroll horizontal
-- [ ] Visualizador embutido para planilhas (xls/xlsx/csv) no modal — renderizar como tabela (SheetJS) em vez de "não pode ser pré-visualizado"
-- [ ] Corrigir scroll horizontal do PDF no modal (atualmente só rola vertical) — container com overflow-x auto + largura mínima do conteúdo
-- [ ] Validar no preview (abrir planilha xls e PDF com zoom; rolar lateralmente) + checkpoint
+- [x] Visualizador embutido para planilhas (xls/xlsx/csv) no modal — renderizar como tabela (SheetJS) em vez de "não pode ser pré-visualizado"
+- [x] Corrigir scroll horizontal do PDF no modal (atualmente só rola vertical) — container com overflow-x auto + largura mínima do conteúdo
+- [x] Validar no preview (abrir planilha xls e PDF com zoom; rolar lateralmente) + checkpoint
 
 
 ## Selo de especialidade no card recolhido de fornecedor manual
