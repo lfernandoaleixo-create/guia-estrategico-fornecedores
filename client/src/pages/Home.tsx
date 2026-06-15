@@ -1,29 +1,65 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Compass, Fish, Layers, MapPin, PawPrint, Plus, Sparkles, TrendingUp } from "lucide-react";
+import {
+  ArrowRight,
+  Compass,
+  Fish,
+  Layers,
+  MapPin,
+  PawPrint,
+  Plus,
+  Sparkles,
+  TrendingUp,
+  FolderTree,
+  Waves,
+  Bug,
+} from "lucide-react";
 import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
 import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
+import { useMacros } from "@/shared/supplier-notes/useMacros";
+import { MacroManager } from "@/shared/supplier-notes/MacroManager";
+import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 
-const baseDashboards = [
-  {
-    href: "/aquario",
-    eyebrow: "DASHBOARD 01",
-    title: "Fornecedores Aquários & Terrários",
+// -----------------------------------------------------------------------------
+// Cards "atômicos" indexados por key (mesma key do catálogo de macros). Cada um
+// pode ser atribuído a um macro. O dashboard de Aquários é representado por DOIS
+// cards (Terrário e Aquário), ambos apontando para /aquario com filtro.
+// -----------------------------------------------------------------------------
+const AQUARIO_ACCENT = {
+  accent: "oklch(0.72 0.18 28)",
+  accentSoft: "oklch(0.85 0.14 30)",
+  accentBg: "oklch(0.72 0.18 28 / 0.12)",
+  accentBorder: "oklch(0.72 0.18 28 / 0.5)",
+};
+
+const cardByKey: Record<string, DashboardCardData> = {
+  "subgroup:aquario:terrario": {
+    href: "/aquario?subtipo=terrario",
+    eyebrow: "AQUÁRIOS & TERRÁRIOS",
+    title: "Fornecedores de Terrário",
     subtitle: "Mercado Oriental Premium",
     description:
-      "Diretório editorial de fábricas chinesas para aquários, terrários e equipamentos de aquariofilia. Filtros por categoria, mapa interativo, anotações e diário de negociação.",
-    accent: "oklch(0.72 0.18 28)",
-    accentSoft: "oklch(0.85 0.14 30)",
-    accentBg: "oklch(0.72 0.18 28 / 0.12)",
-    accentBorder: "oklch(0.72 0.18 28 / 0.5)",
-    icon: Fish,
-    chips: ["Aquários", "Terrários", "Equipamentos", "Mercado Atacado"],
-    badge: "中国",
-    groupNumber: 1,
+      "Fábricas chinesas focadas em terrários para répteis e anfíbios. Abre o dashboard de Aquários & Terrários já filtrado na especialidade Terrário.",
+    ...AQUARIO_ACCENT,
+    icon: Bug,
+    chips: ["Terrários", "Répteis", "Equipamentos"],
+    badge: "爬",
   },
-  {
+  "subgroup:aquario:aquario": {
+    href: "/aquario?subtipo=aquario",
+    eyebrow: "AQUÁRIOS & TERRÁRIOS",
+    title: "Fornecedores de Aquário",
+    subtitle: "Mercado Oriental Premium",
+    description:
+      "Fábricas chinesas de aquários, filtros e equipamentos de aquariofilia. Abre o dashboard de Aquários & Terrários já filtrado na especialidade Aquário.",
+    ...AQUARIO_ACCENT,
+    icon: Fish,
+    chips: ["Aquários", "Filtros", "Aquariofilia"],
+    badge: "鱼",
+  },
+  "dashboard:tapete": {
     href: "/tapete",
-    eyebrow: "DASHBOARD 02",
+    eyebrow: "TAPETE HIGIÊNICO",
     title: "Tapete Higiênico Pet · Importação",
     subtitle: "Corporate Intelligence — Grupo Fox",
     description:
@@ -35,11 +71,10 @@ const baseDashboards = [
     icon: PawPrint,
     chips: ["Exportadores", "Importadores", "NCM 4818", "Diário"],
     badge: "BR×CN",
-    groupNumber: 2,
   },
-  {
+  "dashboard:yiwu": {
     href: "/yiwu",
-    eyebrow: "DASHBOARD 03",
+    eyebrow: "YIWU INTEL",
     title: "Yiwu Intel · Mercado Internacional",
     subtitle: "Guia de Expedição China",
     description:
@@ -52,33 +87,23 @@ const baseDashboards = [
     chips: ["896+ fornecedores", "5 Distritos", "LogComex", "Travel Guide"],
     badge: "义乌",
   },
-  {
-    href: "/adicionar",
-    eyebrow: "DASHBOARD 04",
-    title: "Adicionar Fornecedores",
-    subtitle: "Banco de fornecedores avulsos",
-    description:
-      "Cadastre fornecedores que ainda não pertencem a nenhum dashboard. Crie grupos personalizados por ramo (brinquedos, vidro, decoração…) e, quando crescerem, promova-os a dashboards independentes.",
-    accent: "oklch(0.78 0.16 75)",
-    accentSoft: "oklch(0.86 0.13 75)",
-    accentBg: "oklch(0.78 0.16 75 / 0.12)",
-    accentBorder: "oklch(0.78 0.16 75 / 0.5)",
-    icon: Plus,
-    chips: ["Novos grupos", "Cadastro avulso", "Promover a dashboard"],
-    badge: "+",
-    eyebrowDynamic: true as const,
-    isAddCard: true as const,
-  },
-];
+};
 
-function buildStats(dashboardCount: number) {
-  return [
-    { label: "Dashboards integrados", value: String(dashboardCount) },
-    { label: "Fornecedores mapeados", value: "1.200+" },
-    { label: "Fontes de dados", value: "LogComex · Alibaba · Yiwugo" },
-    { label: "Atualizado em", value: "Maio / 2026" },
-  ];
-}
+const addCard: DashboardCardData = {
+  href: "/adicionar",
+  eyebrow: "ADICIONAR",
+  title: "Adicionar Fornecedores",
+  subtitle: "Banco de fornecedores avulsos",
+  description:
+    "Cadastre fornecedores que ainda não pertencem a nenhum dashboard. Crie grupos personalizados por ramo (brinquedos, vidro, decoração…) e, quando crescerem, promova-os a dashboards independentes.",
+  accent: "oklch(0.78 0.16 75)",
+  accentSoft: "oklch(0.86 0.13 75)",
+  accentBg: "oklch(0.78 0.16 75 / 0.12)",
+  accentBorder: "oklch(0.78 0.16 75 / 0.5)",
+  icon: Plus,
+  chips: ["Novos grupos", "Cadastro avulso", "Promover a dashboard"],
+  badge: "+",
+};
 
 const NUMERO_POR_EXTENSO = [
   "Zero",
@@ -100,14 +125,19 @@ function nDashboardsLabel(n: number): string {
 export default function Home() {
   const { groups: customGroups } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
+  const { macros, itemAssignment } = useMacros();
+  const [managerOpen, setManagerOpen] = useState(false);
 
-  const promotedDashboards = useMemo(() => {
-    const promoted = customGroups.filter((g) => g.promotedToDashboard);
-    return promoted.map((g) => {
+  // Cards dos grupos promovidos (exceto o nº 0, oculto da Home).
+  const promotedCardByKey = useMemo<Record<string, DashboardCardData>>(() => {
+    const map: Record<string, DashboardCardData> = {};
+    for (const g of customGroups) {
+      if (!g.promotedToDashboard) continue;
+      if ((g.number ?? 0) === 0) continue; // Central de Documentos oculta
       const count = extraSuppliers.filter((s) => s.groupId === g.id).length;
-      return {
+      map[`group:${g.id}`] = {
         href: `/grupo/${g.id}`,
-        eyebrow: "", // definido na ordenação final
+        eyebrow: `GRUPO Nº ${String(g.number ?? 0).padStart(2, "0")}`,
         groupNumber: g.number ?? 0,
         title: g.name,
         subtitle: `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
@@ -126,57 +156,41 @@ export default function Home() {
         ],
         badge: "\u2605",
       };
-    });
+    }
+    return map;
   }, [customGroups, extraSuppliers]);
 
-  // Ordem final: grupos promovidos com número 0 (vêm ANTES de tudo) +
-  // 3 dashboards principais + demais promovidos (ordenados por número) +
-  // card de adicionar. O eyebrow "DASHBOARD 0X" é recalculado pela posição,
-  // exceto o(s) grupo(s) número 0 que recebem "DASHBOARD 00".
-  const dashboards = useMemo(() => {
-    const addCardBase = baseDashboards.find((d) => "isAddCard" in d && d.isAddCard);
-    const main = baseDashboards.filter((d) => !("isAddCard" in d && d.isAddCard));
+  // Índice completo de cards atribuíveis (fixos + promovidos).
+  const allCards = useMemo<Record<string, DashboardCardData>>(
+    () => ({ ...cardByKey, ...promotedCardByKey }),
+    [promotedCardByKey],
+  );
 
-    const sortedPromoted = [...promotedDashboards].sort(
-      (a, b) => a.groupNumber - b.groupNumber,
-    );
-    // NOTE: O Grupo Nº 00 (Central de Documentos) está OCULTO da Home por enquanto
-    // (a pedido do usuário). Os dados e o acesso via URL /grupo/<id> continuam intactos.
-    // Para reexibir, volte a incluir `zeroGroups` no início de `ordered`.
-    const otherPromoted = sortedPromoted.filter((g) => g.groupNumber !== 0);
+  const promotedGroupsForManager = useMemo(
+    () =>
+      customGroups
+        .filter((g) => g.promotedToDashboard)
+        .map((g) => ({ id: g.id, name: g.name, number: g.number ?? 0 })),
+    [customGroups],
+  );
 
-    const ordered = [...main, ...otherPromoted];
-    const totalCount = ordered.length + (addCardBase ? 1 : 0);
+  // Itens que NÃO estão em nenhum macro (seção "Sem classificação").
+  const unclassifiedCards = useMemo(() => {
+    const keys = Object.keys(allCards).filter((k) => !itemAssignment.has(k));
+    return keys.map((k) => allCards[k]);
+  }, [allCards, itemAssignment]);
 
-    // Reatribui o eyebrow por posição: grupo número 0 = "DASHBOARD 00",
-    // os demais seguem 01, 02, 03... na ordem em que aparecem.
-    let positionCounter = 0;
-    const list = ordered.map((d) => {
-      const isZero = "groupNumber" in d && (d as { groupNumber?: number }).groupNumber === 0;
-      if (isZero) {
-        return { ...d, eyebrow: "DASHBOARD 00" };
-      }
-      positionCounter += 1;
-      return { ...d, eyebrow: `DASHBOARD ${String(positionCounter).padStart(2, "0")}` };
-    });
-
-    const addCard = addCardBase
-      ? {
-          ...addCardBase,
-          eyebrow: `DASHBOARD ${String(positionCounter + 1).padStart(2, "0")}`,
-        }
-      : null;
-
-    return {
-      list: [...list, ...(addCard ? [addCard] : [])],
-      totalCount,
-    };
-  }, [promotedDashboards]);
+  // Total de cards exibidos (para o cabeçalho/stats).
+  const totalCards = Object.keys(allCards).length;
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{
-      background: "radial-gradient(ellipse at top left, oklch(0.18 0.05 28 / 0.45), transparent 55%), radial-gradient(ellipse at bottom right, oklch(0.18 0.06 240 / 0.55), transparent 55%), oklch(0.06 0.015 250)"
-    }}>
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background:
+          "radial-gradient(ellipse at top left, oklch(0.18 0.05 28 / 0.45), transparent 55%), radial-gradient(ellipse at bottom right, oklch(0.18 0.06 240 / 0.55), transparent 55%), oklch(0.06 0.015 250)",
+      }}
+    >
       <div className="capa-grain" />
 
       {/* HEADER */}
@@ -211,10 +225,28 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-3 text-xs"
-               style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>
-            <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
-            <span>{dashboards.totalCount} DASHBOARDS · ATUALIZADO MAI/2026</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setManagerOpen(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-[0.12em] transition-colors hover:brightness-110 active:scale-[0.97]"
+              style={{
+                borderColor: "oklch(0.78 0.16 300 / 0.5)",
+                background: "oklch(0.78 0.16 300 / 0.1)",
+                color: "oklch(0.82 0.14 300)",
+                fontFamily: "'Inter', sans-serif",
+                transitionDuration: "160ms",
+              }}
+            >
+              <FolderTree className="w-3.5 h-3.5" />
+              Classificações
+            </button>
+            <div
+              className="hidden md:flex items-center gap-3 text-xs"
+              style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
+            >
+              <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
+              <span>{totalCards} ACESSOS · ATUALIZADO MAI/2026</span>
+            </div>
           </div>
         </div>
       </header>
@@ -222,79 +254,91 @@ export default function Home() {
       {/* HERO */}
       <section className="relative z-10 container pt-16 md:pt-24 pb-12">
         <div className="max-w-4xl">
-          <div className="capa-anim inline-flex items-center gap-2 px-3 py-1.5 rounded-full border mb-8"
-               style={{
-                 borderColor: "oklch(0.78 0.16 75 / 0.3)",
-                 background: "oklch(0.78 0.16 75 / 0.07)",
-               }}>
+          <div
+            className="capa-anim inline-flex items-center gap-2 px-3 py-1.5 rounded-full border mb-8"
+            style={{ borderColor: "oklch(0.78 0.16 75 / 0.3)", background: "oklch(0.78 0.16 75 / 0.07)" }}
+          >
             <Compass className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
-            <span className="text-[11px] tracking-[0.18em] uppercase font-semibold"
-                  style={{ color: "oklch(0.85 0.13 75)", fontFamily: "'Inter', sans-serif" }}>
+            <span
+              className="text-[11px] tracking-[0.18em] uppercase font-semibold"
+              style={{ color: "oklch(0.85 0.13 75)", fontFamily: "'Inter', sans-serif" }}
+            >
               Inteligência Comercial · Brasil ↔ China
             </span>
           </div>
 
-          <h1 className="capa-anim mb-6"
-              style={{
-                fontFamily: "'Fraunces', Georgia, serif",
-                fontSize: "clamp(2.5rem, 6vw, 5rem)",
-                lineHeight: 0.98,
-                letterSpacing: "-0.04em",
-                fontWeight: 600,
-                color: "oklch(0.98 0.01 80)",
-                animationDelay: "0.05s",
-              }}>
+          <h1
+            className="capa-anim mb-6"
+            style={{
+              fontFamily: "'Fraunces', Georgia, serif",
+              fontSize: "clamp(2.5rem, 6vw, 5rem)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.04em",
+              fontWeight: 600,
+              color: "oklch(0.98 0.01 80)",
+              animationDelay: "0.05s",
+            }}
+          >
             Guia Estratégico
             <br />
-            <span style={{
-              background: "linear-gradient(135deg, oklch(0.85 0.16 75), oklch(0.65 0.20 35) 60%, oklch(0.55 0.22 25))",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              fontStyle: "italic",
-              fontWeight: 500,
-              display: "inline-block",
-              paddingRight: "0.18em",
-              marginRight: "-0.18em",
-            }}>
+            <span
+              style={{
+                background: "linear-gradient(135deg, oklch(0.85 0.16 75), oklch(0.65 0.20 35) 60%, oklch(0.55 0.22 25))",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                fontStyle: "italic",
+                fontWeight: 500,
+                display: "inline-block",
+                paddingRight: "0.18em",
+                marginRight: "-0.18em",
+              }}
+            >
               de Fornecedores
             </span>
           </h1>
 
-          <p className="capa-anim text-lg md:text-xl max-w-2xl mb-10"
-             style={{
-               color: "oklch(0.78 0.015 80)",
-               fontFamily: "'Inter', sans-serif",
-               lineHeight: 1.55,
-               animationDelay: "0.1s",
-             }}>
-            {nDashboardsLabel(dashboards.totalCount)} dashboards de inteligência comercial reunidos em um único portal. Acesse
-            fornecedores, importadores, mapas, dados de NCM e roteiros — tudo em um lugar,
-            sem login.
+          <p
+            className="capa-anim text-lg md:text-xl max-w-2xl mb-10"
+            style={{
+              color: "oklch(0.78 0.015 80)",
+              fontFamily: "'Inter', sans-serif",
+              lineHeight: 1.55,
+              animationDelay: "0.1s",
+            }}
+          >
+            {nDashboardsLabel(totalCards)} acessos de inteligência comercial reunidos em um único portal,
+            organizados por classificações macro. Acesse fornecedores, importadores, mapas, dados de NCM e
+            roteiros — tudo em um lugar, sem login.
           </p>
 
           {/* Stats bar */}
-          <div className="capa-anim grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden border"
-               style={{
-                 borderColor: "oklch(0.22 0.03 250)",
-                 background: "oklch(0.22 0.03 250)",
-                 animationDelay: "0.2s",
-               }}>
-            {buildStats(dashboards.totalCount).map((s) => (
-              <div key={s.label}
-                   className="p-4 md:p-5"
-                   style={{ background: "oklch(0.08 0.018 250)" }}>
-                <div className="text-xs uppercase tracking-[0.16em] font-semibold mb-1.5"
-                     style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+          <div
+            className="capa-anim grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden border"
+            style={{ borderColor: "oklch(0.22 0.03 250)", background: "oklch(0.22 0.03 250)", animationDelay: "0.2s" }}
+          >
+            {[
+              { label: "Acessos integrados", value: String(totalCards) },
+              { label: "Classificações macro", value: String(macros.length) },
+              { label: "Fontes de dados", value: "LogComex · Alibaba · Yiwugo" },
+              { label: "Atualizado em", value: "Maio / 2026" },
+            ].map((s) => (
+              <div key={s.label} className="p-4 md:p-5" style={{ background: "oklch(0.08 0.018 250)" }}>
+                <div
+                  className="text-xs uppercase tracking-[0.16em] font-semibold mb-1.5"
+                  style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+                >
                   {s.label}
                 </div>
-                <div style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: "1.25rem",
-                  fontWeight: 600,
-                  color: "oklch(0.95 0.02 80)",
-                  letterSpacing: "-0.01em",
-                }}>
+                <div
+                  style={{
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1.25rem",
+                    fontWeight: 600,
+                    color: "oklch(0.95 0.02 80)",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
                   {s.value}
                 </div>
               </div>
@@ -303,184 +347,160 @@ export default function Home() {
         </div>
       </section>
 
-      {/* DASHBOARDS GRID */}
+      {/* DASHBOARDS POR MACRO */}
       <section className="relative z-10 container pb-24">
         <div className="flex items-end justify-between mb-8 gap-4">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] font-semibold mb-2"
-                 style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-              Selecione um dashboard
+            <div
+              className="text-xs uppercase tracking-[0.2em] font-semibold mb-2"
+              style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+            >
+              Selecione um acesso
             </div>
-            <h2 style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-              color: "oklch(0.97 0.01 80)",
-              lineHeight: 1.1,
-            }}>
+            <h2
+              style={{
+                fontFamily: "'Fraunces', serif",
+                fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
+                fontWeight: 600,
+                letterSpacing: "-0.025em",
+                color: "oklch(0.97 0.01 80)",
+                lineHeight: 1.1,
+              }}
+            >
               Acesso direto à inteligência
             </h2>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-xs"
-               style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}>
+          <div
+            className="hidden md:flex items-center gap-2 text-xs"
+            style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+          >
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>{dashboards.totalCount} / {dashboards.totalCount} ATIVOS</span>
+            <span>{totalCards} / {totalCards} ATIVOS</span>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {dashboards.list.map((d, i) => {
-            const Icon = d.icon;
-            return (
-              <Link key={d.href} href={d.href}>
-                <div
-                  className="capa-anim group cursor-pointer h-full rounded-2xl p-6 md:p-7 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] relative overflow-hidden"
+        {/* Seções por macro */}
+        {macros.map((m) => {
+          const items = m.items.filter((it) => allCards[it.key]);
+          if (items.length === 0) return null;
+          return (
+            <div key={m.id} className="mb-12">
+              <div className="flex items-center gap-3 mb-5">
+                <span
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold flex-shrink-0"
                   style={{
-                    background: "oklch(0.10 0.02 250)",
-                    border: `1px solid oklch(0.22 0.03 250)`,
-                    animationDelay: `${0.3 + i * 0.08}s`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-4px)";
-                    e.currentTarget.style.borderColor = d.accentBorder;
-                    e.currentTarget.style.boxShadow = `0 24px 48px -12px oklch(0 0 0 / 0.5), 0 0 0 1px ${d.accentBorder}, 0 0 60px -10px ${d.accent}`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.borderColor = "oklch(0.22 0.03 250)";
-                    e.currentTarget.style.boxShadow = "none";
+                    background: `${m.color}22`,
+                    border: `1px solid ${m.color}88`,
+                    color: m.color,
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1.2rem",
                   }}
                 >
-                  {/* Glow */}
+                  {m.number}
+                </span>
+                <div>
                   <div
-                    className="absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-0 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none"
-                    style={{ background: `radial-gradient(circle, ${d.accent}, transparent 70%)` }}
-                  />
-
-                  {/* Chinese badge */}
-                  <div className="absolute top-5 right-5 text-3xl select-none opacity-30 group-hover:opacity-50 transition-opacity"
-                       style={{ fontFamily: "'Fraunces', serif", color: d.accent }}>
-                    {d.badge}
+                    className="text-[10px] tracking-[0.22em] uppercase font-semibold"
+                    style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Classificação Macro Nº {m.number}
                   </div>
-
-                  {/* Eyebrow */}
-                  <div className="text-[10px] tracking-[0.25em] font-semibold mb-5"
-                       style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}>
-                    {d.eyebrow}
-                  </div>
-
-                  {/* Icon + badge do grupo (lado a lado, sem colidir com o ideograma) */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
-                         style={{
-                           background: d.accentBg,
-                           border: `1px solid ${d.accentBorder}`,
-                           color: d.accent,
-                         }}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    {("groupNumber" in d && typeof d.groupNumber === "number") && (
-                      <span
-                        className="text-[10px] tracking-[0.18em] font-bold px-2.5 py-1 rounded-full uppercase"
-                        style={{
-                          color: d.accent,
-                          background: d.accentBg,
-                          border: `1px solid ${d.accentBorder}`,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                        title={`Grupo número ${d.groupNumber}`}
-                      >
-                        Grupo · Nº {String(d.groupNumber).padStart(2, "0")}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="mb-2"
-                      style={{
-                        fontFamily: "'Fraunces', serif",
-                        fontSize: "1.5rem",
-                        fontWeight: 600,
-                        letterSpacing: "-0.02em",
-                        lineHeight: 1.15,
-                        color: "oklch(0.97 0.01 80)",
-                      }}>
-                    {d.title}
+                  <h3
+                    style={{
+                      fontFamily: "'Fraunces', serif",
+                      fontSize: "1.5rem",
+                      fontWeight: 600,
+                      letterSpacing: "-0.02em",
+                      color: "oklch(0.97 0.01 80)",
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {m.name}
                   </h3>
-
-                  {/* Subtitle */}
-                  <div className="text-sm mb-4 font-semibold"
-                       style={{
-                         color: d.accentSoft,
-                         fontFamily: "'Inter', sans-serif",
-                         fontStyle: "italic",
-                       }}>
-                    {d.subtitle}
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-sm mb-6"
-                     style={{
-                       color: "oklch(0.88 0.01 80)",
-                       fontFamily: "'Inter', sans-serif",
-                       lineHeight: 1.6,
-                     }}>
-                    {d.description}
-                  </p>
-
-                  {/* Chips */}
-                  <div className="flex flex-wrap gap-1.5 mb-6">
-                    {d.chips.map((c) => (
-                      <span key={c}
-                            className="text-[10px] tracking-wider font-semibold uppercase px-2.5 py-1 rounded-md"
-                            style={{
-                              background: d.accentBg,
-                              color: d.accentSoft,
-                              border: `1px solid ${d.accentBorder}`,
-                              fontFamily: "'Inter', sans-serif",
-                            }}>
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* CTA */}
-                  <div className="flex items-center justify-between pt-5 border-t"
-                       style={{ borderColor: "oklch(0.22 0.03 250)" }}>
-                    <span className="text-xs uppercase tracking-[0.18em] font-bold transition-colors"
-                          style={{ color: d.accentSoft, fontFamily: "'Inter', sans-serif" }}>
-                      Acessar dashboard
-                    </span>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 group-hover:translate-x-1"
-                         style={{
-                           background: d.accentBg,
-                           border: `1px solid ${d.accentBorder}`,
-                           color: d.accent,
-                         }}>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
                 </div>
-              </Link>
-            );
-          })}
-        </div>
+                <div className="flex-1 h-px ml-2" style={{ background: `linear-gradient(90deg, ${m.color}55, transparent)` }} />
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {items.map((it, idx) => (
+                  <DashboardCard
+                    key={it.key}
+                    d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
+                    index={idx}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Sem classificação */}
+        {unclassifiedCards.length > 0 && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-5">
+              <span
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "oklch(0.2 0.02 250)", border: "1px solid oklch(0.3 0.02 250)", color: "oklch(0.6 0.02 80)" }}
+              >
+                <Waves className="w-5 h-5" />
+              </span>
+              <div>
+                <div
+                  className="text-[10px] tracking-[0.22em] uppercase font-semibold"
+                  style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {macros.length > 0 ? "Ainda não classificados" : "Todos os acessos"}
+                </div>
+                <h3
+                  style={{
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1.5rem",
+                    fontWeight: 600,
+                    letterSpacing: "-0.02em",
+                    color: "oklch(0.97 0.01 80)",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {macros.length > 0 ? "Sem classificação macro" : "Dashboards"}
+                </h3>
+              </div>
+              <div className="flex-1 h-px ml-2" style={{ background: "linear-gradient(90deg, oklch(0.3 0.02 250), transparent)" }} />
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {unclassifiedCards.map((d, idx) => (
+                <DashboardCard key={d.href} d={d} index={idx} />
+              ))}
+              {/* Card de adicionar sempre por último */}
+              <DashboardCard d={addCard} index={unclassifiedCards.length} />
+            </div>
+          </div>
+        )}
+
+        {/* Se tudo está classificado, ainda mostramos o card de adicionar */}
+        {unclassifiedCards.length === 0 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <DashboardCard d={addCard} index={0} />
+          </div>
+        )}
       </section>
 
       {/* FOOTER */}
       <footer className="relative z-10 border-t" style={{ borderColor: "oklch(0.22 0.03 250)" }}>
         <div className="container py-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="text-xs"
-               style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>
+          <div
+            className="text-xs"
+            style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
+          >
             GUIA ESTRATÉGICO DE FORNECEDORES · 2026
           </div>
-          <div className="text-xs"
-               style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+          <div className="text-xs" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
             Inteligência comercial Brasil ↔ China · Sem login · Acesso público
           </div>
         </div>
       </footer>
+
+      <MacroManager open={managerOpen} onOpenChange={setManagerOpen} promotedGroups={promotedGroupsForManager} />
     </div>
   );
 }

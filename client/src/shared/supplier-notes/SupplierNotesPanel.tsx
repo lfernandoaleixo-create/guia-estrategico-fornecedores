@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { GroupPicker } from "./GroupPicker";
 import { MigrateButton } from "./MigrateButton";
+import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import ViabilitySheetDialog from "./ViabilitySheetDialog";
 import {
   STATUS_CONFIG,
@@ -618,6 +619,8 @@ export default function SupplierNotesPanel({
   const rawSubtipo = (fields.subtipoAquario as string | undefined) ?? "";
   const subtipoAquario: SubtipoAquario | undefined =
     rawSubtipo === "aquario" || rawSubtipo === "terrario" ? rawSubtipo : undefined;
+  // Prefixo hierárquico do macro (ex.: "1.1") para exibir junto da especialidade.
+  const subtipoHier = useSubtipoHierLabel();
 
   const handleSubtipoClick = (t: SubtipoAquario) => {
     const nextFields = { ...fields };
@@ -1006,7 +1009,7 @@ export default function SupplierNotesPanel({
                       {active && <Check size={12} strokeWidth={3} />}
                     </span>
                     <span aria-hidden>{cfg.emoji}</span>
-                    <span className="flex-1">{cfg.label}</span>
+                    <span className="flex-1">{subtipoHier[t].withPrefix(cfg.label)}</span>
                   </button>
                 );
               })}

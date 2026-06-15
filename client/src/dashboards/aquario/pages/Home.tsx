@@ -76,7 +76,15 @@ function AquarioReportSection() {
 }
 
 export default function Home() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    // Atalhos da Home (macro 1.1 Terrário / 1.2 Aquário) abrem este dashboard
+    // já filtrado pela especialidade via ?subtipo=terrario|aquario.
+    if (typeof window !== "undefined") {
+      const sub = new URLSearchParams(window.location.search).get("subtipo");
+      if (sub === "aquario" || sub === "terrario") return sub;
+    }
+    return "all";
+  });
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);

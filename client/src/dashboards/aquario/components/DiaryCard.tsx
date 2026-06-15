@@ -11,6 +11,7 @@ import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, SUBTIPO_CONFIG, type PrecoClassificacao, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
 import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { useSubtipoHierLabel } from "@/shared/supplier-notes/useSubtipoHierLabel";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -92,6 +93,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
   // Especialidade escolhida manualmente tem prioridade sobre a categoria automática.
   const subtipoKey = entry?.fields?.subtipoAquario as SubtipoAquario | undefined;
   const subtipoCfg = subtipoKey ? SUBTIPO_CONFIG[subtipoKey] : null;
+  const subtipoHier = useSubtipoHierLabel();
   const status = entry?.status ?? "nao-visitado";
   const statusCfg = STATUS_CONFIG[status];
   const precoKey = status === "fornecedor-aprovado"
@@ -168,7 +170,10 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 }}
                 title="Especialidade definida manualmente"
               >
-                {subtipoCfg.emoji} {subtipoCfg.label.toUpperCase()}
+                {subtipoCfg.emoji}{" "}
+                {subtipoKey
+                  ? subtipoHier[subtipoKey].withPrefix(subtipoCfg.label).toUpperCase()
+                  : subtipoCfg.label.toUpperCase()}
               </span>
             ) : (
               <span

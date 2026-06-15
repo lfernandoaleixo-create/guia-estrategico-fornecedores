@@ -196,3 +196,35 @@ export const partnerTopics = mysqlTable("partner_topics", {
 
 export type PartnerTopicRow = typeof partnerTopics.$inferSelect;
 export type InsertPartnerTopicRow = typeof partnerTopics.$inferInsert;
+
+/**
+ * Classificações MACRO — camada de organização ACIMA dos dashboards, exibida na
+ * página inicial (Home). Cada macro tem um número (ex.: 1) e um nome (ex.: "PET").
+ * Os itens do macro (dashboards e subgrupos) e a ORDEM deles são guardados como
+ * JSON em `items`, de modo que a numeração hierárquica (1.1, 1.2, 1.3…) é
+ * derivada da posição. Cada item referencia um dashboard fixo (aquario/tapete/
+ * yiwu), um subgrupo de dashboard (ex.: aquario/terrario) ou um grupo promovido.
+ * Regra de negócio: um mesmo item pertence a no máximo um macro (garantido na UI/hook).
+ */
+export const macros = mysqlTable("macros", {
+  /** ID textual gerado no cliente (ex.: "macro_xxx"). Chave primária. */
+  id: varchar("id", { length: 96 }).primaryKey(),
+  /** Número do macro (1, 2, 3…), único. Define o prefixo da numeração (1.x). */
+  number: int("number").notNull().default(1),
+  /** Nome do macro (ex.: "PET"). */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Cor de destaque (hex). */
+  color: varchar("color", { length: 32 }).notNull().default("#8b5cf6"),
+  /**
+   * Lista ORDENADA de itens do macro, serializada em JSON. Cada item:
+   * { key: string, kind: "dashboard"|"subgroup"|"group", refId: string,
+   *   label: string, href: string, subtipo?: string }
+   * A posição no array define o sufixo da numeração (1.1, 1.2, …).
+   */
+  items: json("items"),
+  createdAt: varchar("createdAt", { length: 40 }).notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type MacroRow = typeof macros.$inferSelect;
+export type InsertMacroRow = typeof macros.$inferInsert;

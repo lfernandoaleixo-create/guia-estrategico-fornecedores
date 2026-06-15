@@ -25,6 +25,10 @@ import {
   listPartnerTopicsByPartner,
   upsertPartnerTopic,
   deletePartnerTopic,
+  listMacros,
+  upsertMacro,
+  bulkUpsertMacros,
+  deleteMacro,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -122,6 +126,25 @@ const partnerTopicInput = z.object({
   title: z.string(),
   notes: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const macroItemSchema = z.object({
+  key: z.string(),
+  kind: z.enum(["dashboard", "subgroup", "group"]),
+  refId: z.string(),
+  label: z.string(),
+  href: z.string(),
+  subtipo: z.string().nullable().optional(),
+});
+
+const macroInput = z.object({
+  id: z.string(),
+  number: z.number().int(),
+  name: z.string(),
+  color: z.string().default("#8b5cf6"),
+  items: z.array(macroItemSchema).default([]),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -261,6 +284,27 @@ export const dataRouter = router({
       await upsertViabilitySheet(input);
       return { success: true } as const;
     }),
+  }),
+
+  // ---------- Macros (classificações MACRO da Home) ----------
+  macros: router({
+    list: publicProcedure.query(() => listMacros()),
+    upsert: publicProcedure.input(macroInput).mutation(async ({ input }) => {
+      await upsertMacro({ ...input, items: input.items });
+      return { success: true } as const;
+    }),
+    bulkUpsert: publicProcedure
+      .input(z.array(macroInput))
+      .mutation(async ({ input }) => {
+        await bulkUpsertMacros(input.map((m) => ({ ...m, items: m.items })));
+        return { success: true } as const;
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        await deleteMacro(input.id);
+        return { success: true } as const;
+      }),
   }),
 
   // ---------- Partner Topics (Assuntos) — Central de Documentos / Grupo Nº 00 ----------

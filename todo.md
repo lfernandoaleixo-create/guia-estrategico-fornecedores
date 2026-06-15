@@ -345,3 +345,39 @@ Escopo: SOMENTE Grupo Nº 00. Demais dashboards mantêm a aba Anotações/Diári
 - [x] Verificar TypeScript e rodar vitest (sem erros; 84/84)
 - [x] Validar no preview: Grupo 00 mostra apenas parceiros/assuntos/anexos, sem aba Diário (confirmado com ?tab=diario)
 - [x] Checkpoint
+
+
+## Classificações MACRO (Home) — agrupar dashboards por macro
+Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET"). Cada dashboard/subgrupo pertence a no máximo 1 macro. Ordem definida pelo usuário gera numeração 1.1, 1.2, 1.3.
+
+### Dados / Backend
+- [x] Schema: tabela `macros` (id, number, name, color, itemsJson [ordered list de itens], createdAt, updatedAt). Item = { kind: "dashboard"|"subgroup", refId, label, href, subtipo? }
+- [x] db.ts: helpers listMacros / upsertMacro / bulkUpsertMacros / deleteMacro
+- [x] routers/data.ts: router `macros` (list, upsert, bulkUpsert, delete) com zod
+- [x] pnpm db:push e verificar tabela criada (CREATE TABLE macros; nenhuma tabela existente alterada)
+
+### Hook cliente
+- [x] Hook `useMacros()` (tRPC, polling 5s + reload pós-mutação): createMacro/updateMacro/deleteMacro/reorder + atribuir/remover itens
+
+### UI gestão de macros (Home)
+- [x] Botão "Criar classificação MACRO" na Home (abre modal: número + nome + cor) — MacroManager + botão pendente de wire na Home
+- [x] Editar macro: escolher itens (dashboards/subgrupos disponíveis), ordenar (↑/↓ define 1.1, 1.2, 1.3), remover
+- [x] Catálogo de itens atribuíveis: 3 dashboards fixos (Aquário com 2 subitens Terrário/Aquário, Tapete, Yiwu) + grupos promovidos (macroCatalog.ts)
+- [x] Garantir vínculo único: ao atribuir um item a um macro, remover de outro macro (assignItem)
+
+### Home agrupada por macro
+- [x] Render: seções por macro (título "Nº · Nome") com cards numerados hierarquicamente (1.1, 1.2…) + seção "Sem classificação" + card Adicionar
+- [x] Aquário separado em 2 cards: Terrário (/aquario?subtipo=terrario) e Aquário (/aquario?subtipo=aquario); dashboard lê ?subtipo e abre filtrado
+- [x] Botão "Classificações" no header abre o MacroManager; TypeScript sem erros
+- [x] Seção "Sem classificação" para dashboards não atribuídos a nenhum macro (mantém card Adicionar)
+- [x] Atualizar contadores/labels do hero conforme nova contagem (acessos + classificações macro)
+
+### Dashboard Aquários (filtro por subtipo)
+- [x] Ler ?subtipo=terrario|aquario e aplicar filtro inicial (mostra SOMENTE etiquetados daquela especialidade)
+- [x] Não classificados aparecem SOMENTE na visão geral (sem filtro); filtros Terrário/Aquário não os incluem (effectiveCategory já garante isso)
+- [x] Rótulo da especialidade do fornecedor passa a exibir numeração do macro: "1.1 - Terrário" / "1.2 - Aquário" (botões do painel + selo do card recolhido em DiaryCard e CustomSupplierCard; via useSubtipoHierLabel)
+
+### Testes / Validação
+- [x] Teste vitest: normalização/ordenação de macros e geração da numeração hierárquica (10 novos; 94/94 no total)
+- [x] Validar no preview: criar macro "1 · PET", atribuir Terrário(1.1)/Aquário(1.2)/Tapete(1.3), reload persiste; atalho 1.1 abre /aquario?subtipo=terrario com 11 fornecedores Terrário (não classificados só na visão geral); badges 1.1/1.2 nos cards manuais
+- [x] Checkpoint

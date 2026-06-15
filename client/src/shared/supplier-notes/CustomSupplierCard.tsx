@@ -8,6 +8,7 @@ import SupplierNotesPanel, { type PrefilledField } from "./SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "./field-presets";
 import { type CustomSupplier, formatCreatedDateBR } from "./useCustomSuppliers";
 import { useSupplierNotes, SUBTIPO_CONFIG, type SubtipoAquario } from "./useSupplierNotes";
+import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import { TipoBadge } from "./TipoBadge";
 
 interface Props {
@@ -32,6 +33,7 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
       ? rawSubtipo
       : undefined;
   const subtipoCfg = subtipo ? SUBTIPO_CONFIG[subtipo] : undefined;
+  const subtipoHier = useSubtipoHierLabel();
 
   const prefilled = useMemo<PrefilledField[]>(() => {
     const fields: PrefilledField[] = [];
@@ -130,7 +132,7 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
                 title={subtipoCfg.label}
               >
                 <span className="leading-none">{subtipoCfg.emoji}</span>
-                <span>{subtipoCfg.label}</span>
+                <span>{subtipo ? subtipoHier[subtipo].withPrefix(subtipoCfg.label) : subtipoCfg.label}</span>
               </span>
             )}
           </div>

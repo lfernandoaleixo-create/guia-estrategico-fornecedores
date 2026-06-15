@@ -368,6 +368,7 @@ export async function seedSupplierGroups(): Promise<void> {
 // =============================================================================
 import { viabilitySheets, type InsertViabilitySheetRow } from "../drizzle/schema";
 import { partnerTopics, type InsertPartnerTopicRow } from "../drizzle/schema";
+import { macros, type InsertMacroRow } from "../drizzle/schema";
 
 export async function getViabilitySheet(scope: string, supplierId: string) {
   const db = await getDb();
@@ -421,4 +422,35 @@ export async function deletePartnerTopic(id: string) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   await db.delete(partnerTopics).where(eq(partnerTopics.id, id));
+}
+
+// =============================================================================
+// Macros (classificações MACRO da Home).
+// =============================================================================
+export async function listMacros() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(macros);
+}
+
+export async function upsertMacro(row: InsertMacroRow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const { id, ...rest } = row;
+  await db.insert(macros).values(row).onDuplicateKeyUpdate({ set: rest });
+}
+
+export async function bulkUpsertMacros(rows: InsertMacroRow[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  for (const row of rows) {
+    const { id, ...rest } = row;
+    await db.insert(macros).values(row).onDuplicateKeyUpdate({ set: rest });
+  }
+}
+
+export async function deleteMacro(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.delete(macros).where(eq(macros.id, id));
 }
