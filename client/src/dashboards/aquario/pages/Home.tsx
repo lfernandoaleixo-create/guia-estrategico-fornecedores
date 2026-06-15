@@ -84,9 +84,9 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
       const v = new URLSearchParams(window.location.search).get("view");
-      if (v === "diario" || v === "mapa" || v === "notas" || v === "guia") return v;
+      if (v === "diario" || v === "mapa" || v === "notas" || v === "guia" || v === "lista") return v;
     }
-    return "lista";
+    return "diario";
   });
 
   const { notes, upsertNote, deleteNote, getNote, totalNotes } = useNotes();

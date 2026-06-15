@@ -1,4 +1,4 @@
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ScopeWrapper from "@/components/ScopeWrapper";
 import Home from "@yiwu/pages/Home";
 import PrincipalDistribuidor from "@yiwu/pages/PrincipalDistribuidor";
@@ -12,7 +12,8 @@ export default function YiwuApp() {
   return (
     <ScopeWrapper scope="yiwu">
       <Switch>
-        <Route path="/" component={Home} />
+        <Route path="/"><Redirect to="/anotacoes" /></Route>
+        <Route path="/visao-geral" component={Home} />
         <Route path="/distribuidor" component={PrincipalDistribuidor} />
         <Route path="/flashgoods" component={PrincipalDistribuidor} />
         <Route path="/yiwu-furui" component={PrincipalDistribuidor} />

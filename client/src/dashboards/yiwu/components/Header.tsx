@@ -3,12 +3,12 @@ import { Link, useLocation } from "wouter";
 import { Menu, X, Globe, ChevronRight } from "lucide-react";
 
 const navItems = [
-  { path: "/", label: "Visão Geral" },
+  { path: "/anotacoes", label: "Anotações / Diário" },
+  { path: "/visao-geral", label: "Visão Geral" },
   { path: "/fornecedores", label: "Fornecedores" },
   { path: "/mapa", label: "Mapa do Mercado" },
   { path: "/distribuidor", label: "Principal Distribuidor Brasileiro" },
   { path: "/metodologia", label: "Método de Avaliação" },
-  { path: "/anotacoes", label: "Anotações / Diário" },
 ];
 
 export default function Header() {

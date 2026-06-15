@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/",             label: "Painel Geral",              icon: LayoutDashboard },
+  { href: "/anotacoes",    label: "Anotações / Diário",        icon: NotebookPen },
+  { href: "/painel",       label: "Painel Geral",              icon: LayoutDashboard },
   { href: "/exportadores", label: "Fábricas Chinesas",         icon: Factory },
   { href: "/importadores", label: "Importadores Brasileiros",  icon: Building2 },
   { href: "/cruzamento",   label: "Cruzamento Fab × Imp",      icon: GitMerge },
@@ -26,7 +27,6 @@ const navItems = [
   { href: "/tutorial",     label: "Tutorial de Importação",    icon: BookOpen },
   { href: "/tributacao",   label: "NCM & Tributação",          icon: Calculator },
   { href: "/contato",      label: "Contato com Fábricas",      icon: PhoneCall },
-  { href: "/anotacoes",    label: "Anotações / Diário",        icon: NotebookPen },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

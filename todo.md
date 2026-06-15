@@ -291,3 +291,10 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Na home, ordenar grupos promovidos por number (crescente); grupo com number 0 vem ANTES dos 3 dashboards principais (primeiro card)
 - [x] Eyebrow do grupo 00 = "DASHBOARD 00"; demais cards permanecem 01, 02, 03...
 - [x] Validar no preview: Central de Documentos aparece como 1º card com DASHBOARD 00 · Grupo Nº 00 (confirmado)
+
+## Anotações/Diário como visão inicial em todos os dashboards
+- [x] Aquário: viewMode inicial = "diario" (era "lista")
+- [x] GrupoDashboard (novos/promovidos): tab inicial = "diario" (era "fornecedores")
+- [x] Tapete: raiz redireciona para /anotacoes; menu reordenado (Anotações 1º); Painel Geral movido para /painel
+- [x] Yiwu: raiz redireciona para /anotacoes; menu reordenado (Anotações 1º); Visão Geral movida para /visao-geral; breadcrumb Home ajustado
+- [x] Validar no preview que cada dashboard abre no Diário/Anotações (Aquário, Tapete, Yiwu e GrupoDashboard confirmados)

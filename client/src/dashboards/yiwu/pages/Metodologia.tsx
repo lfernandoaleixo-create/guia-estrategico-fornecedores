@@ -119,7 +119,7 @@ export default function Metodologia() {
         <div className="border-b border-border/50 py-10" style={{ background: 'oklch(0.13 0.04 240)' }}>
           <div className="container">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-3">
-              <Link href="/" className="hover:text-foreground">Home</Link>
+              <Link href="/visao-geral" className="hover:text-foreground">Home</Link>
               <ChevronRight className="w-3 h-3" />
               <Link href="/fornecedores" className="hover:text-foreground">Fornecedores</Link>
               <ChevronRight className="w-3 h-3" />

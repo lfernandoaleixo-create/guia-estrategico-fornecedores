@@ -1,4 +1,4 @@
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ScopeWrapper from "@/components/ScopeWrapper";
 import Home from "@tapete/pages/Home";
 import Exportadores from "@tapete/pages/Exportadores";
@@ -16,7 +16,8 @@ export default function TapeteApp() {
   return (
     <ScopeWrapper scope="tapete">
       <Switch>
-        <Route path="/" component={Home} />
+        <Route path="/"><Redirect to="/anotacoes" /></Route>
+        <Route path="/painel" component={Home} />
         <Route path="/exportadores" component={Exportadores} />
         <Route path="/importadores" component={Importadores} />
         <Route path="/materiais" component={Materiais} />

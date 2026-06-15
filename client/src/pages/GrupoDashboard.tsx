@@ -457,9 +457,9 @@ export default function GrupoDashboard() {
   const [tab, setTab] = useState<"fornecedores" | "diario">(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "diario") return "diario";
+      if (params.get("tab") === "fornecedores") return "fornecedores";
     }
-    return "fornecedores";
+    return "diario";
   });
 
   // Notas/diário deste dashboard promovido (scope dinâmico grupo-{id}).
