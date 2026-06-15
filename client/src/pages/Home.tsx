@@ -103,13 +103,12 @@ export default function Home() {
 
   const promotedDashboards = useMemo(() => {
     const promoted = customGroups.filter((g) => g.promotedToDashboard);
-    // Numeração: 3 dashboards principais (01-03), depois promovidos (04, 05…)
-    return promoted.map((g, idx) => {
+    return promoted.map((g) => {
       const count = extraSuppliers.filter((s) => s.groupId === g.id).length;
       return {
         href: `/grupo/${g.id}`,
-        eyebrow: `DASHBOARD ${String(3 + idx + 1).padStart(2, "0")}`,
-        groupNumber: g.number,
+        eyebrow: "", // definido na ordenação final
+        groupNumber: g.number ?? 0,
         title: g.name,
         subtitle: `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
         description:
@@ -130,20 +129,44 @@ export default function Home() {
     });
   }, [customGroups, extraSuppliers]);
 
-  // Ordem final: 3 dashboards principais + promovidos + card de adicionar.
+  // Ordem final: grupos promovidos com número 0 (vêm ANTES de tudo) +
+  // 3 dashboards principais + demais promovidos (ordenados por número) +
+  // card de adicionar. O eyebrow "DASHBOARD 0X" é recalculado pela posição,
+  // exceto o(s) grupo(s) número 0 que recebem "DASHBOARD 00".
   const dashboards = useMemo(() => {
     const addCardBase = baseDashboards.find((d) => "isAddCard" in d && d.isAddCard);
     const main = baseDashboards.filter((d) => !("isAddCard" in d && d.isAddCard));
-    const totalCount = main.length + promotedDashboards.length + (addCardBase ? 1 : 0);
-    // Numeração dinâmica do card de adicionar = último número
+
+    const sortedPromoted = [...promotedDashboards].sort(
+      (a, b) => a.groupNumber - b.groupNumber,
+    );
+    const zeroGroups = sortedPromoted.filter((g) => g.groupNumber === 0);
+    const otherPromoted = sortedPromoted.filter((g) => g.groupNumber !== 0);
+
+    const ordered = [...zeroGroups, ...main, ...otherPromoted];
+    const totalCount = ordered.length + (addCardBase ? 1 : 0);
+
+    // Reatribui o eyebrow por posição: grupo número 0 = "DASHBOARD 00",
+    // os demais seguem 01, 02, 03... na ordem em que aparecem.
+    let positionCounter = 0;
+    const list = ordered.map((d) => {
+      const isZero = "groupNumber" in d && (d as { groupNumber?: number }).groupNumber === 0;
+      if (isZero) {
+        return { ...d, eyebrow: "DASHBOARD 00" };
+      }
+      positionCounter += 1;
+      return { ...d, eyebrow: `DASHBOARD ${String(positionCounter).padStart(2, "0")}` };
+    });
+
     const addCard = addCardBase
       ? {
           ...addCardBase,
-          eyebrow: `DASHBOARD ${String(totalCount).padStart(2, "0")}`,
+          eyebrow: `DASHBOARD ${String(positionCounter + 1).padStart(2, "0")}`,
         }
       : null;
+
     return {
-      list: [...main, ...promotedDashboards, ...(addCard ? [addCard] : [])],
+      list: [...list, ...(addCard ? [addCard] : [])],
       totalCount,
     };
   }, [promotedDashboards]);

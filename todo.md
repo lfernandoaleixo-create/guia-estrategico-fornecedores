@@ -284,3 +284,10 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 
 ## Selo de especialidade no card recolhido de fornecedor manual
 - [x] Exibir selo 🐟 Aquário / 🦎 Terrário no card recolhido do CustomSupplierCard (scope aquario), lendo fields.subtipoAquario — validado no preview: Guangzhou Jiarong agora mostra 🐟 Aquário mesmo recolhido
+- [ ] Verificar que o selo de especialidade aparece SEMPRE que marcado, tanto em fornecedor manual quanto do catálogo (marcar/trocar/desmarcar reflete no card recolhido)
+
+## Grupo Nº 00 como primeiro card da home (Opção A)
+- [x] Permitir número de grupo = 0 no modal Editar/Novo grupo (campo Número e validação saveGroup)
+- [x] Na home, ordenar grupos promovidos por number (crescente); grupo com number 0 vem ANTES dos 3 dashboards principais (primeiro card)
+- [x] Eyebrow do grupo 00 = "DASHBOARD 00"; demais cards permanecem 01, 02, 03...
+- [x] Validar no preview: Central de Documentos aparece como 1º card com DASHBOARD 00 · Grupo Nº 00 (confirmado)

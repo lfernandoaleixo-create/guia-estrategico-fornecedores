@@ -166,7 +166,7 @@ export default function AdicionarPage() {
   }, [suppliers]);
 
   function startCreateGroup() {
-    const used = new Set(groups.map((g) => g.number).filter(Boolean));
+    const used = new Set(groups.map((g) => g.number).filter((n) => Number.isInteger(n)));
     let next = 1;
     while (used.has(next)) next += 1;
     setGroupDraft({
@@ -218,8 +218,8 @@ export default function AdicionarPage() {
       toast.error("Informe o ramo (ex: Brinquedos, Vidro, Aquário).");
       return;
     }
-    if (!Number.isInteger(groupDraft.number) || groupDraft.number <= 0) {
-      toast.error("O número do grupo deve ser inteiro positivo.");
+    if (!Number.isInteger(groupDraft.number) || groupDraft.number < 0) {
+      toast.error("O número do grupo deve ser inteiro (0 ou maior).");
       return;
     }
     const dup = groups.find(
@@ -1082,13 +1082,13 @@ export default function AdicionarPage() {
               <Field label="Número do grupo">
                 <input
                   type="number"
-                  min={1}
+                  min={0}
                   step={1}
                   value={groupDraft.number}
                   onChange={(e) =>
                     setGroupDraft({
                       ...groupDraft,
-                      number: Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                      number: Math.max(0, Math.floor(Number(e.target.value) || 0)),
                     })
                   }
                   className="w-full rounded-lg px-3 py-2"
