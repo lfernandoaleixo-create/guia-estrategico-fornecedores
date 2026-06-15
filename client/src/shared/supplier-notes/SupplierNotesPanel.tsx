@@ -615,12 +615,17 @@ export default function SupplierNotesPanel({
 
   // Especialidade Aquário/Terrário (somente no dashboard aquário). Salvo em
   // fields.subtipoAquario; mutuamente exclusivo com toggle (clicar de novo desmarca).
-  const subtipoAquario = (fields.subtipoAquario as SubtipoAquario | undefined) ?? undefined;
+  const rawSubtipo = (fields.subtipoAquario as string | undefined) ?? "";
+  const subtipoAquario: SubtipoAquario | undefined =
+    rawSubtipo === "aquario" || rawSubtipo === "terrario" ? rawSubtipo : undefined;
 
   const handleSubtipoClick = (t: SubtipoAquario) => {
     const nextFields = { ...fields };
-    if (nextFields.subtipoAquario === t) {
-      delete nextFields.subtipoAquario;
+    // Ao desmarcar gravamos string vazia (em vez de delete): o upsertEntry faz
+    // merge dos campos ({...base.fields, ...patch.fields}); um delete não removeria
+    // a chave já persistida no banco, então o selo voltaria após o reload.
+    if (subtipoAquario === t) {
+      nextFields.subtipoAquario = "";
     } else {
       nextFields.subtipoAquario = t;
     }

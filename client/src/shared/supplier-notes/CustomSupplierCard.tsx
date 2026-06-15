@@ -26,9 +26,10 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
   const { entries } = useSupplierNotes(supplier.scope);
   const tipoFields = entries[supplier.id]?.fields;
   // Especialidade (🐟 Aquário / 🦎 Terrário) — só no scope aquario.
-  const subtipo =
-    supplier.scope === "aquario"
-      ? (tipoFields?.subtipoAquario as SubtipoAquario | undefined)
+  const rawSubtipo = (tipoFields?.subtipoAquario as string | undefined) ?? "";
+  const subtipo: SubtipoAquario | undefined =
+    supplier.scope === "aquario" && (rawSubtipo === "aquario" || rawSubtipo === "terrario")
+      ? rawSubtipo
       : undefined;
   const subtipoCfg = subtipo ? SUBTIPO_CONFIG[subtipo] : undefined;
 

@@ -284,7 +284,7 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 
 ## Selo de especialidade no card recolhido de fornecedor manual
 - [x] Exibir selo 🐟 Aquário / 🦎 Terrário no card recolhido do CustomSupplierCard (scope aquario), lendo fields.subtipoAquario — validado no preview: Guangzhou Jiarong agora mostra 🐟 Aquário mesmo recolhido
-- [ ] Verificar que o selo de especialidade aparece SEMPRE que marcado, tanto em fornecedor manual quanto do catálogo (marcar/trocar/desmarcar reflete no card recolhido)
+- [x] Verificar que o selo de especialidade aparece SEMPRE que marcado, tanto em fornecedor manual quanto do catálogo (marcar/trocar/desmarcar reflete no card recolhido) — validado no preview com ciclo completo
 
 ## Grupo Nº 00 como primeiro card da home (Opção A)
 - [x] Permitir número de grupo = 0 no modal Editar/Novo grupo (campo Número e validação saveGroup)
@@ -311,3 +311,11 @@ Durante a limpeza dos arquivos de teste, um UPDATE zerou o campo `attachments` d
 - [x] Incluir fornecedores manuais (customSuppliers) classificados na lista filtrada por categoria (faixa "Cadastrados manualmente" via ClassifiedCustomList)
 - [x] Atualizar contadores das categorias (Aquários/Terrários) para refletir os classificados (Aquário subiu para 12)
 - [x] Validar no preview: manuais classificados como Aquário aparecem na aba Aquários de Vidro; Terrário sem manuais; nada removido do Diário (confirmado)
+
+
+## Corrigir desmarque da especialidade (bug de merge no upsertEntry)
+Causa: handleSubtipoClick faz `delete nextFields.subtipoAquario` ao desmarcar, mas upsertEntry faz merge ({...base.fields, ...patch.fields}); a chave deletada não é removida do banco, então o selo continua aparecendo após reload.
+- [x] handleSubtipoClick: ao desmarcar, definir subtipoAquario = "" (string vazia) em vez de delete, para o merge persistir a remoção
+- [x] Tratar subtipoAquario "" como ausência em: painel (active), CustomSupplierCard (selo), Home do Aquário (effectiveCategory, contadores, ClassifiedCustomList)
+- [x] Validar no preview: marcar -> selo aparece; trocar -> muda; desmarcar -> some após reload (contador Terrários 12->11->12; selo some/volta no card recolhido)
+- [x] Teste vitest de regressão (string vazia persiste no merge; delete não) — 80/80 passando

@@ -6,18 +6,38 @@ import {
 } from "../client/src/shared/supplier-notes/useSupplierNotes";
 
 // Replica a lógica de toggle mutuamente exclusivo usada no painel:
-// clicar no mesmo subtipo desmarca; clicar no outro troca.
+// clicar no mesmo subtipo DESMARCA (gravando string vazia, nunca delete);
+// clicar no outro TROCA. A string vazia é necessária porque o upsertEntry faz
+// merge dos campos ({...base.fields, ...patch.fields}); um delete não removeria
+// a chave já persistida no banco, então o selo voltaria após o reload.
 function applySubtipoToggle(
   fields: Record<string, string>,
   clicked: SubtipoAquario,
 ): Record<string, string> {
+  const raw = fields.subtipoAquario ?? "";
+  const current: SubtipoAquario | undefined =
+    raw === "aquario" || raw === "terrario" ? raw : undefined;
   const next = { ...fields };
-  if (next.subtipoAquario === clicked) {
-    delete next.subtipoAquario;
+  if (current === clicked) {
+    next.subtipoAquario = "";
   } else {
     next.subtipoAquario = clicked;
   }
   return next;
+}
+
+// Replica o merge do upsertEntry (fields mesclados, não substituídos).
+function mergeFields(
+  base: Record<string, string>,
+  patch: Record<string, string>,
+): Record<string, string> {
+  return { ...base, ...patch };
+}
+
+// Replica a leitura da especialidade efetiva (string vazia = sem especialidade).
+function readSubtipo(fields: Record<string, string>): SubtipoAquario | undefined {
+  const raw = fields.subtipoAquario ?? "";
+  return raw === "aquario" || raw === "terrario" ? raw : undefined;
 }
 
 describe("SUBTIPO_CONFIG (Especialidade Aquário x Terrário)", () => {
@@ -53,9 +73,13 @@ describe("toggle de especialidade (mutuamente exclusivo)", () => {
     expect(result.subtipoAquario).toBe("terrario");
   });
 
-  it("desmarca ao clicar no subtipo já selecionado", () => {
+  it("desmarca ao clicar no subtipo já selecionado (string vazia, não delete)", () => {
     const result = applySubtipoToggle({ subtipoAquario: "terrario" }, "terrario");
-    expect(result.subtipoAquario).toBeUndefined();
+    // A chave precisa CONTINUAR presente como string vazia para o merge
+    // persistir a remoção; um undefined/delete seria ignorado pelo upsert.
+    expect(result).toHaveProperty("subtipoAquario");
+    expect(result.subtipoAquario).toBe("");
+    expect(readSubtipo(result)).toBeUndefined();
   });
 
   it("preserva outros campos da nota ao alterar o subtipo", () => {
@@ -66,5 +90,24 @@ describe("toggle de especialidade (mutuamente exclusivo)", () => {
     expect(result.tipoFornecedor).toBe("direto");
     expect(result.precoClassificacao).toBe("competitivo");
     expect(result.subtipoAquario).toBe("aquario");
+  });
+});
+
+describe("persistência do desmarque através do merge do upsertEntry", () => {
+  it("o desmarque (string vazia) sobrescreve o valor antigo após o merge", () => {
+    const base = { subtipoAquario: "aquario", status: "visitado" };
+    const patch = applySubtipoToggle(base, "aquario"); // desmarca
+    const merged = mergeFields(base, patch);
+    expect(merged.subtipoAquario).toBe("");
+    expect(readSubtipo(merged)).toBeUndefined();
+  });
+
+  it("REGRESSÃO: um delete não persistiria através do merge (selo voltaria)", () => {
+    const base = { subtipoAquario: "aquario" };
+    const patchComDelete: Record<string, string> = { ...base };
+    delete patchComDelete.subtipoAquario; // abordagem antiga (bug)
+    const merged = mergeFields(base, patchComDelete);
+    // Com delete, o merge mantém o valor antigo -> bug original.
+    expect(merged.subtipoAquario).toBe("aquario");
   });
 });
