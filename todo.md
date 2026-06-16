@@ -558,3 +558,9 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Visualizador de PDF: modo PT com painel de tradução do texto por página; modo 中文 mostra o original renderizado
 - [x] Download: menu de idioma (中文 original / Português) — planilha gera .xlsx-PT, PDF gera .txt-PT
 - [x] TS limpo + 201 testes vitest passando + validado no preview (tradução CN⇄PT da planilha + alternância instantânea + menu de download por idioma) + checkpoint
+
+## Correções Jun/2026 (7) — Bugs do visualizador de documentos
+- [x] BUG: nomes das abas da planilha (过滤器, 增氧泵, UV灯系列...) não traduzem no modo PT — incluir wb.SheetNames na tradução e exibir nome traduzido
+- [x] BUG: conteúdo da página de fundo vazando por trás do modal — renderizar lightbox em portal no body, fundo opaco + backdrop-blur, travar scroll
+- [x] Atualizar/adicionar testes vitest (sheetTranslationCells, 206 passando)
+- [x] TS limpo + testes passando + checkpoint

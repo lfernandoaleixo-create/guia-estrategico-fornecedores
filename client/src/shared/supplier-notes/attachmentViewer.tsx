@@ -14,6 +14,7 @@
 // download, o usuário escolhe baixar em Português (gerado) ou Chinês (original).
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Check,
   Download,
@@ -557,7 +558,9 @@ export function SheetCanvas({
   }, [activeSheet]);
 
   // Detecta chinês e dispara tradução quando entra no modo PT.
-  const allCells = useMemo(() => rows.flat(), [rows]);
+  // Inclui as células do corpo + os NOMES DAS ABAS (wb.SheetNames), que também
+  // costumam estar em chinês (过滤器, 增氧泵, UV灯系列…).
+  const allCells = useMemo(() => [...rows.flat(), ...sheetNames], [rows, sheetNames]);
   useEffect(() => {
     onChineseDetected?.(allCells.some((c) => hasChinese(c)));
   }, [allCells, onChineseDetected]);
@@ -599,7 +602,7 @@ export function SheetCanvas({
 
   return (
     <div className="h-full w-full flex flex-col bg-zinc-50">
-      {(sheetNames.length > 1 || (showPt && translator?.isTranslating)) && (
+      {(sheetNames.length > 1 || sheetNames.some((n) => hasChinese(n)) || (showPt && translator?.isTranslating)) && (
         <div
           className="flex items-center gap-1 px-3 py-2 border-b bg-white overflow-x-auto shrink-0"
           style={{ borderColor: "#e4e4e7" }}
@@ -613,7 +616,7 @@ export function SheetCanvas({
                 name === activeSheet ? "bg-zinc-800 text-white" : "text-zinc-600 hover:bg-zinc-100"
               }`}
             >
-              {name}
+              {cell(name)}
             </button>
           ))}
           {showPt && translator?.isTranslating && (
@@ -688,13 +691,32 @@ async function downloadSheetTranslated(
   const wb = XLSX.read(bytes, { type: "array" });
 
   // Primeiro garante que todas as células chinesas estejam traduzidas no cache.
+  // Inclui também os nomes das abas (SheetNames).
   const allText: string[] = [];
   for (const sheetName of wb.SheetNames) {
+    if (hasChinese(sheetName)) allText.push(sheetName);
     const ws = wb.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: "", blankrows: false });
     for (const row of data) for (const c of row) if (c && hasChinese(String(c))) allText.push(String(c));
   }
   await translator.translateMany(allText);
+
+  // Renomeia as abas chinesas pela tradução (preservando a ordem).
+  const renameMap: Record<string, string> = {};
+  for (const sheetName of wb.SheetNames) {
+    if (hasChinese(sheetName)) {
+      const pt = translator.lookup(sheetName);
+      if (pt) renameMap[sheetName] = pt;
+    }
+  }
+  if (Object.keys(renameMap).length > 0) {
+    wb.SheetNames = wb.SheetNames.map((n) => renameMap[n] ?? n);
+    const newSheets: typeof wb.Sheets = {};
+    for (const oldName of Object.keys(wb.Sheets)) {
+      newSheets[renameMap[oldName] ?? oldName] = wb.Sheets[oldName];
+    }
+    wb.Sheets = newSheets;
+  }
 
   // Reescreve cada célula com a tradução quando houver.
   for (const sheetName of wb.SheetNames) {
@@ -788,6 +810,17 @@ export function AttachmentLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [attachment, onClose, downloadOpen]);
 
+  // Trava o scroll do body enquanto o modal estiver aberto (evita scroll
+  // duplo e reforça o isolamento visual da página de fundo).
+  useEffect(() => {
+    if (!attachment) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [attachment]);
+
   if (!attachment) return null;
 
   const att = attachment;
@@ -807,14 +840,20 @@ export function AttachmentLightbox({
     else if (pdf) void downloadTextTranslated(att, translator, pdfTextRef.current);
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-3 md:p-6"
-      style={{ background: "rgba(0,0,0,0.82)" }}
+      className="fixed inset-0 flex items-center justify-center p-3 md:p-6"
+      style={{
+        background: "rgba(9,9,11,0.92)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        zIndex: 2147483600,
+        isolation: "isolate",
+      }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-5xl rounded-2xl overflow-hidden flex flex-col bg-white"
+        className="relative w-full max-w-5xl rounded-2xl overflow-hidden flex flex-col bg-white shadow-2xl"
         style={{ height: "min(88vh, 900px)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -947,6 +986,7 @@ export function AttachmentLightbox({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
