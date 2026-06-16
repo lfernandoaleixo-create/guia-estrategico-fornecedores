@@ -17,6 +17,11 @@ import {
   filterEntriesByTipo,
 } from "./useSupplierNotes";
 import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown, Factory } from "lucide-react";
+import {
+  SpecialtyFilter,
+  filterEntriesBySpecialty,
+  countBySpecialty,
+} from "./specialtyReport";
 
 // Normaliza texto para busca: minúsculas + remove acentos.
 function normalizeSearch(text: string): string {
@@ -40,6 +45,14 @@ interface ReportPanelProps {
   tone?: "dark" | "light";
   /** Paleta opcional para o PDF (RGB). Default deriva do scope. */
   pdfPalette?: { primary: number[]; secondary: number[]; accent: number[] };
+  /** Habilita o seletor de especialidade (🐟 Aquário x 🦎 Terrário). Usado só no dashboard Aquário. */
+  specialtyEnabled?: boolean;
+  /** Mapa supplierId -> subtipoAquario marcado no Diário ("aquario"|"terrario"). */
+  subtipoById?: Record<string, string | undefined>;
+  /** Mapa supplierId -> categoria original do catálogo. */
+  categoryById?: Record<string, string | undefined>;
+  /** Especialidade inicial selecionada (deriva do atalho ?subtipo=). */
+  initialSpecialty?: SpecialtyFilter;
 }
 
 type PeriodFilter = "todos" | "hoje" | "7dias" | "30dias" | "personalizado";
@@ -115,6 +128,10 @@ export default function ReportPanel({
   allSupplierIds,
   tone,
   pdfPalette,
+  specialtyEnabled = false,
+  subtipoById,
+  categoryById,
+  initialSpecialty = "todos",
 }: ReportPanelProps) {
   // Dashboards promovidos (grupo-*) e Yiwu usam tom escuro por padrão.
   const dark = tone ? tone === "dark" : (scope === "yiwu" || scope.startsWith("grupo-"));
@@ -136,6 +153,8 @@ export default function ReportPanel({
   const [tipoFilter, setTipoFilter] = useState<TipoFornecedor | null>(null);
   // O card de Detalhamento começa recolhido para otimizar espaço; o usuário expande quando quiser.
   const [detailOpen, setDetailOpen] = useState(false);
+  // Filtro por especialidade (🐟 Aquário x 🦎 Terrário). Só ativo quando specialtyEnabled.
+  const [specialtyFilter, setSpecialtyFilter] = useState<SpecialtyFilter>(initialSpecialty);
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -159,12 +178,30 @@ export default function ReportPanel({
     return [...real, ...virtual];
   }, [entries, allSupplierIds]);
 
+  // Filtra por especialidade ANTES de tudo (quando habilitado).
+  const specialtyEntries = useMemo(() => {
+    if (!specialtyEnabled || specialtyFilter === "todos") return allEntries;
+    return filterEntriesBySpecialty(
+      allEntries,
+      specialtyFilter,
+      subtipoById ?? {},
+      categoryById ?? {},
+    );
+  }, [allEntries, specialtyEnabled, specialtyFilter, subtipoById, categoryById]);
+
+  // Contagem por especialidade para os rótulos do seletor (sobre o universo do período? não:
+  // usa todas as entries para refletir o total cadastrado em cada especialidade).
+  const specialtyCounts = useMemo(() => {
+    if (!specialtyEnabled) return { aquario: 0, terrario: 0, outros: 0 };
+    return countBySpecialty(allEntries, subtipoById ?? {}, categoryById ?? {});
+  }, [allEntries, specialtyEnabled, subtipoById, categoryById]);
+
   // Filter entries by period (based on updatedAt)
   const filteredEntries = useMemo(() => {
-    return allEntries.filter((e) =>
+    return specialtyEntries.filter((e) =>
       isWithinPeriod(e.updatedAt, period, customStart, customEnd)
     );
-  }, [allEntries, period, customStart, customEnd]);
+  }, [specialtyEntries, period, customStart, customEnd]);
 
   // Filtra pelo status selecionado nos cards de resumo (null = todos).
   const statusFiltered = useMemo<SupplierNoteEntry[]>(
@@ -272,10 +309,16 @@ export default function ReportPanel({
       doc.setTextColor(255, 255, 255);
       doc.text("RELAT\u00d3RIO DE ATIVIDADES", pageWidth / 2, 14, { align: "center" });
 
-      // Subtitle
+      // Subtitle (inclui a especialidade quando filtrada)
+      const specialtySuffix =
+        specialtyEnabled && specialtyFilter !== "todos"
+          ? specialtyFilter === "aquario"
+            ? " — Aquário"
+            : " — Terrário"
+          : "";
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.text(scopeLabel, pageWidth / 2, 22, { align: "center" });
+      doc.text(scopeLabel + specialtySuffix, pageWidth / 2, 22, { align: "center" });
 
       // Period + date line
       doc.setFontSize(8);
@@ -515,6 +558,56 @@ export default function ReportPanel({
           {generating ? "Gerando..." : "Exportar PDF"}
         </button>
       </div>
+
+      {/* Seletor de especialidade (🐟 Aquário x 🦎 Terrário) — separa as métricas. */}
+      {specialtyEnabled && (
+        <div className={`p-4 rounded-xl border ${dark ? 'border-zinc-700/50 bg-zinc-900/50' : 'border-emerald-200 bg-emerald-50/40'}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 size={14} className={dark ? 'text-zinc-400' : 'text-emerald-600'} />
+            <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+              Especialidade
+            </span>
+            <span className={`text-[11px] font-normal normal-case tracking-normal ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              · métricas separadas por tipo
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { key: "todos", label: "Todos", emoji: "🌐", count: specialtyCounts.aquario + specialtyCounts.terrario + specialtyCounts.outros },
+                { key: "aquario", label: "Aquário", emoji: "🐟", count: specialtyCounts.aquario },
+                { key: "terrario", label: "Terrário", emoji: "🦎", count: specialtyCounts.terrario },
+              ] as { key: SpecialtyFilter; label: string; emoji: string; count: number }[]
+            ).map(({ key, label, emoji, count }) => {
+              const active = specialtyFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSpecialtyFilter(key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.97] ${
+                    active
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : dark ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" : "bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50"
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                  <span className={`tabular-nums rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-white/25 text-white" : dark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-100 text-zinc-600"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {specialtyFilter !== "todos" && (
+            <div className={`mt-2.5 text-[11px] ${dark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              Mostrando apenas fornecedores de <strong>{specialtyFilter === "aquario" ? "🐟 Aquário" : "🦎 Terrário"}</strong>. Equipamentos e outras categorias aparecem apenas em “Todos”.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Period Filter */}
       <div className={`p-4 rounded-xl border ${dark ? 'border-zinc-700/50 bg-zinc-900/50' : 'border-zinc-200 bg-zinc-50'}`}>

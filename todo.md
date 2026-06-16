@@ -422,3 +422,13 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] vitest do helper de filtro por subtipo (customSupplierFilter.test.ts, 8 testes) e da duplicação (duplicateSupplier.test.ts, 8 testes) — total 120/120
 - [x] Validar no preview (Jiarong some do Aquário; duplicar gera cadastro novo zerado e visível só na especialidade escolhida)
 - [x] Checkpoint
+
+## Métricas separadas por especialidade (rodada 4)
+
+- [x] ReportPanel ganha seletor de especialidade: Todos / 🐟 Aquário / 🦎 Terrário
+- [x] Métricas de status (Não visitado, Contato feito, ...) recalculam pela especialidade selecionada
+- [x] Tipo de fornecedor (Fabricante/Trader), Total e anexos também respeitam o filtro de especialidade
+- [x] Especialidade de cada fornecedor = fields.subtipoAquario; fallback = category original (aquario/terrario/equipamento)
+- [x] Quando aberto via ?subtipo=aquario|terrario, o relatório já inicia naquele filtro
+- [x] Helper puro de classificação de especialidade + vitest (specialtyReport.test.ts, 13 testes; total 133/133)
+- [x] Validar no preview (Todos 37 / Aquário 11 / Terrário 13; métricas recalculam) e checkpoint

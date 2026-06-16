@@ -19,6 +19,7 @@ import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import { type SpecialtyFilter } from "@/shared/supplier-notes/specialtyReport";
 import { useSupplierNotes, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
 import { useCustomSuppliers, type CustomSupplier } from "@/shared/supplier-notes/useCustomSuppliers";
 import GuiaEstrategicoTabs from "@aquario/components/GuiaEstrategicoTabs";
@@ -51,7 +52,15 @@ const priorityOrder = { high: 0, medium: 1, low: 2 };
 
 type ViewMode = "lista" | "mapa" | "notas" | "diario" | "guia";
 
-function AquarioReportSection() {
+function AquarioReportSection({
+  subtipoById,
+  categoryById,
+  initialSpecialty,
+}: {
+  subtipoById: Record<string, string | undefined>;
+  categoryById: Record<string, string | undefined>;
+  initialSpecialty: SpecialtyFilter;
+}) {
   const { entries, deleteEntry } = useSupplierNotes("aquario");
   const { list: customSuppliers } = useCustomSuppliers("aquario");
   const resolveAquarioName = (sid: string) => {
@@ -70,6 +79,10 @@ function AquarioReportSection() {
         allSupplierIds={suppliers.map((s) => s.id)}
         resolveSupplierName={resolveAquarioName}
         onDeleteEntry={deleteEntry}
+        specialtyEnabled
+        subtipoById={subtipoById}
+        categoryById={categoryById}
+        initialSpecialty={initialSpecialty}
       />
     </div>
   );
@@ -123,6 +136,17 @@ export default function Home() {
     }
     return map;
   }, [notesEntries]);
+  // Mapa supplierId -> categoria ORIGINAL (catálogo + manuais), usado pelo relatório
+  // para classificar a especialidade quando não há subtipo marcado no Diário.
+  const categoryById = useMemo<Record<string, string | undefined>>(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const s of suppliers) map[s.id] = s.category;
+    for (const cs of customSuppliersAquario) map[cs.id] = cs.category;
+    return map;
+  }, [customSuppliersAquario]);
+  // Especialidade inicial do relatório, derivada do atalho ?subtipo=.
+  const initialSpecialty: SpecialtyFilter =
+    subtipoContext === "aquario" || subtipoContext === "terrario" ? subtipoContext : "todos";
   // Categoria EFETIVA de um fornecedor do catálogo: a classificação do Diário
   // tem prioridade; na ausência dela, usa a categoria original do catálogo.
   const effectiveCategory = useCallback(
@@ -893,7 +917,11 @@ export default function Home() {
               </div>
 
               {/* Relatório de Atividades */}
-              <AquarioReportSection />
+              <AquarioReportSection
+                subtipoById={specialtyById}
+                categoryById={categoryById}
+                initialSpecialty={initialSpecialty}
+              />
 
               {/* Cadastro manual de fornecedores (filtra pela especialidade do atalho) */}
               <CustomSuppliersSection
