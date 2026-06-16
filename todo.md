@@ -391,14 +391,14 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Demais categorias (Todos, Equipamentos, Mercados & Feiras) permanecem; visão geral (sem subtipo) mostra tudo
 
 ### Cor accent por card na Home
-- [ ] Card Aquário com accent VERDE (antes vermelho/coral)
-- [ ] Card Terrário mantém vermelho; Tapete Higiênico azul
+- [x] Card Aquário com accent VERDE (antes vermelho/coral)
+- [x] Card Terrário mantém vermelho; Tapete Higiênico azul
 
 ### Macro recolhido + reordenação
-- [ ] Seção de macro na Home começa recolhida (expande ao clicar no cabeçalho)
-- [ ] Setas para cima/baixo ao lado de cada card de macro na Home para reordenar os macros entre si (persistir ordem)
+- [x] Seção de macro na Home começa recolhida (expande ao clicar no cabeçalho)
+- [x] Setas para cima/baixo ao lado de cada card de macro na Home para reordenar os macros entre si (persistir ordem)
 
 ### Testes / Validação
-- [ ] vitest da ordenação de macros (mover) e helper de categorias visíveis por subtipo
-- [ ] Validar no preview: cores, recolher/expandir, reordenar macros, categorias contextuais
-- [ ] Checkpoint
+- [x] vitest da ordenação de macros (mover) e helper de categorias visíveis por subtipo (server/macroOrder.test.ts — 10 testes; total 104/104)
+- [x] Validar no preview: cores (Aquário verde, Terrário vermelho, Tapete azul), recolher/expandir, reordenar macros (PET 1→2→1), categorias contextuais
+- [x] Checkpoint

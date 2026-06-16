@@ -20,6 +20,7 @@ import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
 import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
+import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
 // Cards "atômicos" indexados por key (mesma key do catálogo de macros). Cada um
@@ -169,12 +170,10 @@ export default function Home() {
 
   const handleReorderMacro = async (id: string, direction: "up" | "down") => {
     const ids = macros.map((m) => m.id);
-    const idx = ids.indexOf(id);
-    if (idx === -1) return;
-    const swapWith = direction === "up" ? idx - 1 : idx + 1;
-    if (swapWith < 0 || swapWith >= ids.length) return;
-    [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
-    await reorderMacros(ids);
+    const next = moveMacroOrder(ids, id, direction);
+    // Se nada mudou (topo/fim ou id inexistente), evita escrita desnecessária.
+    if (next.join("|") === ids.join("|")) return;
+    await reorderMacros(next);
   };
 
   // Cards dos grupos promovidos (exceto o nº 0, oculto da Home).
