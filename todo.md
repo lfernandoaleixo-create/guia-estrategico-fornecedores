@@ -581,3 +581,17 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Evitar listar a própria origem como destino (opção A)
 - [x] 5 testes de unidade em unclassifiedDestinations.test.ts (origem Yiwu → vazio; origem Tapete/Aquário → Yiwu disponível) — 206 testes verdes
 - [x] TS limpo + validado no preview (opção aparece no topo do Passo 1) + checkpoint
+
+## Feature Jun/2026 (11) — Serviço de tradução de documentos completo
+- [x] Trocar subtítulo da Home "Selecione um acesso" → "Classificação geral de grupos macro"
+- [x] Backend: tradução genérica (qualquer idioma estrangeiro → PT) via isTranslatable() — chinês/CJK + inglês, preserva PT
+- [x] Backend: OCR multimodal (ocrTranslateImage) + procedure data.translate.ocrImage para imagens e páginas de PDF
+- [ ] Frontend: detecção de "traduzível" (chinês OU inglês OU outro) — toggle Original⇄PT aparece sempre que houver
+- [ ] Frontend: suporte a tradução de imagens (via OCR) no visualizador
+- [ ] Frontend: PDF sem texto → fallback OCR por página, com estados de carregamento
+- [ ] Download traduzido: .xlsx (planilha), .txt (PDF/imagem)
+- [ ] Testes vitest + validar no preview + checkpoint
+- [x] FIX: toggle Original/PT não aparecia em planilha em inglês (NOMOYPET). Decisão: mostrar o toggle SEMPRE para planilhas e PDFs (independe de detecção frágil de idioma); imagens mantêm OCR. Evita falsos negativos.
+- [x] FIX: anexos do painel de fornecedor abriam um visualizador duplicado (AttachmentPreviewModal local, sem tradução). Unificado para usar o AttachmentLightbox (com toggle Original/PT, OCR e download por idioma).
+- [x] FIX (causa raiz da tradução): o useEffect de reset do AttachmentLightbox tinha `imageOcr` (objeto não memoizado) nas deps, fazendo `setLang("zh")` rodar a cada render e reverter o idioma logo após clicar em "PT". Corrigido para depender apenas de `attachment?.id` (reset via ref estável). Tradução EN→PT agora aplica nas células.
+- [x] TESTE: server/sheetTranslatableEnglish.test.ts cobre a heurística de tradução EN→PT (frases traduzem; números/preços/dimensões/códigos não). Suíte completa: 210 testes verdes.

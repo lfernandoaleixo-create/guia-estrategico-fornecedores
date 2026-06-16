@@ -395,7 +395,7 @@ export default function Home() {
               className="text-xs uppercase tracking-[0.2em] font-semibold mb-2"
               style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}
             >
-              Selecione um acesso
+              Classificação geral de grupos macro
             </div>
             <h2
               style={{

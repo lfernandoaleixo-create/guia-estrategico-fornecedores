@@ -64,6 +64,35 @@ export function hasChinese(text: string): boolean {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(text);
 }
 
+/** Detecta scripts não-latinos (CJK, cirílico, árabe, etc.). */
+function hasNonLatinScript(text: string): boolean {
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff\u0e00-\u0e7f\u0590-\u05ff]/.test(
+    text,
+  );
+}
+
+const PT_HINTS_RE =
+  /\b(de|da|do|das|dos|para|com|sem|n\u00e3o|s\u00e3o|\u00e9|\u00e0s|c\u00e3o|\u00f5es|\u00e1rio|voc\u00ea|pre\u00e7o|fornecedor|produto|modelo|cor|tamanho|peso|quantidade|unidade|caixa|frete|pagamento|entrega|observa)/i;
+const EN_HINTS_RE =
+  /\b(the|and|with|without|price|model|name|color|size|weight|qty|quantity|unit|box|carton|series|new|switch|plug|timer|heater|pump|filter|light|product|supplier|payment|delivery|shipping|description|material|package|packing|min|order|sample)\b/i;
+
+/**
+ * Heurística de cliente (espelha server/translate.ts:isTranslatable): decide se
+ * um texto precisa ser traduzido para PT. Cobre chinês/CJK e inglês, e preserva
+ * o que já está em português.
+ */
+export function isTranslatableText(text: string): boolean {
+  if (!text) return false;
+  const t = text.trim();
+  if (t.length < 2) return false;
+  if (!/[a-zA-Z\u00c0-\u024f\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t)) return false;
+  if (hasNonLatinScript(t)) return true;
+  if (PT_HINTS_RE.test(t)) return false;
+  if (EN_HINTS_RE.test(t)) return true;
+  const words = t.match(/[a-zA-Z]{3,}/g) ?? [];
+  return words.length > 0;
+}
+
 // ----- Fontes / conversões ----------------------------------------------------
 
 /** Fonte para <img>/<video> (segue redirect assinado do S3 ou data URL legado). */
@@ -126,6 +155,30 @@ async function attachmentBytes(att: SupplierAttachment): Promise<Uint8Array | nu
     if (!resp.ok) return null;
     const buf = await resp.arrayBuffer();
     return new Uint8Array(buf);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Converte um anexo (imagem ou página rasterizada) em data URL base64 — formato
+ * que o OCR multimodal aceita com confiabilidade (a URL assinada do S3 não é
+ * acessível pelo provedor de LLM externo).
+ */
+async function attachmentToDataUrl(att: SupplierAttachment): Promise<string | null> {
+  const src = attachmentStreamSrc(att);
+  if (!src) return null;
+  if (src.startsWith("data:")) return src;
+  try {
+    const resp = await fetch(src, { credentials: "include" });
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
   } catch {
     return null;
   }
@@ -206,7 +259,7 @@ export function useTranslator() {
     const pending: string[] = [];
     const seen = new Set<string>();
     for (const t of texts) {
-      if (!t || !hasChinese(t)) continue;
+      if (!isTranslatableText(t)) continue;
       if (cache.has(t)) continue;
       if (seen.has(t)) continue;
       seen.add(t);
@@ -245,19 +298,32 @@ export function PdfCanvas({
   src,
   lang,
   onChineseDetected,
+  onTextfulDetected,
   onTextExtracted,
   translator,
+  ocrPages,
 }: {
   src: string;
   lang: DocLang;
   onChineseDetected?: (has: boolean) => void;
+  onTextfulDetected?: (textful: boolean) => void;
   onTextExtracted?: (pages: PdfTextPage[]) => void;
   translator?: ReturnType<typeof useTranslator>;
+  ocrPages?: { page: number; pt: string; original: string }[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [zoom, setZoom] = useState(1);
   const [textPages, setTextPages] = useState<PdfTextPage[]>([]);
+  // Snapshots (data URL) das páginas, para OCR quando não há texto selecionável.
+  const [pageImages, setPageImages] = useState<string[]>([]);
+  const [textful, setTextful] = useState<boolean | null>(null);
+  // OCR das páginas rasterizadas (PDF escaneado).
+  const ocrMutation = trpc.data.translate.ocrImage.useMutation();
+  const ocrMutateRef = useRef(ocrMutation.mutateAsync);
+  ocrMutateRef.current = ocrMutation.mutateAsync;
+  const [ocrResults, setOcrResults] = useState<{ page: number; pt: string; original: string }[]>([]);
+  const [ocrStatus, setOcrStatus] = useState<"idle" | "loading" | "ready" | "error" | "empty">("idle");
 
   // Render do PDF original (canvas) — sempre disponível no modo "zh".
   useEffect(() => {
@@ -332,7 +398,31 @@ export function PdfCanvas({
             setTextPages(collectedText);
             onTextExtracted?.(collectedText);
             const joined = collectedText.map((p) => p.text).join("");
-            onChineseDetected?.(hasChinese(joined));
+            // "isTextful" = tem texto selecionável suficiente; se vazio, o modal
+            // fará fallback para OCR das páginas rasterizadas.
+            const isTextful = joined.replace(/\s+/g, "").length >= 8;
+            setTextful(isTextful);
+            onTextfulDetected?.(isTextful);
+            // PDF com texto: traduzível se o texto tiver conteúdo estrangeiro.
+            // PDF sem texto (escaneado): sempre traduzível via OCR.
+            onChineseDetected?.(
+              !isTextful || joined.split(/\n|\s{2,}/).some((s) => isTranslatableText(s)),
+            );
+            // Para PDFs sem texto, captura snapshots das páginas (limite de 6) p/ OCR.
+            if (!isTextful) {
+              const snaps: string[] = [];
+              const canvases = Array.from(container.querySelectorAll("canvas")).slice(0, 6);
+              for (const cv of canvases) {
+                try {
+                  snaps.push((cv as HTMLCanvasElement).toDataURL("image/jpeg", 0.85));
+                } catch {
+                  /* ignore */
+                }
+              }
+              setPageImages(snaps);
+            } else {
+              setPageImages([]);
+            }
             setStatus("ready");
           }
         })
@@ -354,9 +444,35 @@ export function PdfCanvas({
   const translateManyPdf = translator?.translateMany;
   useEffect(() => {
     if (lang !== "pt" || !translateManyPdf) return;
-    const texts = textPages.map((p) => p.text).filter((t) => hasChinese(t));
+    const texts = textPages.map((p) => p.text).filter((t) => isTranslatableText(t));
     if (texts.length > 0) void translateManyPdf(texts);
   }, [lang, textPages, translateManyPdf]);
+
+  // PDF escaneado (sem texto): ao entrar no modo PT, roda OCR das páginas.
+  useEffect(() => {
+    if (lang !== "pt" || textful !== false || pageImages.length === 0) return;
+    if (ocrStatus !== "idle") return;
+    let cancelled = false;
+    setOcrStatus("loading");
+    (async () => {
+      const results: { page: number; pt: string; original: string }[] = [];
+      for (let i = 0; i < pageImages.length; i++) {
+        try {
+          const res = await ocrMutateRef.current({ imageUrl: pageImages[i] });
+          if (cancelled) return;
+          if (!res.empty) results.push({ page: i + 1, pt: res.pt, original: res.original });
+        } catch {
+          /* segue para a próxima página */
+        }
+      }
+      if (cancelled) return;
+      setOcrResults(results);
+      setOcrStatus(results.length > 0 ? "ready" : "empty");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lang, textful, pageImages, ocrStatus]);
 
   const clampZoom = (z: number) => Math.min(3, Math.max(0.5, Math.round(z * 10) / 10));
 
@@ -426,9 +542,12 @@ export function PdfCanvas({
             minWidth: "100%",
           }}
         />
-        {/* Painel de tradução PT */}
-        {status === "ready" && showTranslation && (
+        {/* Painel de tradução PT: texto selecionável → tradução; escaneado → OCR */}
+        {status === "ready" && showTranslation && textful !== false && (
           <PdfTranslationPanel textPages={textPages} translator={translator} />
+        )}
+        {status === "ready" && showTranslation && textful === false && (
+          <PdfOcrPanel status={ocrStatus} results={ocrResults} />
         )}
       </div>
     </div>
@@ -442,7 +561,7 @@ function PdfTranslationPanel({
   textPages: PdfTextPage[];
   translator: ReturnType<typeof useTranslator>;
 }) {
-  const anyChinese = textPages.some((p) => hasChinese(p.text));
+  const anyChinese = textPages.some((p) => isTranslatableText(p.text));
   return (
     <div className="max-w-3xl mx-auto p-5 md:p-8">
       <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -455,8 +574,8 @@ function PdfTranslationPanel({
       )}
       {!anyChinese && !translator.isTranslating && (
         <p className="text-sm text-zinc-500">
-          Não foi detectado texto em chinês neste PDF (ou o texto está embutido como imagem). Use o
-          modo 中文 para ver o original.
+          Não foi detectado texto estrangeiro selecionável neste PDF. Use o modo Original para ver o
+          documento.
         </p>
       )}
       <div className="space-y-6">
@@ -469,11 +588,49 @@ function PdfTranslationPanel({
                 Página {p.page}
               </p>
               <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">
-                {hasChinese(p.text) ? (pt ?? "…") : p.text}
+                {isTranslatableText(p.text) ? (pt ?? "…") : p.text}
               </p>
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** Painel de tradução para PDFs escaneados (sem texto selecionável), via OCR. */
+function PdfOcrPanel({
+  status,
+  results,
+}: {
+  status: "idle" | "loading" | "ready" | "error" | "empty";
+  results: { page: number; pt: string; original: string }[];
+}) {
+  return (
+    <div className="max-w-3xl mx-auto p-5 md:p-8">
+      <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
+        <Languages size={13} /> Tradução por leitura de imagem (OCR + PT)
+      </div>
+      {(status === "loading" || status === "idle") && (
+        <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
+          <Loader2 size={15} className="animate-spin" /> Lendo e traduzindo o documento…
+        </div>
+      )}
+      {status === "error" && (
+        <p className="text-sm text-rose-600">Não foi possível ler o texto deste documento. Tente o modo Original.</p>
+      )}
+      {status === "empty" && (
+        <p className="text-sm text-zinc-500">Nenhum texto foi detectado nas imagens deste documento.</p>
+      )}
+      <div className="space-y-6">
+        {results.map((r) => (
+          <div key={r.page} className="rounded-lg border border-zinc-200 bg-white p-4">
+            <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mb-2">
+              Página {r.page}
+            </p>
+            <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">{r.pt}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -562,14 +719,20 @@ export function SheetCanvas({
   // costumam estar em chinês (过滤器, 增氧泵, UV灯系列…).
   const allCells = useMemo(() => [...rows.flat(), ...sheetNames], [rows, sheetNames]);
   useEffect(() => {
-    onChineseDetected?.(allCells.some((c) => hasChinese(c)));
+    onChineseDetected?.(allCells.some((c) => isTranslatableText(c)));
   }, [allCells, onChineseDetected]);
 
+  // tick local: incrementa quando uma rodada de tradução conclui, garantindo
+  // re-render do SheetCanvas mesmo que a identidade/version do translator não
+  // propague de forma confiável (cacheRef é mutável, fora do ciclo do React).
+  const [, setTick] = useState(0);
   const translateMany = translator?.translateMany;
   useEffect(() => {
     if (lang !== "pt" || !translateMany) return;
-    const texts = allCells.filter((c) => hasChinese(c));
-    if (texts.length > 0) void translateMany(texts);
+    const texts = allCells.filter((c) => isTranslatableText(c));
+    if (texts.length > 0) {
+      void translateMany(texts).then(() => setTick((n) => n + 1));
+    }
   }, [lang, allCells, translateMany]);
 
   if (status === "loading") {
@@ -589,10 +752,16 @@ export function SheetCanvas({
   }
 
   const showPt = lang === "pt" && !!translator;
+  // Ler translator.version aqui (no corpo do render) garante que o SheetCanvas
+  // re-renderize quando o cache de tradução ganha novas entradas. Como o objeto
+  // `translator` é memoizado por `version` no useTranslator, qualquer mudança
+  // de version já força novo render deste componente e reavalia cada `cell()`.
+  void translator?.version;
+  const translatorBusy = translator?.isTranslating ?? false;
   const cell = (raw: string): string => {
-    if (showPt && hasChinese(raw)) {
+    if (showPt && isTranslatableText(raw)) {
       const pt = translator!.lookup(raw);
-      return pt ?? (translator!.isTranslating ? "…" : raw);
+      return pt ?? (translatorBusy ? "…" : raw);
     }
     return raw;
   };
@@ -602,7 +771,7 @@ export function SheetCanvas({
 
   return (
     <div className="h-full w-full flex flex-col bg-zinc-50">
-      {(sheetNames.length > 1 || sheetNames.some((n) => hasChinese(n)) || (showPt && translator?.isTranslating)) && (
+      {(sheetNames.length > 1 || sheetNames.some((n) => isTranslatableText(n)) || (showPt && translator?.isTranslating)) && (
         <div
           className="flex items-center gap-1 px-3 py-2 border-b bg-white overflow-x-auto shrink-0"
           style={{ borderColor: "#e4e4e7" }}
@@ -694,17 +863,17 @@ async function downloadSheetTranslated(
   // Inclui também os nomes das abas (SheetNames).
   const allText: string[] = [];
   for (const sheetName of wb.SheetNames) {
-    if (hasChinese(sheetName)) allText.push(sheetName);
+    if (isTranslatableText(sheetName)) allText.push(sheetName);
     const ws = wb.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: "", blankrows: false });
-    for (const row of data) for (const c of row) if (c && hasChinese(String(c))) allText.push(String(c));
+    for (const row of data) for (const c of row) if (c && isTranslatableText(String(c))) allText.push(String(c));
   }
   await translator.translateMany(allText);
 
   // Renomeia as abas chinesas pela tradução (preservando a ordem).
   const renameMap: Record<string, string> = {};
   for (const sheetName of wb.SheetNames) {
-    if (hasChinese(sheetName)) {
+    if (isTranslatableText(sheetName)) {
       const pt = translator.lookup(sheetName);
       if (pt) renameMap[sheetName] = pt;
     }
@@ -730,7 +899,7 @@ async function downloadSheetTranslated(
         const cellObj = ws[addr];
         if (!cellObj || cellObj.v == null) continue;
         const raw = String(cellObj.v);
-        if (hasChinese(raw)) {
+        if (isTranslatableText(raw)) {
           const pt = translator.lookup(raw);
           if (pt) {
             cellObj.v = pt;
@@ -756,15 +925,142 @@ async function downloadTextTranslated(
   textPages: PdfTextPage[],
 ): Promise<void> {
   const texts = textPages.map((p) => p.text);
-  await translator.translateMany(texts.filter((t) => hasChinese(t)));
+  await translator.translateMany(texts.filter((t) => isTranslatableText(t)));
   const lines: string[] = [];
   for (const p of textPages) {
     lines.push(`--- Página ${p.page} ---`);
-    lines.push(hasChinese(p.text) ? translator.lookup(p.text) ?? p.text : p.text);
+    lines.push(isTranslatableText(p.text) ? translator.lookup(p.text) ?? p.text : p.text);
     lines.push("");
   }
   const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
   triggerBlobDownload(blob, withSuffix(att.name.replace(/\.pdf$/i, ".txt"), "-PT"));
+}
+
+// ----- OCR de imagem (cliente) ------------------------------------------------
+
+export type OcrState = {
+  status: "idle" | "loading" | "ready" | "error" | "empty";
+  original: string;
+  pt: string;
+};
+
+/**
+ * Hook que faz OCR + tradução de uma imagem via tRPC (data.translate.ocrImage).
+ * Converte o anexo em data URL e mantém um cache por id de anexo.
+ */
+export function useImageOcr() {
+  const mutation = trpc.data.translate.ocrImage.useMutation();
+  const mutateRef = useRef(mutation.mutateAsync);
+  mutateRef.current = mutation.mutateAsync;
+  const cacheRef = useRef<Map<string, OcrState>>(new Map());
+  const [state, setState] = useState<OcrState>({ status: "idle", original: "", pt: "" });
+
+  const run = useCallback(async (att: SupplierAttachment) => {
+    const cached = cacheRef.current.get(att.id);
+    if (cached) {
+      setState(cached);
+      return;
+    }
+    setState({ status: "loading", original: "", pt: "" });
+    try {
+      const dataUrl = await attachmentToDataUrl(att);
+      if (!dataUrl) {
+        setState({ status: "error", original: "", pt: "" });
+        return;
+      }
+      const res = await mutateRef.current({ imageUrl: dataUrl, cacheKey: att.id });
+      const next: OcrState = res.empty
+        ? { status: "empty", original: "", pt: "" }
+        : { status: "ready", original: res.original, pt: res.pt };
+      cacheRef.current.set(att.id, next);
+      setState(next);
+    } catch {
+      setState({ status: "error", original: "", pt: "" });
+    }
+  }, []);
+
+  const reset = useCallback(() => setState({ status: "idle", original: "", pt: "" }), []);
+
+  return useMemo(() => ({ state, run, reset }), [state, run, reset]);
+}
+
+// ----- ImageCanvas ------------------------------------------------------------
+
+/**
+ * Exibe uma imagem. No modo PT, mostra a imagem reduzida + um painel lateral com
+ * o texto extraído (OCR) traduzido para português.
+ */
+export function ImageCanvas({
+  att,
+  lang,
+  ocr,
+}: {
+  att: SupplierAttachment;
+  lang: DocLang;
+  ocr: ReturnType<typeof useImageOcr>;
+}) {
+  const showPt = lang === "pt";
+
+  // Dispara o OCR ao entrar no modo PT (idempotente via cache).
+  const runOcr = ocr.run;
+  useEffect(() => {
+    if (showPt) void runOcr(att);
+  }, [showPt, att, runOcr]);
+
+  if (!showPt) {
+    return (
+      <div className="h-full w-full overflow-auto flex items-center justify-center p-4">
+        <img src={attachmentSrc(att)} alt={att.name} className="max-w-full max-h-full object-contain" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full overflow-auto flex flex-col md:flex-row">
+      <div className="md:w-1/2 shrink-0 flex items-center justify-center p-4 bg-zinc-100 border-b md:border-b-0 md:border-r" style={{ borderColor: "#e4e4e7" }}>
+        <img src={attachmentSrc(att)} alt={att.name} className="max-w-full max-h-[40vh] md:max-h-full object-contain rounded-md" />
+      </div>
+      <div className="md:w-1/2 p-5 md:p-7 overflow-auto">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <Languages size={13} /> Tradução do texto da imagem (PT)
+        </div>
+        {ocr.state.status === "loading" && (
+          <div className="flex items-center gap-2 text-sm text-zinc-500">
+            <Loader2 size={15} className="animate-spin" /> Lendo e traduzindo o texto da imagem…
+          </div>
+        )}
+        {ocr.state.status === "error" && (
+          <p className="text-sm text-rose-600">Não foi possível ler o texto desta imagem. Tente novamente ou use o botão Baixar.</p>
+        )}
+        {ocr.state.status === "empty" && (
+          <p className="text-sm text-zinc-500">Nenhum texto legível foi encontrado nesta imagem.</p>
+        )}
+        {ocr.state.status === "ready" && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mb-1.5">Português</p>
+              <p className="text-sm leading-relaxed text-zinc-800 whitespace-pre-wrap">{ocr.state.pt}</p>
+            </div>
+            {ocr.state.original.trim() && (
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold mb-1.5">Original</p>
+                <p className="text-sm leading-relaxed text-zinc-500 whitespace-pre-wrap">{ocr.state.original}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Baixa um .txt com a tradução PT do texto extraído de uma imagem (OCR). */
+function downloadImageOcrText(att: SupplierAttachment, ocr: OcrState): void {
+  const lines: string[] = [];
+  lines.push(`--- ${att.name} (tradução) ---`, "", ocr.pt || "(sem texto)");
+  if (ocr.original.trim()) lines.push("", "--- Original ---", "", ocr.original);
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  triggerBlobDownload(blob, withSuffix(att.name.replace(/\.[^.]+$/i, ".txt"), "-PT"));
 }
 
 // ----- AttachmentLightbox -----------------------------------------------------
@@ -785,10 +1081,13 @@ export function AttachmentLightbox({
 }) {
   const [lang, setLang] = useState<DocLang>("zh");
   const [hasCn, setHasCn] = useState(false);
+  // PDF tem texto selecionável suficiente? Se false e for PDF, faríamos OCR.
+  const [pdfTextful, setPdfTextful] = useState<boolean | null>(null);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const downloadBtnRef = useRef<HTMLButtonElement | null>(null);
   const translator = useTranslator();
+  const imageOcr = useImageOcr();
   // Guarda o texto extraído do PDF para o download traduzido.
   const pdfTextRef = useRef<PdfTextPage[]>([]);
 
@@ -803,12 +1102,20 @@ export function AttachmentLightbox({
     setDownloadOpen((o) => !o);
   }, []);
 
-  // Reseta estado ao trocar de anexo.
+  // Reseta estado ao trocar de anexo. IMPORTANTE: depender apenas de
+  // `attachment?.id`. Incluir `imageOcr` (objeto possivelmente não memoizado)
+  // fazia o effect rodar a cada render e resetar `lang` para "zh" logo após o
+  // usuário clicar em "PT", impedindo a tradução de aparecer.
+  const imageOcrResetRef = useRef(imageOcr.reset);
+  imageOcrResetRef.current = imageOcr.reset;
   useEffect(() => {
     setLang("zh");
     setHasCn(false);
+    setPdfTextful(null);
     setDownloadOpen(false);
     pdfTextRef.current = [];
+    imageOcrResetRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachment?.id]);
 
   useEffect(() => {
@@ -841,7 +1148,16 @@ export function AttachmentLightbox({
   const vid = isVideoAtt(att);
   const pdf = isPdfAtt(att);
   const sheet = isSheetAtt(att);
-  const translatable = (pdf || sheet) && hasCn;
+  // Imagens são sempre "traduzíveis" (texto embutido lido por OCR).
+  // PDF/planilha: o toggle aparece SEMPRE — qualquer documento pode conter
+  // conteúdo em idioma estrangeiro, e a detecção automática de idioma é frágil
+  // (falsos negativos). Deixamos o usuário decidir traduzir; quando não há nada
+  // traduzível, a tradução simplesmente repete o texto original.
+  // (hasCn permanece para futura telemetria, mas não condiciona o toggle.)
+  void hasCn;
+  const translatable = img || pdf || sheet;
+  // Rótulo do formato de download traduzido.
+  const ptFormat = sheet ? "(.xlsx)" : "(.txt)";
 
   const handleDownloadOriginal = () => {
     setDownloadOpen(false);
@@ -851,6 +1167,14 @@ export function AttachmentLightbox({
     setDownloadOpen(false);
     if (sheet) void downloadSheetTranslated(att, translator);
     else if (pdf) void downloadTextTranslated(att, translator, pdfTextRef.current);
+    else if (img) {
+      // Garante que o OCR rodou antes de gerar o .txt.
+      if (imageOcr.state.status === "ready" || imageOcr.state.status === "empty") {
+        downloadImageOcrText(att, imageOcr.state);
+      } else {
+        void imageOcr.run(att).then(() => downloadImageOcrText(att, imageOcr.state));
+      }
+    }
   };
 
   return createPortal(
@@ -885,7 +1209,7 @@ export function AttachmentLightbox({
                   lang === "zh" ? "bg-zinc-800 text-white" : "text-zinc-600 hover:bg-zinc-100"
                 }`}
               >
-                中文
+                Original
               </button>
               <button
                 type="button"
@@ -925,7 +1249,7 @@ export function AttachmentLightbox({
                       onClick={handleDownloadOriginal}
                       className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 inline-flex items-center gap-2"
                     >
-                      <span className="flex-1">中文 — Chinês (original)</span>
+                      <span className="flex-1">Original (sem tradução)</span>
                     </button>
                     <button
                       type="button"
@@ -934,9 +1258,7 @@ export function AttachmentLightbox({
                       style={{ borderColor: "#f4f4f5" }}
                     >
                       <Languages size={14} className="text-emerald-600" />
-                      <span className="flex-1">
-                        Português {sheet ? "(.xlsx)" : "(.txt)"}
-                      </span>
+                      <span className="flex-1">Português {ptFormat}</span>
                       {translator.isTranslating && <Loader2 size={13} className="animate-spin text-zinc-400" />}
                     </button>
                   </div>
@@ -966,9 +1288,7 @@ export function AttachmentLightbox({
         {/* Conteúdo */}
         <div className="flex-1 min-h-0 bg-zinc-100">
           {img ? (
-            <div className="h-full w-full overflow-auto flex items-center justify-center p-4">
-              <img src={attachmentSrc(att)} alt={att.name} className="max-w-full max-h-full object-contain" />
-            </div>
+            <ImageCanvas att={att} lang={lang} ocr={imageOcr} />
           ) : vid ? (
             <div className="h-full w-full flex items-center justify-center p-4 bg-black">
               <video src={attachmentSrc(att)} controls className="max-w-full max-h-full" />
@@ -979,6 +1299,7 @@ export function AttachmentLightbox({
               lang={lang}
               translator={translator}
               onChineseDetected={setHasCn}
+              onTextfulDetected={setPdfTextful}
               onTextExtracted={(pages) => {
                 pdfTextRef.current = pages;
               }}

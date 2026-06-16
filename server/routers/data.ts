@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { translateTexts } from "../translate";
+import { translateTexts, ocrTranslateImage } from "../translate";
 import { publicProcedure, router } from "../_core/trpc";
 import {
   bulkUpsertCustomGroups,
@@ -344,13 +344,19 @@ export const dataRouter = router({
       }),
   }),
 
-  // ---------- Tradução CN→PT (visualizador de documentos) ----------
+  // ---------- Tradução estrangeiro→PT (visualizador de documentos) ----------
   translate: router({
     toPt: publicProcedure
       .input(z.object({ texts: z.array(z.string()).max(2000) }))
       .mutation(async ({ input }) => {
         const translations = await translateTexts(input.texts);
         return { translations } as const;
+      }),
+    // OCR + tradução de uma imagem (logo, catálogo escaneado, página de PDF).
+    ocrImage: publicProcedure
+      .input(z.object({ imageUrl: z.string().min(1), cacheKey: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        return await ocrTranslateImage(input);
       }),
   }),
 

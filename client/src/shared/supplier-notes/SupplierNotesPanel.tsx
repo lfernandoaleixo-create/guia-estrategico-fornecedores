@@ -23,6 +23,7 @@ import PartnerEditor from "./PartnerEditor";
 import { parsePartners, serializePartners, PARTNERS_FIELD_KEY } from "./partners";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import ViabilitySheetDialog from "./ViabilitySheetDialog";
+import { AttachmentLightbox } from "./attachmentViewer";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
@@ -1354,7 +1355,7 @@ export default function SupplierNotesPanel({
         </div>
       </div>
 
-      <AttachmentPreviewModal
+      <AttachmentLightbox
         attachment={preview}
         onClose={() => setPreview(null)}
       />
@@ -1394,91 +1395,6 @@ function CalcButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function AttachmentPreviewModal({
-  attachment,
-  onClose,
-}: {
-  attachment: SupplierAttachment | null;
-  onClose: () => void;
-}) {
-  // Fonte exibível: URL do S3 (novo) ou objectURL a partir do base64 (legado).
-  const objectUrl = useMemo(() => {
-    if (!attachment) return null;
-    if (attachment.url) return attachment.url;
-    if (attachment.dataUrl) {
-      const blob = dataURLToBlob(attachment.dataUrl);
-      return blob ? URL.createObjectURL(blob) : attachment.dataUrl;
-    }
-    return null;
-  }, [attachment]);
-
-  useEffect(() => {
-    return () => {
-      if (objectUrl && objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
-    };
-  }, [objectUrl]);
-
-  const open = attachment !== null;
-  const isImg = attachment ? attachment.type.startsWith("image/") : false;
-  const isPdf = attachment ? attachment.type === "application/pdf" : false;
-  const isSheet = attachment ? !!isSpreadsheet(attachment) : false;
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden bg-white">
-        <DialogHeader className="px-4 py-3 border-b" style={{ borderColor: "#e4e4e7" }}>
-          <div className="flex items-center justify-between gap-3 pr-8">
-            <DialogTitle className="text-sm font-semibold truncate text-zinc-800">
-              {attachment?.name ?? "Visualizar anexo"}
-            </DialogTitle>
-            {attachment && (
-              <button
-                type="button"
-                onClick={() => void downloadAttachment(attachment)}
-                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 bg-zinc-800 text-white hover:bg-zinc-900 transition-colors active:scale-[0.97]"
-              >
-                <Download size={13} /> Baixar
-              </button>
-            )}
-          </div>
-        </DialogHeader>
-        <div className="bg-zinc-100" style={{ height: "78vh" }}>
-          {!objectUrl ? (
-            <div className="h-full flex items-center justify-center text-sm text-zinc-500">
-              Não foi possível carregar o arquivo.
-            </div>
-          ) : isImg ? (
-            <div className="h-full w-full flex items-center justify-center p-4">
-              <img
-                src={objectUrl}
-                alt={attachment?.name ?? ""}
-                className="max-h-full max-w-full object-contain rounded"
-              />
-            </div>
-          ) : isPdf ? (
-            <PdfCanvas src={attachmentStreamSrc(attachment!)} />
-          ) : isSheet ? (
-            <SheetCanvas att={attachment!} />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
-              <FileText size={40} style={{ color: "#a1a1aa" }} />
-              <p className="text-sm text-zinc-600">
-                Este tipo de arquivo não pode ser pré-visualizado aqui.
-              </p>
-              <button
-                type="button"
-                onClick={() => attachment && void downloadAttachment(attachment)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 transition-colors active:scale-[0.97]"
-              >
-                <Download size={14} /> Baixar arquivo
-              </button>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ============================================================================
 // Componentes auxiliares: AttachmentBucket / AttachmentList
