@@ -477,3 +477,12 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] useMacros: ordena por orderIndex (fallback number); reorderMacros atualiza SOMENTE orderIndex (não mexe em number/name)
 - [x] Numeração hierárquica (1.1…) e subgrupos (macroNumber) intactos ao reordenar (hierLabel usa m.number)
 - [x] TS limpo + 159/159 testes + validado no preview (descer PET → ordem trocou mas Nº1 PET / Nº2 Utensílios mantidos; ordem restaurada) + checkpoint
+
+## Renomear "grupo" -> "subgrupo" e adicionar fornecedor dentro de cada macro
+- [x] Página Adicionar: card "Adicionar Fornecedores" — "Novos grupos" -> "Novos subgrupos", descrição -> subgrupos
+- [x] Página Adicionar: bloco "Grupos Personalizados (N)" -> "Subgrupos Personalizados (N)"; texto e botão "Novo subgrupo"
+- [x] Modal de criação: "Novo/Editar subgrupo"; "Número/Nome do subgrupo"; "Criar subgrupo"; placeholder e toasts
+- [x] Varredura: GrupoDashboard (header SUBGRUPO Nº, rebaixar, scopeLabel) e Home (cards promovidos) renomeados; TS limpo
+- [ ] Adicionar botão/card "Adicionar fornecedor" dentro de cada seção de macro na Home
+- [ ] Ao adicionar a partir de um macro: fixar o número do macro e pedir só a 2ª parte do subgrupo (ex.: 1.__ Coleira de Cachorro)
+- [ ] TS limpo + testes + validar no preview + checkpoint

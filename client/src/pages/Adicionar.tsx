@@ -206,12 +206,12 @@ export default function AdicionarPage() {
     await reorderGroups(ids);
     setDragId(null);
     setDragOverId(null);
-    toast.success("Grupos renumerados");
+    toast.success("Subgrupos renumerados");
   }
 
   async function saveGroup() {
     if (!groupDraft.name.trim()) {
-      toast.error("Dê um nome ao grupo.");
+      toast.error("Dê um nome ao subgrupo.");
       return;
     }
     if (!groupDraft.branch.trim()) {
@@ -219,7 +219,7 @@ export default function AdicionarPage() {
       return;
     }
     if (!Number.isInteger(groupDraft.number) || groupDraft.number < 0) {
-      toast.error("O número do grupo deve ser inteiro (0 ou maior).");
+      toast.error("O número do subgrupo deve ser inteiro (0 ou maior).");
       return;
     }
     const dup = groups.find(
@@ -227,7 +227,7 @@ export default function AdicionarPage() {
     );
     if (dup) {
       toast.error(
-        `Já existe um grupo com o número ${groupDraft.number} ("${dup.name}"). Escolha outro.`,
+        `Já existe um subgrupo com o número ${groupDraft.number} ("${dup.name}"). Escolha outro.`,
       );
       return;
     }
@@ -239,7 +239,7 @@ export default function AdicionarPage() {
         color: groupDraft.color,
         description: groupDraft.description,
       });
-      toast.success(`Grupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" atualizado`);
+      toast.success(`Subgrupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" atualizado`);
     } else {
       await createGroup({
         number: groupDraft.number,
@@ -248,7 +248,7 @@ export default function AdicionarPage() {
         color: groupDraft.color,
         description: groupDraft.description,
       });
-      toast.success(`Grupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" criado`);
+      toast.success(`Subgrupo ${String(groupDraft.number).padStart(2, "0")} · "${groupDraft.name}" criado`);
     }
     setGroupModalOpen(false);
   }
@@ -256,16 +256,16 @@ export default function AdicionarPage() {
   async function handleDeleteGroup(g: CustomGroup) {
     const used = suppliersByGroup[g.id]?.length ?? 0;
     const msg = used > 0
-      ? `Excluir o grupo "${g.name}"? ${used} fornecedor${used === 1 ? "" : "es"} ficará${used === 1 ? "" : "ão"} sem grupo.`
-      : `Excluir o grupo "${g.name}"?`;
+      ? `Excluir o subgrupo "${g.name}"? ${used} fornecedor${used === 1 ? "" : "es"} ficará${used === 1 ? "" : "ão"} sem subgrupo.`
+      : `Excluir o subgrupo "${g.name}"?`;
     if (!window.confirm(msg)) return;
     await deleteGroup(g.id);
-    toast.success("Grupo excluído");
+    toast.success("Subgrupo excluído");
   }
 
   async function handleSaveSupplier() {
     if (!supplierDraft.destination) {
-      toast.error("Selecione um destino (dashboard ou grupo) para o fornecedor.");
+      toast.error("Selecione um destino (dashboard ou subgrupo) para o fornecedor.");
       return;
     }
     if (!supplierDraft.name.trim()) {
@@ -333,9 +333,9 @@ export default function AdicionarPage() {
           ? [{ id: genContactId(), value: supplierDraft.link.trim() }]
           : [],
       });
-      toast.success(`Fornecedor "${name}" cadastrado${group ? ` no grupo “${group.name}”` : ""}`);
+      toast.success(`Fornecedor "${name}" cadastrado${group ? ` no subgrupo “${group.name}”` : ""}`);
       if (group) {
-        const label = `Grupo Nº ${String(group.number ?? 0).padStart(2, "0")} · ${group.name}`;
+        const label = `Subgrupo Nº ${String(group.number ?? 0).padStart(2, "0")} · ${group.name}`;
         setLastSaved({ label, route: `/grupo/${group.id}?tab=diario` });
       }
     }
@@ -440,8 +440,8 @@ export default function AdicionarPage() {
           className="text-base max-w-2xl"
           style={{ color: "oklch(0.78 0.015 80)", lineHeight: 1.55 }}
         >
-          Crie um <strong>grupo</strong> para o ramo (ex.: Brinquedos, Vidro, Decoração)
-          e cadastre os fornecedores ali. Quando o grupo crescer e merecer, você pode
+          Crie um <strong>subgrupo</strong> para o ramo (ex.: Brinquedos, Vidro, Decoração)
+          e cadastre os fornecedores ali. Quando o subgrupo crescer e merecer, você pode
           promovê-lo a um dashboard independente — mantendo todos os dados.
         </p>
       </section>
@@ -458,7 +458,7 @@ export default function AdicionarPage() {
                 color: TEXT_PRIMARY,
               }}
             >
-              Grupos Personalizados
+              Subgrupos Personalizados
             </h2>
             <span
               className="text-xs px-2 py-0.5 rounded-full"
@@ -481,7 +481,7 @@ export default function AdicionarPage() {
               color: "oklch(0.10 0.02 250)",
             }}
           >
-            <Plus className="w-4 h-4" /> Novo grupo
+            <Plus className="w-4 h-4" /> Novo subgrupo
           </button>
         </div>
 
@@ -490,7 +490,7 @@ export default function AdicionarPage() {
             className="rounded-2xl border-2 border-dashed p-10 text-center"
             style={{ borderColor: BORDER, color: TEXT_MUTED }}
           >
-            Nenhum grupo personalizado ainda. Clique em <strong>"Novo grupo"</strong> para criar o primeiro.
+            Nenhum subgrupo personalizado ainda. Clique em <strong>"Novo subgrupo"</strong> para criar o primeiro.
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -534,7 +534,7 @@ export default function AdicionarPage() {
                         className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
                         style={{ color: g.color, fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        GRUPO Nº {String(g.number ?? 0).padStart(2, "0")} · {g.branch || "Sem ramo"}
+                        SUBGRUPO Nº {String(g.number ?? 0).padStart(2, "0")} · {g.branch || "Sem ramo"}
                       </div>
                       <h3
                         className="font-semibold leading-tight"
@@ -552,7 +552,7 @@ export default function AdicionarPage() {
                         onClick={() => startEditGroup(g)}
                         className="p-1.5 rounded hover:bg-white/5"
                         style={{ color: TEXT_MUTED }}
-                        title="Editar grupo"
+                        title="Editar subgrupo"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -560,7 +560,7 @@ export default function AdicionarPage() {
                         onClick={() => handleDeleteGroup(g)}
                         className="p-1.5 rounded hover:bg-red-500/10"
                         style={{ color: "#fca5a5" }}
-                        title="Excluir grupo"
+                        title="Excluir subgrupo"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -588,9 +588,9 @@ export default function AdicionarPage() {
                     {g.promotedToDashboard ? (
                       <button
                         onClick={async () => {
-                          if (!window.confirm(`Rebaixar "${g.name}" de dashboard? Volta a ser apenas grupo personalizado.`)) return;
+                          if (!window.confirm(`Rebaixar "${g.name}" de dashboard? Volta a ser apenas subgrupo personalizado.`)) return;
                           await demoteFromDashboard(g.id);
-                          toast.success("Rebaixado para grupo personalizado");
+                          toast.success("Rebaixado para subgrupo personalizado");
                         }}
                         className="text-[11px] uppercase tracking-wider font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md"
                         style={{
@@ -598,7 +598,7 @@ export default function AdicionarPage() {
                           border: `1px solid ${BORDER}`,
                           background: "transparent",
                         }}
-                        title="Rebaixar a grupo personalizado"
+                        title="Rebaixar a subgrupo personalizado"
                       >
                         <Rocket className="w-3 h-3" /> Promovido
                       </button>
@@ -722,7 +722,7 @@ export default function AdicionarPage() {
             style={{ background: SURFACE, borderColor: BORDER }}
           >
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Destino (dashboard ou grupo)">
+              <Field label="Destino (dashboard ou subgrupo)">
                 <select
                   value={supplierDraft.destination}
                   onChange={(e) =>
@@ -744,10 +744,10 @@ export default function AdicionarPage() {
                     ))}
                   </optgroup>
                   {groups.length > 0 && (
-                    <optgroup label="Grupos personalizados">
+                    <optgroup label="Subgrupos personalizados">
                       {groups.map((g) => (
                         <option key={g.id} value={g.id}>
-                          Grupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
+                          Subgrupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
                           {g.branch ? ` · ${g.branch}` : ""}
                         </option>
                       ))}
@@ -1039,7 +1039,7 @@ export default function AdicionarPage() {
             className="rounded-2xl border-2 border-dashed p-10 text-center"
             style={{ borderColor: BORDER, color: TEXT_MUTED }}
           >
-            Nenhum fornecedor cadastrado nos grupos personalizados ainda.
+            Nenhum fornecedor cadastrado nos subgrupos personalizados ainda.
           </div>
         )}
       </section>
@@ -1067,7 +1067,7 @@ export default function AdicionarPage() {
                 className="text-lg font-semibold"
                 style={{ fontFamily: "'Fraunces', serif" }}
               >
-                {groupDraft.id ? "Editar grupo" : "Novo grupo"}
+                {groupDraft.id ? "Editar subgrupo" : "Novo subgrupo"}
               </h3>
               <button
                 onClick={() => setGroupModalOpen(false)}
@@ -1079,7 +1079,7 @@ export default function AdicionarPage() {
             </div>
 
             <div className="space-y-3">
-              <Field label="Número do grupo">
+              <Field label="Número do subgrupo">
                 <input
                   type="number"
                   min={0}
@@ -1107,7 +1107,7 @@ export default function AdicionarPage() {
                   Sugestão automática do próximo livre. Também dá para arrastar os cards para reordenar.
                 </span>
               </Field>
-              <Field label="Nome do grupo">
+              <Field label="Nome do subgrupo">
                 <Input
                   value={groupDraft.name}
                   onChange={(v) => setGroupDraft({ ...groupDraft, name: v })}
@@ -1148,7 +1148,7 @@ export default function AdicionarPage() {
                     color: TEXT_PRIMARY,
                     border: `1px solid ${BORDER}`,
                   }}
-                  placeholder="Quem entra nesse grupo? Especialidades, observações…"
+                  placeholder="Quem entra nesse subgrupo? Especialidades, observações…"
                 />
               </Field>
               <Field label="Cor">
@@ -1193,7 +1193,7 @@ export default function AdicionarPage() {
                   color: "oklch(0.10 0.02 250)",
                 }}
               >
-                {groupDraft.id ? "Salvar alterações" : "Criar grupo"}
+                {groupDraft.id ? "Salvar alterações" : "Criar subgrupo"}
               </button>
             </div>
           </div>

@@ -105,13 +105,13 @@ const addCard: DashboardCardData = {
   title: "Adicionar Fornecedores",
   subtitle: "Banco de fornecedores avulsos",
   description:
-    "Cadastre fornecedores que ainda não pertencem a nenhum dashboard. Crie grupos personalizados por ramo (brinquedos, vidro, decoração…) e, quando crescerem, promova-os a dashboards independentes.",
+    "Cadastre fornecedores que ainda não pertencem a nenhum dashboard. Crie subgrupos personalizados por ramo (brinquedos, vidro, decoração…) e, quando crescerem, promova-os a dashboards independentes.",
   accent: "oklch(0.78 0.16 75)",
   accentSoft: "oklch(0.86 0.13 75)",
   accentBg: "oklch(0.78 0.16 75 / 0.12)",
   accentBorder: "oklch(0.78 0.16 75 / 0.5)",
   icon: Plus,
-  chips: ["Novos grupos", "Cadastro avulso", "Promover a dashboard"],
+  chips: ["Novos subgrupos", "Cadastro avulso", "Promover a dashboard"],
   badge: "+",
 };
 
@@ -185,13 +185,13 @@ export default function Home() {
       const count = extraSuppliers.filter((s) => s.groupId === g.id).length;
       map[`group:${g.id}`] = {
         href: `/grupo/${g.id}`,
-        eyebrow: `GRUPO Nº ${String(g.number ?? 0).padStart(2, "0")}`,
+        eyebrow: `SUBGRUPO Nº ${String(g.number ?? 0).padStart(2, "0")}`,
         groupNumber: g.number ?? 0,
         title: g.name,
-        subtitle: `Grupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
+        subtitle: `Subgrupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
         description:
           g.description ||
-          `Dashboard independente promovido a partir do grupo personalizado "${g.name}". Lista os fornecedores cadastrados neste ramo.`,
+          `Dashboard independente promovido a partir do subgrupo personalizado "${g.name}". Lista os fornecedores cadastrados neste ramo.`,
         accent: g.color,
         accentSoft: g.color,
         accentBg: `${g.color}1f`,

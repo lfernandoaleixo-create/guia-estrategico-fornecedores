@@ -554,20 +554,20 @@ export default function GrupoDashboard() {
   async function handleDemote() {
     if (
       !window.confirm(
-        `Rebaixar "${group?.name}" de dashboard? Ele voltará a ser apenas um grupo personalizado em /adicionar (todos os fornecedores são preservados).`,
+        `Rebaixar "${group?.name}" de dashboard? Ele voltará a ser apenas um subgrupo personalizado em /adicionar (todos os fornecedores são preservados).`,
       )
     )
       return;
     if (group) {
       await demoteFromDashboard(group.id);
-      toast.success("Grupo rebaixado", {
-        description: "O grupo continua disponível em /adicionar.",
+      toast.success("Subgrupo rebaixado", {
+        description: "O subgrupo continua disponível em /adicionar.",
       });
     }
   }
 
   async function handleRemove(s: ExtraSupplier) {
-    if (!window.confirm(`Excluir "${s.name}" deste grupo?`)) return;
+    if (!window.confirm(`Excluir "${s.name}" deste subgrupo?`)) return;
     await removeSupplier(s.id);
     toast.success("Fornecedor removido");
   }
@@ -624,7 +624,7 @@ export default function GrupoDashboard() {
             className="text-[11px] tracking-[0.18em] uppercase font-semibold"
             style={{ color: accent, fontFamily: "'Inter', sans-serif" }}
           >
-            GRUPO Nº {String(group.number ?? 0).padStart(2, "0")} · {group.branch || "Grupo personalizado"}
+            SUBGRUPO Nº {String(group.number ?? 0).padStart(2, "0")} · {group.branch || "Subgrupo personalizado"}
           </span>
         </div>
         <h1
@@ -710,7 +710,7 @@ export default function GrupoDashboard() {
               color: TEXT_MUTED,
               border: `1px solid ${BORDER}`,
             }}
-            title="Rebaixar de dashboard (volta a ser grupo)"
+            title="Rebaixar de dashboard (volta a ser subgrupo)"
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
             Rebaixar
@@ -1011,7 +1011,7 @@ export default function GrupoDashboard() {
           ) : (
             <ReportPanel
               scope={scope}
-              scopeLabel={`${group.name} · Grupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
+              scopeLabel={`${group.name} · Subgrupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
               entries={groupEntries}
               allSupplierIds={allSupplierIds}
               resolveSupplierName={resolveSupplierName}
@@ -1130,7 +1130,7 @@ export default function GrupoDashboard() {
                                   background: `${info!.color}1f`,
                                   border: `1px solid ${info!.color}66`,
                                 }}
-                                title={`${info!.name}${info!.isCustom ? " (grupo personalizado)" : ""}`}
+                                title={`${info!.name}${info!.isCustom ? " (subgrupo personalizado)" : ""}`}
                               >
                                 <span
                                   className="inline-block w-1.5 h-1.5 rounded-full"
