@@ -19,6 +19,8 @@ interface PartnerEditorProps {
   accent?: string;
   /** Sugestões opcionais (nomes já usados em outros fornecedores). */
   suggestions?: string[];
+  /** Quando true, envolve o editor num cartão de destaque (uso no topo do painel). */
+  highlighted?: boolean;
 }
 
 export function PartnerEditor({
@@ -26,6 +28,7 @@ export function PartnerEditor({
   onChange,
   accent = "#16a34a",
   suggestions = [],
+  highlighted = false,
 }: PartnerEditorProps) {
   const [draft, setDraft] = useState("");
 
@@ -59,9 +62,27 @@ export function PartnerEditor({
     .slice(0, 6);
 
   return (
-    <div className="mb-4">
-      <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2 flex items-center gap-1.5">
-        <UserCheck size={13} style={{ color: accent }} />
+    <div
+      className={highlighted ? "mb-5 rounded-xl border-2 p-4" : "mb-4"}
+      style={
+        highlighted
+          ? {
+              borderColor: `${accent}66`,
+              background: `linear-gradient(180deg, ${accent}12, ${accent}05)`,
+              boxShadow: `0 0 0 3px ${accent}10`,
+            }
+          : undefined
+      }
+    >
+      <label
+        className={
+          highlighted
+            ? "text-[12px] font-extrabold tracking-[0.16em] uppercase block mb-2.5 flex items-center gap-2"
+            : "text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2 flex items-center gap-1.5"
+        }
+        style={highlighted ? { color: accent } : undefined}
+      >
+        <UserCheck size={highlighted ? 16 : 13} style={{ color: accent }} />
         Parceiro Chinês Responsável
       </label>
 

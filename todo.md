@@ -515,3 +515,8 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Eliminar a duplicação de selo no card do fornecedor (DiaryCard + CustomSupplierCard): mantido só o selo de subgrupo com ícone (🦎/🐟)
 - [x] Remover o seletor "ESPECIALIDADE DO FORNECEDOR" (Aquário/Terrário) do painel do fornecedor
 - [x] TS limpo + 183 testes + validado no preview + checkpoint (inclui ícone automático do subgrupo)
+
+## Ajustes Jun/2026 (4)
+- [x] Mover o bloco "Parceiro Chinês Responsável" para o TOPO do painel do fornecedor (acima do Subgrupo)
+- [x] Deixar o bloco mais destacado (cartão com borda/fundo de acento, título maior, ícone reforçado)
+- [x] TS limpo + 183 testes + validado no preview + checkpoint

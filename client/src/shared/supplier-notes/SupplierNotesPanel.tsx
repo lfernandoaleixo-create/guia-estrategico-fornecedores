@@ -845,6 +845,14 @@ export default function SupplierNotesPanel({
         </div>
       )}
 
+      {/* PARCEIRO(S) CHINÊS(ES) RESPONSÁVEL(EIS) — destaque no topo */}
+      <PartnerEditor
+        value={parsePartners(fields)}
+        onChange={handlePartnersChange}
+        accent={accent}
+        highlighted
+      />
+
       {/* SUBGRUPO DO FORNECEDOR (modelo macro.sub) */}
       <div className="mb-4">
         <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
@@ -1097,13 +1105,6 @@ export default function SupplierNotesPanel({
           </p>
         </div>
       )}
-
-      {/* PARCEIRO(S) CHINÊS(ES) RESPONSÁVEL(EIS) */}
-      <PartnerEditor
-        value={parsePartners(fields)}
-        onChange={handlePartnersChange}
-        accent={accent}
-      />
 
       {/* OBSERVAÇÕES */}
       <div className="mb-4">
