@@ -3,9 +3,10 @@
 // visual). Aceita um `hierLabel` opcional (ex.: "1.1") exibido como badge quando
 // o card pertence a um macro.
 // =============================================================================
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, Trash2, Palette, Check } from "lucide-react";
+import { CARD_COLOR_PALETTE } from "./cardAccent";
 
 export interface DashboardCardData {
   href: string;
@@ -30,14 +31,21 @@ export function DashboardCard({
   index,
   onDelete,
   deleteTitle,
+  onChangeColor,
+  currentColor,
 }: {
   d: DashboardCardData;
   index: number;
   /** Quando presente, exibe um botão de excluir no canto do card. */
   onDelete?: () => void;
   deleteTitle?: string;
+  /** Quando presente, exibe um botão de paleta para trocar a cor do card. */
+  onChangeColor?: (color: string) => void;
+  /** Cor atual (para marcar a selecionada na paleta). */
+  currentColor?: string;
 }) {
   const Icon = d.icon;
+  const [paletteOpen, setPaletteOpen] = useState(false);
   return (
     <Link href={d.href}>
       <div
@@ -92,6 +100,80 @@ export function DashboardCard({
           >
             <Trash2 className="w-4 h-4" />
           </button>
+        )}
+
+        {/* Botão de trocar cor (opcional) + popover de paleta */}
+        {onChangeColor && (
+          <div
+            className={`absolute top-5 z-20 ${onDelete ? "left-16" : "left-5"}`}
+          >
+            <button
+              type="button"
+              title="Trocar cor do card"
+              aria-label="Trocar cor do card"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setPaletteOpen((v) => !v);
+              }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${paletteOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              style={{
+                background: "oklch(0.16 0.02 250)",
+                border: "1px solid oklch(0.30 0.03 250)",
+                color: d.accent,
+              }}
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+
+            {paletteOpen && (
+              <div
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="absolute top-11 left-0 z-30 p-2.5 rounded-xl grid grid-cols-4 gap-2 shadow-2xl"
+                style={{
+                  background: "oklch(0.13 0.02 250)",
+                  border: "1px solid oklch(0.30 0.03 250)",
+                  width: "max-content",
+                }}
+              >
+                {CARD_COLOR_PALETTE.map((c) => {
+                  const selected =
+                    (currentColor ?? "").toLowerCase() === c.value.toLowerCase();
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      title={c.label}
+                      aria-label={c.label}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onChangeColor(c.value);
+                        setPaletteOpen(false);
+                      }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                      style={{
+                        background: c.value,
+                        boxShadow: selected
+                          ? "0 0 0 2px oklch(0.97 0.01 80), 0 0 0 4px " + c.value
+                          : "none",
+                      }}
+                    >
+                      {selected && (
+                        <Check
+                          className="w-3.5 h-3.5"
+                          style={{ color: "oklch(0.10 0.02 250)" }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Eyebrow */}

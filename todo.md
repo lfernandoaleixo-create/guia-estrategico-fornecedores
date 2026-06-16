@@ -639,3 +639,15 @@ Confirmado com o usuário: excluir card de acesso fixo = apenas oculta do portal
 - [x] Painel "Cards removidos" no fim da Home com botão Restaurar (reversível)
 - [x] Testes de unidade da lógica de ocultar/excluir (server/hiddenCards.test.ts — 11 testes)
 - [x] Validado no preview: remover Terrário (7→6), restaurar (6→7), lixeira de macro presente. Suíte: 247 testes verdes. TypeScript sem erros.
+
+
+## Feature 15 — Trocar a cor dos cards/dashboards dentro dos macros
+Permitir que o usuário escolha a cor de cada card. Subgrupos e grupos promovidos já têm color persistido (updateSubgroup/updateGroup). Cards de acesso fixos usam override em app_settings (chave cardColors: key->cor).
+
+- [x] Botão de paleta no DashboardCard (hover, ao lado da lixeira) que abre popover com 8 cores (SUBGROUP_PALETTE)
+- [x] Subgrupo: ao escolher cor -> updateSubgroup(id, { color })
+- [x] Grupo promovido: ao escolher cor -> updateGroup(id, { color })
+- [x] Card fixo: hook useCardColors (app_settings cardColors) -> override de accent na Home
+- [x] Derivar os 4 tons (accent/soft/bg/border) via deriveAccent (cardAccent.ts)
+- [x] Testes de unidade (server/cardColors.test.ts — 11 testes: deriveAccent + parseCardColors)
+- [x] Validado no preview: card Aquário vermelho->azul, persistido após reload. Suíte: 258 testes verdes. TypeScript sem erros.

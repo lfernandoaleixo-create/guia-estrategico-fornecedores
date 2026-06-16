@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
 import { useHiddenCards } from "@/shared/supplier-notes/useHiddenCards";
+import { useCardColors } from "@/shared/supplier-notes/useCardColors";
+import { deriveAccent } from "@/shared/supplier-notes/cardAccent";
 import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
 import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
@@ -154,11 +156,12 @@ function nDashboardsLabel(n: number): string {
 }
 
 export default function Home() {
-  const { groups: customGroups } = useCustomGroups();
+  const { groups: customGroups, updateGroup } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
   const { macros, itemAssignment, reorderMacros, deleteMacro } = useMacros();
-  const { subgroups, deleteSubgroup } = useSubgroups();
+  const { subgroups, deleteSubgroup, updateSubgroup } = useSubgroups();
   const { isHidden, hideCard, showCard, hiddenKeys } = useHiddenCards();
+  const { colorFor, setColor } = useCardColors();
   const { list: aquarioSuppliers } = useCustomSuppliers("aquario");
   const aquarioNotes = useSupplierNotes("aquario");
   // Subgrupo pendente de exclusão (null = dialog fechado).
@@ -310,10 +313,19 @@ export default function Home() {
     for (const key of Object.keys(merged)) {
       // Só cards FIXOS (cardByKey) podem ser ocultos por aqui; promovidos têm
       // seu próprio fluxo. Ainda assim respeitamos a lista de ocultos.
-      if (isHidden(key)) delete merged[key];
+      if (isHidden(key)) {
+        delete merged[key];
+        continue;
+      }
+      // Override de cor (cards fixos): se o usuário escolheu uma cor, deriva os
+      // 4 tons a partir dela. Camada puramente visual.
+      const override = colorFor(key);
+      if (override) {
+        merged[key] = { ...merged[key], ...deriveAccent(override) };
+      }
     }
     return merged;
-  }, [promotedCardByKey, isHidden]);
+  }, [promotedCardByKey, isHidden, colorFor]);
 
   const promotedGroupsForManager = useMemo(
     () =>
@@ -740,6 +752,12 @@ export default function Home() {
                       // Cards de ACESSO FIXOS (Terrário, Aquário, Tapete, Yiwu)
                       // ganham botão de ocultar (remove do portal sem apagar dados).
                       const isFixed = !!cardByKey[it.key];
+                      const promotedId = it.key.startsWith("group:")
+                        ? it.key.slice("group:".length)
+                        : null;
+                      const promoted = promotedId
+                        ? customGroups.find((g) => g.id === promotedId)
+                        : null;
                       return (
                         <DashboardCard
                           key={it.key}
@@ -751,6 +769,16 @@ export default function Home() {
                               : undefined
                           }
                           deleteTitle={isFixed ? `Remover “${base.title}” do portal` : undefined}
+                          onChangeColor={
+                            isFixed
+                              ? (color) => void setColor(it.key, color)
+                              : promoted
+                                ? (color) => void updateGroup(promoted.id, { color })
+                                : undefined
+                          }
+                          currentColor={
+                            isFixed ? colorFor(it.key) : promoted?.color
+                          }
                         />
                       );
                     })}
@@ -779,6 +807,10 @@ export default function Home() {
                               ? `Excluir subgrupo ${formatSubgroupNumber(sg.macroNumber, sg.sub)}`
                               : undefined
                           }
+                          onChangeColor={
+                            sg ? (color) => void updateSubgroup(sg.id, { color }) : undefined
+                          }
+                          currentColor={sg?.color}
                         />
                       );
                     })}
@@ -840,6 +872,28 @@ export default function Home() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
               {unclassifiedCards.map(({ key, card }, idx) => {
                 const isFixed = !!cardByKey[key];
+                const promotedId = key.startsWith("group:")
+                  ? key.slice("group:".length)
+                  : null;
+                const sgId = key.startsWith("subgroupCard:")
+                  ? key.slice("subgroupCard:".length)
+                  : card.href.startsWith("/subgrupo/")
+                    ? card.href.split("/").pop() ?? null
+                    : null;
+                const promoted = promotedId
+                  ? customGroups.find((g) => g.id === promotedId)
+                  : null;
+                const sg = sgId ? subgroups.find((s) => s.id === sgId) : null;
+                const onChangeColor = isFixed
+                  ? (color: string) => void setColor(key, color)
+                  : promoted
+                    ? (color: string) => void updateGroup(promoted.id, { color })
+                    : sg
+                      ? (color: string) => void updateSubgroup(sg.id, { color })
+                      : undefined;
+                const currentColor = isFixed
+                  ? colorFor(key)
+                  : promoted?.color ?? sg?.color;
                 return (
                   <DashboardCard
                     key={card.href}
@@ -851,6 +905,8 @@ export default function Home() {
                         : undefined
                     }
                     deleteTitle={isFixed ? `Remover “${card.title}” do portal` : undefined}
+                    onChangeColor={onChangeColor}
+                    currentColor={currentColor}
                   />
                 );
               })}
