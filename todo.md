@@ -434,16 +434,16 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Validar no preview (Todos 37 / Aquário 11 / Terrário 13; métricas recalculam) e checkpoint
 
 ## Subgrupos numerados livres (macro.sub) — Entrega A
-- [ ] Tabela `subgroups` no schema (id, macroNumber, sub, name, color, scope, createdAt, updatedAt) + push
-- [ ] Procedures tRPC data.subgroups (list/upsert/bulkUpsert/delete)
-- [ ] Hook useSubgroups (CRUD, validação de macro existente, polling 5s)
-- [ ] Helper puro subgroupNumber.ts (parse "1.4" -> {macro:1, sub:4}, validação, format, ordenação)
-- [ ] Bloquear criação se o macro digitado não existir (avisar para criar antes)
-- [ ] Cadastro de fornecedor: seletor/criação de subgrupo com número livre macro.sub + nome
-- [ ] Persistir vínculo do subgrupo na nota do fornecedor (fields.subgroupId)
-- [ ] Selo do subgrupo (número + nome + cor) no card recolhido
-- [ ] Filtro e métricas por subgrupo (genérico, substitui o filtro fixo Aquário/Terrário)
-- [ ] Separação total por dashboard: nada de terrário no Aquário e vice-versa
-- [ ] Migração: Aquários & Terrários -> subgrupos 1.1 Terrário e 1.2 Aquário no macro PET, re-vinculando fornecedores existentes
-- [ ] vitest dos helpers (parse/numeração/validação) e da migração
-- [ ] Validar no preview e checkpoint
+- [x] Tabela `subgroups` no schema (id, macroNumber, sub, name, color, createdAt, updatedAt) + push
+- [x] Procedures tRPC data.subgroups (list/upsert/bulkUpsert/delete)
+- [x] Hook useSubgroups (CRUD, validação de macro existente, polling 5s)
+- [x] Helper puro subgroupNumber.ts (parse "1.4" -> {macro:1, sub:4}, validação, format, ordenação)
+- [x] Bloquear criação se o macro digitado não existir (avisar para criar antes) — validado no browser ("9.1" rejeitado)
+- [x] Cadastro de fornecedor: seletor/criação de subgrupo com número livre macro.sub + nome (SubgroupPicker em CustomSupplierFormDialog)
+- [x] Persistir vínculo do subgrupo na nota do fornecedor (fields.subgroupId)
+- [x] Selo do subgrupo (número + nome + cor) no card recolhido (useSubtipoHierLabel em DiaryCard/SupplierNotesPanel/CustomSupplierCard)
+- [x] Filtro e métricas por subgrupo/especialidade (specialtyReport.ts + ReportPanel, substitui o filtro fixo Aquário/Terrário)
+- [x] Separação total por dashboard: nada de terrário no Aquário e vice-versa (via scope + especialidade efetiva)
+- [x] Migração: Aquários & Terrários -> subgrupos 1.1 Terrário e 1.2 Aquário no macro PET, re-vinculando fornecedores existentes (migrateSubtipo.ts + MigrateSubtipoButton; validado no browser: 5 fornecedores, 2 subgrupos)
+- [x] vitest dos helpers (parse/numeração/validação) e da migração (subgroupNumber 18 + migrateSubtipo 8; total 159/159)
+- [x] Validar no preview e checkpoint (migração, bloqueio de macro inexistente e criação válida 1.4 testados; dados de teste limpos; checkpoint salvo)
