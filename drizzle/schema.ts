@@ -211,6 +211,11 @@ export const macros = mysqlTable("macros", {
   id: varchar("id", { length: 96 }).primaryKey(),
   /** Número do macro (1, 2, 3…), único. Define o prefixo da numeração (1.x). */
   number: int("number").notNull().default(1),
+  /**
+   * Posição de exibição na Home (menor = primeiro). Separado de `number`:
+   * reordenar muda SÓ o orderIndex, preservando number/name e a numeração 1.x.
+   */
+  orderIndex: int("orderIndex").notNull().default(0),
   /** Nome do macro (ex.: "PET"). */
   name: varchar("name", { length: 255 }).notNull(),
   /** Cor de destaque (hex). */

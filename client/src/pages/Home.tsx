@@ -274,20 +274,6 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setManagerOpen(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-[0.12em] transition-colors hover:brightness-110 active:scale-[0.97]"
-              style={{
-                borderColor: "oklch(0.78 0.16 300 / 0.5)",
-                background: "oklch(0.78 0.16 300 / 0.1)",
-                color: "oklch(0.82 0.14 300)",
-                fontFamily: "'Inter', sans-serif",
-                transitionDuration: "160ms",
-              }}
-            >
-              <FolderTree className="w-3.5 h-3.5" />
-              Classificações
-            </button>
             <div
               className="hidden md:flex items-center gap-3 text-xs"
               style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
@@ -418,12 +404,28 @@ export default function Home() {
               Acesso direto à inteligência
             </h2>
           </div>
-          <div
-            className="hidden md:flex items-center gap-2 text-xs"
-            style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>{totalCards} / {totalCards} ATIVOS</span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div
+              className="hidden md:flex items-center gap-2 text-xs"
+              style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>{totalCards} / {totalCards} ATIVOS</span>
+            </div>
+            <button
+              onClick={() => setManagerOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-semibold uppercase tracking-[0.12em] transition-colors hover:brightness-110 active:scale-[0.97]"
+              style={{
+                borderColor: "oklch(0.78 0.16 300 / 0.5)",
+                background: "oklch(0.78 0.16 300 / 0.1)",
+                color: "oklch(0.82 0.14 300)",
+                fontFamily: "'Inter', sans-serif",
+                transitionDuration: "160ms",
+              }}
+            >
+              <FolderTree className="w-3.5 h-3.5" />
+              Criar novo Macro
+            </button>
           </div>
         </div>
 

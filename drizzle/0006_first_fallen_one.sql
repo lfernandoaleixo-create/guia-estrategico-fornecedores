@@ -1,0 +1,1 @@
+ALTER TABLE `macros` ADD `orderIndex` int DEFAULT 0 NOT NULL;

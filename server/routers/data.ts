@@ -146,6 +146,7 @@ const macroItemSchema = z.object({
 const macroInput = z.object({
   id: z.string(),
   number: z.number().int(),
+  orderIndex: z.number().int().default(0),
   name: z.string(),
   color: z.string().default("#8b5cf6"),
   items: z.array(macroItemSchema).default([]),

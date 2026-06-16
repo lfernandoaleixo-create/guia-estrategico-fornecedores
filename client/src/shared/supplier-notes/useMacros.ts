@@ -34,6 +34,8 @@ export interface MacroItem {
 export interface Macro {
   id: string;
   number: number;
+  /** Posição de exibição na Home (menor = primeiro). Separada do number. */
+  orderIndex: number;
   name: string;
   color: string;
   items: MacroItem[];
@@ -85,6 +87,7 @@ function normalizeItems(raw: unknown): MacroItem[] {
 function normalize(row: {
   id: string;
   number: number;
+  orderIndex?: number | null;
   name: string;
   color: string;
   items: unknown;
@@ -94,6 +97,11 @@ function normalize(row: {
   return {
     id: row.id,
     number: row.number,
+    // Fallback: registros antigos sem orderIndex usam o próprio number.
+    orderIndex:
+      typeof row.orderIndex === "number" && row.orderIndex > 0
+        ? row.orderIndex
+        : row.number,
     name: row.name,
     color: row.color ?? "#8b5cf6",
     items: normalizeItems(row.items),
@@ -115,7 +123,8 @@ export function useMacros() {
 
   const macros = useMemo<Macro[]>(() => {
     const rows = (query.data ?? []).map((r) => normalize(r as never));
-    rows.sort((a, b) => a.number - b.number);
+    // Ordena pela posição de exibição (orderIndex); desempata pelo number.
+    rows.sort((a, b) => a.orderIndex - b.orderIndex || a.number - b.number);
     return rows;
   }, [query.data]);
 
@@ -149,9 +158,12 @@ export function useMacros() {
         input.color ||
         MACRO_PALETTE[macros.length % MACRO_PALETTE.length] ||
         "#8b5cf6";
+      // Novo macro vai para o fim da ordem de exibição.
+      const maxOrder = macros.reduce((mx, m) => Math.max(mx, m.orderIndex), 0);
       const macro: Macro = {
         id: genId(),
         number,
+        orderIndex: maxOrder + 1,
         name: trimmed,
         color,
         items: [],
@@ -168,7 +180,7 @@ export function useMacros() {
   const updateMacro = useCallback(
     async (
       id: string,
-      patch: Partial<Pick<Macro, "name" | "number" | "color" | "items">>,
+      patch: Partial<Pick<Macro, "name" | "number" | "color" | "items" | "orderIndex">>,
     ) => {
       const current = macros.find((m) => m.id === id);
       if (!current) return;
@@ -263,18 +275,22 @@ export function useMacros() {
     [macros, upsertMut, reload],
   );
 
-  /** Reordena os macros (renumera 1..N na nova ordem). */
+  /**
+   * Reordena os macros APENAS pela posição de exibição (orderIndex).
+   * NUNCA altera `number` nem `name` — o macro "1 · PET" continua sendo o 1
+   * mesmo que desca na lista, mantendo intacta a numeração 1.x e os subgrupos.
+   */
   const reorderMacros = useCallback(
     async (orderedIds: string[]) => {
       const byId = new Map(macros.map((m) => [m.id, m]));
       const reordered: Macro[] = [];
       orderedIds.forEach((id, idx) => {
         const m = byId.get(id);
-        if (m) reordered.push({ ...m, number: idx + 1, updatedAt: nowISO() });
+        if (m) reordered.push({ ...m, orderIndex: idx + 1, updatedAt: nowISO() });
       });
       macros.forEach((m) => {
         if (!orderedIds.includes(m.id)) {
-          reordered.push({ ...m, number: reordered.length + 1, updatedAt: nowISO() });
+          reordered.push({ ...m, orderIndex: reordered.length + 1, updatedAt: nowISO() });
         }
       });
       if (reordered.length > 0) await bulkMut.mutateAsync(reordered);

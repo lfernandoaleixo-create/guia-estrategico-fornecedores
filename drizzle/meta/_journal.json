@@ -43,6 +43,13 @@
       "when": 1781608859412,
       "tag": "0005_slippery_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1781612627646,
+      "tag": "0006_first_fallen_one",
+      "breakpoints": true
     }
   ]
 }

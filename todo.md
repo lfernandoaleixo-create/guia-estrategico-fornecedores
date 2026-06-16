@@ -469,3 +469,11 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] CustomSupplierCard: selo macro.sub já exibido a partir de fields.subgroupId
 - [x] Número derivado do macro: usar formatSubgroupNumber(macroNumber, sub); reflete mudanças automaticamente
 - [x] TS limpo + testes + validado no preview (selos 1.1/1.2 nos cards) + checkpoint
+
+## Botão "Criar novo Macro" + reordenação preserva número/nome
+- [x] Mover o botão "Classificações" do header para baixo, ao lado do título "Acesso direto à inteligência" (junto do "X / Y ativos"), com o texto "Criar novo Macro"
+- [x] Schema: adicionar coluna `orderIndex` (int, default 0) à tabela `macros` + pnpm db:push (migration 0006; orderIndex inicializado = number)
+- [x] db.ts/router: orderIndex incluído (macroInput + InsertMacroRow no upsert/bulkUpsert/list)
+- [x] useMacros: ordena por orderIndex (fallback number); reorderMacros atualiza SOMENTE orderIndex (não mexe em number/name)
+- [x] Numeração hierárquica (1.1…) e subgrupos (macroNumber) intactos ao reordenar (hierLabel usa m.number)
+- [x] TS limpo + 159/159 testes + validado no preview (descer PET → ordem trocou mas Nº1 PET / Nº2 Utensílios mantidos; ordem restaurada) + checkpoint
