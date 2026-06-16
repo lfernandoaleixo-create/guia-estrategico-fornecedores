@@ -15,6 +15,7 @@ import DiaryCard from "@aquario/components/DiaryCard";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
+import MigrateSubtipoButton from "@/shared/supplier-notes/MigrateSubtipoButton";
 import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
@@ -922,6 +923,9 @@ export default function Home() {
                 categoryById={categoryById}
                 initialSpecialty={initialSpecialty}
               />
+
+              {/* Migração única: Aquário/Terrário legado -> subgrupos 1.1/1.2 */}
+              <MigrateSubtipoButton macroNumber={1} />
 
               {/* Cadastro manual de fornecedores (filtra pela especialidade do atalho) */}
               <CustomSuppliersSection
