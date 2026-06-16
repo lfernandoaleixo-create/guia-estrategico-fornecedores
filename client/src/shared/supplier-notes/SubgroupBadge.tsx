@@ -6,9 +6,14 @@
 // Lê o subgrupo vinculado a partir de `fields.subgroupId` e resolve número+nome
 // via useSubgroups. Funciona em QUALQUER dashboard/macro (não só Aquário). Só
 // renderiza algo quando houver um subgrupo válido.
+//
+// O selo também mostra um ÍCONE automático derivado do nome do subgrupo
+// (ex.: "Terrário" → 🦎, "Aquário" → 🐟), reaproveitando a identidade visual
+// dos antigos selos de especialidade.
 // =============================================================================
 import { useSubgroups } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
+import { subgroupEmoji } from "./subgroupEmoji";
 
 interface Props {
   /** Campos da anotação do fornecedor (entry.fields). Lê fields.subgroupId. */
@@ -18,9 +23,9 @@ interface Props {
 }
 
 /**
- * Renderiza o selo do subgrupo do fornecedor (ex.: "2.1 · Marmita"). Use dentro
- * do cabeçalho do card recolhido, ao lado do selo de status. Não renderiza nada
- * se o fornecedor não tiver subgrupo vinculado ou se o subgrupo não existir mais.
+ * Renderiza o selo do subgrupo do fornecedor (ex.: "🦎 2.1 · Terrário"). Use
+ * dentro do cabeçalho do card recolhido, ao lado do selo de status. Não renderiza
+ * nada se o fornecedor não tiver subgrupo vinculado ou se o subgrupo não existir.
  */
 export function SubgroupBadge({ fields, maxNameWidth = 160 }: Props) {
   const { byId } = useSubgroups();
@@ -29,6 +34,7 @@ export function SubgroupBadge({ fields, maxNameWidth = 160 }: Props) {
   if (!sg) return null;
 
   const num = formatSubgroupNumber(sg.macroNumber, sg.sub);
+  const emoji = subgroupEmoji(sg.name);
 
   return (
     <span
@@ -40,6 +46,7 @@ export function SubgroupBadge({ fields, maxNameWidth = 160 }: Props) {
       }}
       title={`Subgrupo ${num} - ${sg.name}`}
     >
+      {emoji && <span aria-hidden>{emoji}</span>}
       <span className="font-extrabold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
         {num}
       </span>

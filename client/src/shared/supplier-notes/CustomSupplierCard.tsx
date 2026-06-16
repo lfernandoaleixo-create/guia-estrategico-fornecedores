@@ -14,10 +14,10 @@ import {
   type SubtipoAquario,
   type SupplierStatus,
 } from "./useSupplierNotes";
-import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import { TipoBadge } from "./TipoBadge";
 import { useSubgroups } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
+import { subgroupEmoji } from "./subgroupEmoji";
 
 interface Props {
   supplier: CustomSupplier;
@@ -44,20 +44,10 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
   // cabeçalho recolhido como selo, igual aos cards do catálogo.
   const status = (entries[supplier.id]?.status as SupplierStatus | undefined) ?? "nao-visitado";
   const statusCfg = STATUS_CONFIG[status];
-  // Especialidade (🐟 Aquário / 🦎 Terrário) — só no scope aquario.
-  const rawSubtipo = (tipoFields?.subtipoAquario as string | undefined) ?? "";
-  const subtipo: SubtipoAquario | undefined =
-    supplier.scope === "aquario" && (rawSubtipo === "aquario" || rawSubtipo === "terrario")
-      ? rawSubtipo
-      : undefined;
-  const subtipoCfg = subtipo ? SUBTIPO_CONFIG[subtipo] : undefined;
-  const subtipoHier = useSubtipoHierLabel();
-
   // Subgrupo vinculado (modelo macro.sub), gravado em fields.subgroupId.
   const { byId: subgroupById } = useSubgroups();
   const subgroupId = (tipoFields?.subgroupId as string | undefined) ?? "";
-  const subgroup =
-    supplier.scope === "aquario" && subgroupId ? subgroupById.get(subgroupId) : undefined;
+  const subgroup = subgroupId ? subgroupById.get(subgroupId) : undefined;
 
   const prefilled = useMemo<PrefilledField[]>(() => {
     const fields: PrefilledField[] = [];
@@ -157,20 +147,6 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               Adicionado em {formatCreatedDateBR(supplier.createdAt)}
             </span>
             <TipoBadge fields={tipoFields} />
-            {subtipoCfg && (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{
-                  color: subtipoCfg.color,
-                  background: subtipoCfg.bg,
-                  border: `1px solid ${subtipoCfg.border}`,
-                }}
-                title={subtipoCfg.label}
-              >
-                <span className="leading-none">{subtipoCfg.emoji}</span>
-                <span>{subtipo ? subtipoHier[subtipo].withPrefix(subtipoCfg.label) : subtipoCfg.label}</span>
-              </span>
-            )}
             {subgroup && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -181,6 +157,9 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
                 }}
                 title={`Subgrupo ${formatSubgroupNumber(subgroup.macroNumber, subgroup.sub)} - ${subgroup.name}`}
               >
+                {subgroupEmoji(subgroup.name) && (
+                  <span aria-hidden>{subgroupEmoji(subgroup.name)}</span>
+                )}
                 <span className="font-extrabold">
                   {formatSubgroupNumber(subgroup.macroNumber, subgroup.sub)}
                 </span>

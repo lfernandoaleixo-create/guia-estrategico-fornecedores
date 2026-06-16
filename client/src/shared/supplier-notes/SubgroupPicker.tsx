@@ -2,23 +2,27 @@
 // SubgroupPicker — escolhe ou cria um SUBGRUPO (modelo "macro.sub") para o
 // fornecedor que está sendo cadastrado.
 //
-// - Lista os subgrupos existentes (ordenados por macro.sub) como "chips".
-// - Permite criar um novo subgrupo digitando LIVREMENTE o número (ex.: 1.4) e o
-//   nome. A criação é BLOQUEADA se o macro digitado não existir (validação via
-//   validateSubgroupNumber) — exibe mensagem orientando a criar o macro antes.
+// FONTE DOS SUBGRUPOS (modo "macro fixo"):
+//   1) Subgrupos CADASTRADOS na tabela `subgroups` do macro fixo; e
+//   2) ACESSOS/itens do MACRO (MacroManager) que recebem numeração derivada da
+//      POSIÇÃO (item 0 → macro.1, item 1 → macro.2, …). Ex.: "1.3 · Tapete".
+//
+// Assim o seletor mostra TODOS os subgrupos do macro, mesmo os que existem só
+// como acesso (ex.: 1.3 Tapete). Ao selecionar um acesso que ainda NÃO tem um
+// registro de subgrupo equivalente (mesmo macro.sub), o subgrupo é CRIADO
+// automaticamente (mesmo número/nome) e o fornecedor é vinculado a ele.
 //
 // Modo "macro fixo" (prop `fixedMacroNumber`): quando aberto a partir de um MACRO
 // específico (ex.: botão "Adicionar fornecedor" dentro do macro Nº 1 na Home),
-// os chips são filtrados para mostrar SÓ os subgrupos daquele macro e, no modo
-// criar, o prefixo do macro fica fixo (ex.: "1.") e o usuário digita apenas a
-// 2ª parte (o sub, ex.: "3" → cria "1.3 - Coleira de Cachorro").
+// no modo criar o prefixo do macro fica fixo (ex.: "1.") e o usuário digita
+// apenas a 2ª parte (o sub, ex.: "3" → cria "1.3 - Coleira de Cachorro").
 //
 // Controlado: recebe `selectedId` (id do subgrupo) e dispara `onChange(id|null)`.
 // =============================================================================
 import { useMemo, useState } from "react";
 import { Plus, Check } from "lucide-react";
-import { useMacros } from "./useMacros";
-import { useSubgroups, type Subgroup } from "./useSubgroups";
+import { useMacros, type Macro } from "./useMacros";
+import { useSubgroups, type Subgroup, SUBGROUP_PALETTE } from "./useSubgroups";
 import {
   formatSubgroupNumber,
   formatSubgroupLabel,
@@ -38,6 +42,20 @@ interface Props {
   fixedMacroNumber?: number;
 }
 
+// Uma opção exibível no seletor: pode vir de um subgrupo cadastrado, de um
+// acesso do macro (ainda sem subgrupo), ou de ambos (subgrupo casado a acesso).
+interface PickerOption {
+  /** macro.sub */
+  macroNumber: number;
+  sub: number;
+  /** Nome a exibir (do subgrupo cadastrado, senão do acesso). */
+  name: string;
+  /** Cor do chip. */
+  color: string;
+  /** Id do subgrupo cadastrado, se já existir. */
+  subgroupId?: string;
+}
+
 export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacroNumber }: Props) {
   const isDark = tone === "dark";
   const { macros } = useMacros();
@@ -52,6 +70,8 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // id do "acesso" sendo materializado em subgrupo (para feedback visual).
+  const [materializing, setMaterializing] = useState<string | null>(null);
 
   const macroNumbers = useMemo(
     () => macros.map((m) => m.number).filter((n) => Number.isFinite(n)),
@@ -63,14 +83,62 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
     return map;
   }, [macros]);
 
-  // Subgrupos visíveis: todos, ou só os do macro fixo.
-  const visibleSubgroups = useMemo(
-    () =>
-      macroFixed
-        ? subgroups.filter((sg) => sg.macroNumber === fixedMacroNumber)
-        : subgroups,
-    [subgroups, macroFixed, fixedMacroNumber],
-  );
+  // Acessos/itens dos macros, com a numeração derivada da POSIÇÃO (índice+1).
+  // Estrutura: macroNumber -> [{ sub, label }] na ordem dos itens.
+  const accessesByMacro = useMemo(() => {
+    const map = new Map<number, { sub: number; label: string }[]>();
+    for (const m of macros as Macro[]) {
+      const arr = m.items.map((it, idx) => ({ sub: idx + 1, label: it.label }));
+      map.set(m.number, arr);
+    }
+    return map;
+  }, [macros]);
+
+  // Constrói a lista de opções para um determinado macro: une subgrupos
+  // cadastrados + acessos do macro, indexando por `sub` para casar/deduplicar.
+  function buildOptionsForMacro(macroNumber: number): PickerOption[] {
+    const bySub = new Map<number, PickerOption>();
+
+    // 1) Subgrupos cadastrados deste macro.
+    for (const sg of subgroups.filter((s) => s.macroNumber === macroNumber)) {
+      bySub.set(sg.sub, {
+        macroNumber,
+        sub: sg.sub,
+        name: sg.name,
+        color: sg.color,
+        subgroupId: sg.id,
+      });
+    }
+
+    // 2) Acessos do macro (numeração por posição). Só adiciona se ainda não há
+    //    subgrupo cadastrado naquele `sub` (para não duplicar).
+    const accesses = accessesByMacro.get(macroNumber) ?? [];
+    accesses.forEach((acc, idx) => {
+      if (bySub.has(acc.sub)) return;
+      const color = SUBGROUP_PALETTE[idx % SUBGROUP_PALETTE.length] || "#10b981";
+      bySub.set(acc.sub, {
+        macroNumber,
+        sub: acc.sub,
+        name: acc.label,
+        color,
+        // sem subgroupId → será materializado ao selecionar
+      });
+    });
+
+    return Array.from(bySub.values()).sort((a, b) => a.sub - b.sub);
+  }
+
+  // Opções visíveis: no modo macro fixo, só do macro; senão, de todos os macros.
+  const visibleOptions = useMemo<PickerOption[]>(() => {
+    if (macroFixed) return buildOptionsForMacro(fixedMacroNumber as number);
+    // Modo livre: une opções de todos os macros existentes.
+    const all: PickerOption[] = [];
+    for (const mn of macroNumbers) all.push(...buildOptionsForMacro(mn));
+    return all.sort((a, b) =>
+      a.macroNumber !== b.macroNumber ? a.macroNumber - b.macroNumber : a.sub - b.sub,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subgroups, accessesByMacro, macroFixed, fixedMacroNumber, macroNumbers]);
 
   const chipBase =
     "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors cursor-pointer select-none";
@@ -82,12 +150,18 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
     : "bg-white border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500";
   const labelCls = isDark ? "text-white/70" : "text-zinc-600";
 
-  // Inicia o modo criar; no modo macro fixo sugere o próximo sub livre.
+  // Inicia o modo criar; no modo macro fixo sugere o próximo sub livre
+  // considerando subgrupos cadastrados E acessos do macro.
   function startCreate() {
     setCreating(true);
     setError(null);
     if (macroFixed) {
-      const suggested = nextSubForMacro(fixedMacroNumber as number, subgroups);
+      const opts = buildOptionsForMacro(fixedMacroNumber as number);
+      const maxSub = opts.reduce((mx, o) => Math.max(mx, o.sub), 0);
+      const suggested = Math.max(
+        maxSub + 1,
+        nextSubForMacro(fixedMacroNumber as number, subgroups),
+      );
       setNum(String(suggested));
     }
   }
@@ -97,6 +171,31 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
     setError(null);
     setNum("");
     setName("");
+  }
+
+  // Seleciona uma opção. Se já tem subgrupo cadastrado, só vincula. Se for um
+  // acesso ainda não materializado, cria o subgrupo (mesmo número/nome) e vincula.
+  async function handleSelect(opt: PickerOption) {
+    if (opt.subgroupId) {
+      onChange(opt.subgroupId);
+      return;
+    }
+    const key = `${opt.macroNumber}.${opt.sub}`;
+    setMaterializing(key);
+    setError(null);
+    try {
+      const created = await createSubgroup({
+        macroNumber: opt.macroNumber,
+        sub: opt.sub,
+        name: opt.name,
+        color: opt.color,
+      });
+      if (created) onChange(created.id);
+    } catch (e) {
+      setError(`Falha ao vincular o subgrupo: ${(e as Error).message}`);
+    } finally {
+      setMaterializing(null);
+    }
   }
 
   async function handleCreate() {
@@ -144,7 +243,7 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
 
   return (
     <div className="space-y-3">
-      {visibleSubgroups.length === 0 && !creating && (
+      {visibleOptions.length === 0 && !creating && (
         <p className={`text-xs ${labelCls}`}>
           {macroFixed
             ? `Nenhum subgrupo no macro Nº ${fixedMacroNumber}${
@@ -154,7 +253,7 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
         </p>
       )}
 
-      {visibleSubgroups.length > 0 && (
+      {visibleOptions.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {/* Opção "nenhum" */}
           <span
@@ -172,34 +271,34 @@ export function SubgroupPicker({ tone = "light", selectedId, onChange, fixedMacr
             Sem subgrupo
           </span>
 
-          {visibleSubgroups.map((sg: Subgroup) => {
-            const selected = sg.id === selectedId;
-            const numLabel = formatSubgroupNumber(sg.macroNumber, sg.sub);
+          {visibleOptions.map((opt: PickerOption) => {
+            const selected = !!opt.subgroupId && opt.subgroupId === selectedId;
+            const numLabel = formatSubgroupNumber(opt.macroNumber, opt.sub);
+            const key = `${opt.macroNumber}.${opt.sub}`;
+            const isMaterializing = materializing === key;
             return (
               <span
-                key={sg.id}
+                key={key}
                 role="button"
                 tabIndex={0}
-                onClick={() => onChange(sg.id)}
-                title={`Macro Nº ${sg.macroNumber}${
-                  macroNameByNumber.get(sg.macroNumber)
-                    ? ` (${macroNameByNumber.get(sg.macroNumber)})`
+                onClick={() => void handleSelect(opt)}
+                title={`Macro Nº ${opt.macroNumber}${
+                  macroNameByNumber.get(opt.macroNumber)
+                    ? ` (${macroNameByNumber.get(opt.macroNumber)})`
                     : ""
                 }`}
                 className={`${chipBase} ${
-                  selected
-                    ? "text-white border-transparent"
-                    : chipOff
-                }`}
+                  selected ? "text-white border-transparent" : chipOff
+                } ${isMaterializing ? "opacity-60 pointer-events-none" : ""}`}
                 style={
                   selected
-                    ? { backgroundColor: sg.color, borderColor: sg.color }
-                    : { borderLeft: `4px solid ${sg.color}` }
+                    ? { backgroundColor: opt.color, borderColor: opt.color }
+                    : { borderLeft: `4px solid ${opt.color}` }
                 }
               >
                 {selected && <Check className="w-3.5 h-3.5" />}
                 <span className="font-bold">{numLabel}</span>
-                <span>· {sg.name}</span>
+                <span>· {opt.name}</span>
               </span>
             );
           })}

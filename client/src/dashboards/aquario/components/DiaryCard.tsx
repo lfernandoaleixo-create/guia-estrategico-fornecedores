@@ -9,9 +9,9 @@
 
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
-import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, SUBTIPO_CONFIG, type PrecoClassificacao, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
-import { useSubtipoHierLabel } from "@/shared/supplier-notes/useSubtipoHierLabel";
+import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -90,10 +90,11 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
   const [expanded, setExpanded] = useState(defaultExpanded || !!entry);
 
   const cat = categoryStyles[supplier.category];
-  // Especialidade escolhida manualmente tem prioridade sobre a categoria automática.
-  const subtipoKey = entry?.fields?.subtipoAquario as SubtipoAquario | undefined;
-  const subtipoCfg = subtipoKey ? SUBTIPO_CONFIG[subtipoKey] : null;
-  const subtipoHier = useSubtipoHierLabel();
+  // O subgrupo (macro.sub) é a fonte de verdade da classificação. Quando o
+  // fornecedor já tem um subgrupo válido, escondemos o selo de categoria genérico.
+  const { byId: subgroupById } = useSubgroups();
+  const subgroupId = (entry?.fields?.subgroupId as string | undefined) ?? "";
+  const hasSubgroup = !!(subgroupId && subgroupById.get(subgroupId));
   const status = entry?.status ?? "nao-visitado";
   const statusCfg = STATUS_CONFIG[status];
   const precoKey = status === "fornecedor-aprovado"
@@ -158,24 +159,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 {precoCfg.emoji} {precoCfg.label.toUpperCase()}
               </span>
             )}
-            {subtipoCfg ? (
-              <span
-                className="eyebrow px-2 py-0.5 rounded font-bold inline-flex items-center gap-1"
-                style={{
-                  background: subtipoCfg.bg,
-                  color: subtipoCfg.color,
-                  border: `1px solid ${subtipoCfg.border}`,
-                  fontSize: "0.6rem",
-                  letterSpacing: "0.06em",
-                }}
-                title="Especialidade definida manualmente"
-              >
-                {subtipoCfg.emoji}{" "}
-                {subtipoKey
-                  ? subtipoHier[subtipoKey].withPrefix(subtipoCfg.label).toUpperCase()
-                  : subtipoCfg.label.toUpperCase()}
-              </span>
-            ) : (
+            {!hasSubgroup && (
               <span
                 className="eyebrow px-2 py-0.5 rounded"
                 style={{ background: cat.tint, color: "oklch(0.32 0.06 60)", fontSize: "0.6rem" }}
