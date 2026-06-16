@@ -486,3 +486,12 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [ ] Adicionar botão/card "Adicionar fornecedor" dentro de cada seção de macro na Home
 - [ ] Ao adicionar a partir de um macro: fixar o número do macro e pedir só a 2ª parte do subgrupo (ex.: 1.__ Coleira de Cachorro)
 - [ ] TS limpo + testes + validar no preview + checkpoint
+
+## Botão "Adicionar fornecedor" por macro na Home (Jun/2026)
+- [x] Botão "Adicionar fornecedor em N · Nome" dentro de cada macro expandido na Home
+- [x] SubgroupPicker: prop fixedMacroNumber (chips filtrados por macro + prefixo "N." fixo no modo criar, usuário digita só o sub)
+- [x] CustomSupplierFormDialog: repasse de fixedMacroNumber ao SubgroupPicker
+- [x] AddSupplierToMacroDialog: cria fornecedor (scope aquario) + grava vínculo de subgrupo na nota, com macro pré-fixado
+- [x] Renomear todas as ocorrências de "grupo" para "subgrupo" (fotos anexadas)
+- [x] Testes do caminho "macro fixo" em subgroupNumber.test.ts (164 testes verdes) + TS limpo
+- [x] Validado no preview (macro 1 PET: chips 1.1/1.2 filtrados, prefixo "1." fixo, sugestão "3")

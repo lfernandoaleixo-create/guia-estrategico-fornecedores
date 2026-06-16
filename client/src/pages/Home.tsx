@@ -20,6 +20,7 @@ import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
 import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
+import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
 import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
@@ -137,6 +138,8 @@ export default function Home() {
   const { list: extraSuppliers } = useExtraSuppliers();
   const { macros, itemAssignment, reorderMacros } = useMacros();
   const [managerOpen, setManagerOpen] = useState(false);
+  // Macro a partir do qual estamos adicionando um fornecedor (null = fechado).
+  const [addToMacro, setAddToMacro] = useState<{ number: number; name: string } | null>(null);
 
   // Quais macros estão recolhidos. Por padrão, TODOS começam recolhidos.
   const [collapsedMacros, setCollapsedMacros] = useState<Set<string>>(new Set());
@@ -538,15 +541,32 @@ export default function Home() {
               </div>
 
               {!collapsed && (
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-                  {items.map((it, idx) => (
-                    <DashboardCard
-                      key={it.key}
-                      d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
-                      index={idx}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {items.map((it, idx) => (
+                      <DashboardCard
+                        key={it.key}
+                        d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
+                        index={idx}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setAddToMacro({ number: m.number, name: m.name })}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors hover:brightness-125 active:scale-[0.97]"
+                      style={{
+                        background: `${m.color}1f`,
+                        borderColor: `${m.color}88`,
+                        color: m.color,
+                        transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1), filter 160ms",
+                      }}
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar fornecedor em {m.number} · {m.name}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           );
@@ -619,6 +639,16 @@ export default function Home() {
       </footer>
 
       <MacroManager open={managerOpen} onOpenChange={setManagerOpen} promotedGroups={promotedGroupsForManager} />
+
+      {addToMacro && (
+        <AddSupplierToMacroDialog
+          open={!!addToMacro}
+          macroNumber={addToMacro.number}
+          macroName={addToMacro.name}
+          onClose={() => setAddToMacro(null)}
+          onCreated={() => setAddToMacro(null)}
+        />
+      )}
     </div>
   );
 }

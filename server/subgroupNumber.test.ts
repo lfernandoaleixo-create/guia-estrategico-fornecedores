@@ -115,3 +115,60 @@ describe("sortSubgroups / nextSubForMacro", () => {
     expect(nextSubForMacro(5, subs)).toBe(1); // macro sem subgrupos
   });
 });
+
+// =============================================================================
+// Caminho "macro fixo" (botão "Adicionar fornecedor" dentro de um macro na Home):
+// o SubgroupPicker monta o raw como `${fixedMacroNumber}.${sub}` e reaproveita
+// validateSubgroupNumber. Estes testes garantem que a montagem + validação se
+// comportam como esperado quando o usuário digita SÓ a 2ª parte (o sub).
+// =============================================================================
+describe("modo macro fixo (raw = `${macro}.${sub}`)", () => {
+  const existingMacroNumbers = [1, 2];
+  const existingSubgroups = [
+    { macroNumber: 1, sub: 1, id: "a" },
+    { macroNumber: 1, sub: 2, id: "b" },
+  ];
+
+  function buildFixedRaw(macroNumber: number, subTyped: string): string {
+    // Réplica exata da lógica do SubgroupPicker em modo macro fixo.
+    return `${macroNumber}.${subTyped.trim()}`;
+  }
+
+  it("monta o raw correto a partir do sub isolado", () => {
+    expect(buildFixedRaw(1, "3")).toBe("1.3");
+    expect(buildFixedRaw(2, " 5 ")).toBe("2.5");
+  });
+
+  it("valida ok ao criar 1.3 com macro 1 fixo", () => {
+    const r = validateSubgroupNumber({
+      raw: buildFixedRaw(1, "3"),
+      existingMacroNumbers,
+      existingSubgroups,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.parsed).toEqual({ macroNumber: 1, sub: 3 });
+  });
+
+  it("bloqueia duplicado mesmo com macro fixo (1.1 já existe)", () => {
+    const r = validateSubgroupNumber({
+      raw: buildFixedRaw(1, "1"),
+      existingMacroNumbers,
+      existingSubgroups,
+    });
+    expect(r.error).toBe("duplicate");
+  });
+
+  it("sub vazio resulta em formato inválido", () => {
+    const r = validateSubgroupNumber({
+      raw: buildFixedRaw(1, ""),
+      existingMacroNumbers,
+      existingSubgroups,
+    });
+    expect(r.error).toBe("format");
+  });
+
+  it("sugere a 2ª parte (sub) inicial para o macro fixo", () => {
+    expect(nextSubForMacro(1, existingSubgroups)).toBe(3);
+    expect(nextSubForMacro(2, existingSubgroups)).toBe(1);
+  });
+});

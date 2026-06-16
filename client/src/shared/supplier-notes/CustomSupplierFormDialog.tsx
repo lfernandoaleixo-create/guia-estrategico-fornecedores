@@ -26,6 +26,11 @@ interface Props {
   enableSubgroup?: boolean;
   subgroupId?: string | null;
   onSubgroupChange?: (id: string | null) => void;
+  /**
+   * Quando definido, fixa o MACRO no seletor de subgrupo (usuário escolhe só a
+   * 2ª parte). Usado ao abrir o cadastro a partir de um macro na Home.
+   */
+  fixedMacroNumber?: number;
 }
 
 interface FormState {
@@ -124,6 +129,7 @@ export default function CustomSupplierFormDialog({
   enableSubgroup = false,
   subgroupId = null,
   onSubgroupChange,
+  fixedMacroNumber,
 }: Props) {
   // Estado local do subgrupo (espelha a prop; persistência fica no pai).
   const [localSubgroupId, setLocalSubgroupId] = useState<string | null>(subgroupId);
@@ -326,6 +332,7 @@ export default function CustomSupplierFormDialog({
               <SubgroupPicker
                 tone={isDark ? "dark" : "light"}
                 selectedId={localSubgroupId}
+                fixedMacroNumber={fixedMacroNumber}
                 onChange={(id) => {
                   setLocalSubgroupId(id);
                   onSubgroupChange?.(id);
