@@ -564,3 +564,8 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] BUG: conteúdo da página de fundo vazando por trás do modal — renderizar lightbox em portal no body, fundo opaco + backdrop-blur, travar scroll
 - [x] Atualizar/adicionar testes vitest (sheetTranslationCells, 206 passando)
 - [x] TS limpo + testes passando + checkpoint
+
+## Correções Jun/2026 (8) — Menu "Baixar em" recortado pela borda do modal
+- [x] BUG: dropdown "Baixar em" cortado pela borda do modal (overflow) — trocar position absolute por fixed posicionado via getBoundingClientRect do botão Baixar
+- [x] z-index máximo no menu/backdrop para ficar acima de tudo; reposiciona ao reabrir
+- [x] TS limpo + validado no preview (menu aparece inteiro, ambas opções visíveis) + checkpoint

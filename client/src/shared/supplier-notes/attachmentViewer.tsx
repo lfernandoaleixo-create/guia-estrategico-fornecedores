@@ -786,9 +786,22 @@ export function AttachmentLightbox({
   const [lang, setLang] = useState<DocLang>("zh");
   const [hasCn, setHasCn] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const downloadBtnRef = useRef<HTMLButtonElement | null>(null);
   const translator = useTranslator();
   // Guarda o texto extraído do PDF para o download traduzido.
   const pdfTextRef = useRef<PdfTextPage[]>([]);
+
+  // Calcula a posição do menu de download a partir do botão (fixed na viewport),
+  // evitando que o dropdown seja recortado pela borda do modal.
+  const openDownloadMenu = useCallback(() => {
+    const btn = downloadBtnRef.current;
+    if (btn) {
+      const r = btn.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    }
+    setDownloadOpen((o) => !o);
+  }, []);
 
   // Reseta estado ao trocar de anexo.
   useEffect(() => {
@@ -890,18 +903,19 @@ export function AttachmentLightbox({
           {translatable ? (
             <div className="relative shrink-0">
               <button
+                ref={downloadBtnRef}
                 type="button"
-                onClick={() => setDownloadOpen((o) => !o)}
+                onClick={openDownloadMenu}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 bg-zinc-800 text-white hover:bg-zinc-900 transition-colors active:scale-[0.97]"
               >
                 <Download size={13} /> Baixar
               </button>
-              {downloadOpen && (
+              {downloadOpen && menuPos && (
                 <>
-                  <div className="fixed inset-0 z-[1]" onClick={() => setDownloadOpen(false)} />
+                  <div className="fixed inset-0 z-[2147483646]" onClick={() => setDownloadOpen(false)} />
                   <div
-                    className="absolute right-0 mt-1 z-[2] w-56 rounded-xl border bg-white shadow-lg overflow-hidden"
-                    style={{ borderColor: "#e4e4e7" }}
+                    className="fixed z-[2147483647] w-56 rounded-xl border bg-white shadow-xl overflow-hidden"
+                    style={{ borderColor: "#e4e4e7", top: menuPos.top, right: menuPos.right }}
                   >
                     <p className="px-3 pt-2.5 pb-1 text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">
                       Baixar em
