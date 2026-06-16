@@ -381,3 +381,24 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Teste vitest: normalização/ordenação de macros e geração da numeração hierárquica (10 novos; 94/94 no total)
 - [x] Validar no preview: criar macro "1 · PET", atribuir Terrário(1.1)/Aquário(1.2)/Tapete(1.3), reload persiste; atalho 1.1 abre /aquario?subtipo=terrario com 11 fornecedores Terrário (não classificados só na visão geral); badges 1.1/1.2 nos cards manuais
 - [x] Checkpoint
+
+
+## Refinos Macros + Aquário (rodada 2)
+
+### Categorias contextuais no dashboard
+- [x] No /aquario?subtipo=aquario: esconder categoria "Terrários para Répteis" da barra lateral
+- [x] No /aquario?subtipo=terrario: esconder categoria "Aquários de Vidro" da barra lateral
+- [x] Demais categorias (Todos, Equipamentos, Mercados & Feiras) permanecem; visão geral (sem subtipo) mostra tudo
+
+### Cor accent por card na Home
+- [ ] Card Aquário com accent VERDE (antes vermelho/coral)
+- [ ] Card Terrário mantém vermelho; Tapete Higiênico azul
+
+### Macro recolhido + reordenação
+- [ ] Seção de macro na Home começa recolhida (expande ao clicar no cabeçalho)
+- [ ] Setas para cima/baixo ao lado de cada card de macro na Home para reordenar os macros entre si (persistir ordem)
+
+### Testes / Validação
+- [ ] vitest da ordenação de macros (mover) e helper de categorias visíveis por subtipo
+- [ ] Validar no preview: cores, recolher/expandir, reordenar macros, categorias contextuais
+- [ ] Checkpoint

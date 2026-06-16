@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight,
   Compass,
   Fish,
   Layers,
@@ -13,6 +11,9 @@ import {
   FolderTree,
   Waves,
   Bug,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
 } from "lucide-react";
 import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
 import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
@@ -30,6 +31,14 @@ const AQUARIO_ACCENT = {
   accentSoft: "oklch(0.85 0.14 30)",
   accentBg: "oklch(0.72 0.18 28 / 0.12)",
   accentBorder: "oklch(0.72 0.18 28 / 0.5)",
+};
+
+// Verde para o card Aquário (Terrário fica com o vermelho/coral acima).
+const AQUARIO_VERDE = {
+  accent: "oklch(0.72 0.19 145)",
+  accentSoft: "oklch(0.85 0.15 145)",
+  accentBg: "oklch(0.72 0.19 145 / 0.12)",
+  accentBorder: "oklch(0.72 0.19 145 / 0.5)",
 };
 
 const cardByKey: Record<string, DashboardCardData> = {
@@ -52,7 +61,7 @@ const cardByKey: Record<string, DashboardCardData> = {
     subtitle: "Mercado Oriental Premium",
     description:
       "Fábricas chinesas de aquários, filtros e equipamentos de aquariofilia. Abre o dashboard de Aquários & Terrários já filtrado na especialidade Aquário.",
-    ...AQUARIO_ACCENT,
+    ...AQUARIO_VERDE,
     icon: Fish,
     chips: ["Aquários", "Filtros", "Aquariofilia"],
     badge: "鱼",
@@ -125,8 +134,48 @@ function nDashboardsLabel(n: number): string {
 export default function Home() {
   const { groups: customGroups } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
-  const { macros, itemAssignment } = useMacros();
+  const { macros, itemAssignment, reorderMacros } = useMacros();
   const [managerOpen, setManagerOpen] = useState(false);
+
+  // Quais macros estão recolhidos. Por padrão, TODOS começam recolhidos.
+  const [collapsedMacros, setCollapsedMacros] = useState<Set<string>>(new Set());
+  // Sempre que a lista de macros muda (carregou do banco, criou novo etc.),
+  // garante que macros recém-vistos comecem recolhidos sem reabrir os que o
+  // usuário já abriu manualmente nesta sessão.
+  const [seenMacroIds, setSeenMacroIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const novos = macros.map((m) => m.id).filter((id) => !seenMacroIds.has(id));
+    if (novos.length === 0) return;
+    setCollapsedMacros((prev) => {
+      const next = new Set(prev);
+      novos.forEach((id) => next.add(id));
+      return next;
+    });
+    setSeenMacroIds((prev) => {
+      const next = new Set(prev);
+      novos.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [macros, seenMacroIds]);
+
+  const toggleMacro = (id: string) => {
+    setCollapsedMacros((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleReorderMacro = async (id: string, direction: "up" | "down") => {
+    const ids = macros.map((m) => m.id);
+    const idx = ids.indexOf(id);
+    if (idx === -1) return;
+    const swapWith = direction === "up" ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= ids.length) return;
+    [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
+    await reorderMacros(ids);
+  };
 
   // Cards dos grupos promovidos (exceto o nº 0, oculto da Home).
   const promotedCardByKey = useMemo<Record<string, DashboardCardData>>(() => {
@@ -380,56 +429,124 @@ export default function Home() {
         </div>
 
         {/* Seções por macro */}
-        {macros.map((m) => {
+        {macros.map((m, macroIdx) => {
           const items = m.items.filter((it) => allCards[it.key]);
           if (items.length === 0) return null;
+          const collapsed = collapsedMacros.has(m.id);
+          const isFirst = macroIdx === 0;
+          const isLast = macroIdx === macros.length - 1;
           return (
             <div key={m.id} className="mb-12">
               <div className="flex items-center gap-3 mb-5">
-                <span
-                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold flex-shrink-0"
-                  style={{
-                    background: `${m.color}22`,
-                    border: `1px solid ${m.color}88`,
-                    color: m.color,
-                    fontFamily: "'Fraunces', serif",
-                    fontSize: "1.2rem",
-                  }}
+                {/* Cabeçalho clicável (expande/recolhe) */}
+                <button
+                  type="button"
+                  onClick={() => toggleMacro(m.id)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left group active:scale-[0.997]"
+                  style={{ transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1)" }}
+                  aria-expanded={!collapsed}
                 >
-                  {m.number}
-                </span>
-                <div>
-                  <div
-                    className="text-[10px] tracking-[0.22em] uppercase font-semibold"
-                    style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    Classificação Macro Nº {m.number}
-                  </div>
-                  <h3
+                  <span
+                    className="flex items-center justify-center flex-shrink-0 transition-transform"
                     style={{
-                      fontFamily: "'Fraunces', serif",
-                      fontSize: "1.5rem",
-                      fontWeight: 600,
-                      letterSpacing: "-0.02em",
-                      color: "oklch(0.97 0.01 80)",
-                      lineHeight: 1.1,
+                      color: "oklch(0.6 0.02 80)",
+                      transitionDuration: "180ms",
+                      transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
                     }}
                   >
-                    {m.name}
-                  </h3>
-                </div>
+                    {collapsed ? (
+                      <ChevronRight className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </span>
+                  <span
+                    className="w-10 h-10 rounded-xl flex items-center justify-center font-bold flex-shrink-0"
+                    style={{
+                      background: `${m.color}22`,
+                      border: `1px solid ${m.color}88`,
+                      color: m.color,
+                      fontFamily: "'Fraunces', serif",
+                      fontSize: "1.2rem",
+                    }}
+                  >
+                    {m.number}
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      className="block text-[10px] tracking-[0.22em] uppercase font-semibold"
+                      style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      Classificação Macro Nº {m.number} · {items.length} acesso{items.length === 1 ? "" : "s"}
+                    </span>
+                    <span
+                      className="block truncate"
+                      style={{
+                        fontFamily: "'Fraunces', serif",
+                        fontSize: "1.5rem",
+                        fontWeight: 600,
+                        letterSpacing: "-0.02em",
+                        color: "oklch(0.97 0.01 80)",
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {m.name}
+                    </span>
+                  </span>
+                </button>
+
+                {/* Setas de reordenar macros entre si (somente com 2+ macros) */}
+                {macros.length > 1 && (
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleReorderMacro(m.id, "up")}
+                      disabled={isFirst}
+                      title="Mover macro para cima"
+                      aria-label="Mover macro para cima"
+                      className="w-7 h-7 rounded-md flex items-center justify-center border transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 active:scale-[0.92]"
+                      style={{
+                        borderColor: "oklch(0.3 0.02 250)",
+                        background: "oklch(0.14 0.02 250)",
+                        color: "oklch(0.7 0.02 80)",
+                        transitionDuration: "160ms",
+                      }}
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReorderMacro(m.id, "down")}
+                      disabled={isLast}
+                      title="Mover macro para baixo"
+                      aria-label="Mover macro para baixo"
+                      className="w-7 h-7 rounded-md flex items-center justify-center border transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 active:scale-[0.92]"
+                      style={{
+                        borderColor: "oklch(0.3 0.02 250)",
+                        background: "oklch(0.14 0.02 250)",
+                        color: "oklch(0.7 0.02 80)",
+                        transitionDuration: "160ms",
+                      }}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex-1 h-px ml-2" style={{ background: `linear-gradient(90deg, ${m.color}55, transparent)` }} />
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-                {items.map((it, idx) => (
-                  <DashboardCard
-                    key={it.key}
-                    d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
-                    index={idx}
-                  />
-                ))}
-              </div>
+              {!collapsed && (
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {items.map((it, idx) => (
+                    <DashboardCard
+                      key={it.key}
+                      d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
+                      index={idx}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

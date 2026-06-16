@@ -76,6 +76,16 @@ function AquarioReportSection() {
 }
 
 export default function Home() {
+  // Subtipo do atalho da Home (macro 1.1 Terrário / 1.2 Aquário). Quando presente,
+  // o dashboard abre filtrado nessa especialidade e a categoria OPOSTA é escondida
+  // da barra lateral (ex.: no Aquário não aparece "Terrários", e vice-versa).
+  const [subtipoContext] = useState<"aquario" | "terrario" | null>(() => {
+    if (typeof window !== "undefined") {
+      const sub = new URLSearchParams(window.location.search).get("subtipo");
+      if (sub === "aquario" || sub === "terrario") return sub;
+    }
+    return null;
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     // Atalhos da Home (macro 1.1 Terrário / 1.2 Aquário) abrem este dashboard
     // já filtrado pela especialidade via ?subtipo=terrario|aquario.
@@ -346,7 +356,15 @@ export default function Home() {
           >
             {sidebarOpen ? "Categorias" : ""}
           </div>
-          {categories.map((cat) => {
+          {categories
+            .filter((cat) => {
+              // Esconde a categoria OPOSTA quando o dashboard foi aberto por um
+              // atalho de especialidade (ex.: contexto Aquário oculta "terrario").
+              if (subtipoContext === "aquario" && cat.id === "terrario") return false;
+              if (subtipoContext === "terrario" && cat.id === "aquario") return false;
+              return true;
+            })
+            .map((cat) => {
             const count = categoryCounts[cat.id] ?? 0;
             const isActive = selectedCategory === cat.id && viewMode !== "diario";
             return (
