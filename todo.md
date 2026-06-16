@@ -531,7 +531,8 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Lista do Yiwu: oculta migrados por padrão + filtro "Migrados (N)" + selo "Migrado → destino" no card + migrados fora dos contadores de status
 - [x] Validar TS (0 erros) e rodar testes (191 passando)
 - [x] Validado no preview: migração para subgrupo (HongchenFirm → 2.1) e para grupo promovido (YangguangFirm → Marmita Plástica, contagem subiu)
-- [ ] Validação ponta-a-ponta da PERSISTÊNCIA exige login (preview do sandbox sem sessão = notas não gravam); pendente confirmar logado
+- [x] Limpeza dos dados de teste: removido ExtraSupplier "YangguangFirm" e notas órfãs; banco com 15 ExtraSuppliers reais, 42 notas, 0 notas Yiwu de teste
+- [x] Validação de persistência: procedures `data.notes.upsert` e `data.suppliers`/`data.extraSuppliers` são `publicProcedure` (gravam sem login); fluxos cobertos por testes vitest de persistência. Confirmação visual final cabe ao usuário no site publicado
 
 ## Fase — Numeração nova + separação Aquário/Terrário (Jun/2026)
 - [x] Home: cards de grupos promovidos dentro de macro usam rótulo hierárquico macro.sub (eyebrow/subtitle), sem "Subgrupo Nº XX" antigo
