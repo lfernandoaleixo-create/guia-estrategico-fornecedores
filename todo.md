@@ -550,3 +550,11 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Filtro por parceiro na Home: VISUALIZAR e BAIXAR cada documento direto dali (sem botão que joga para o dashboard) — validado no preview (PDF + planilha)
 - [x] Reaproveitar o lightbox/visualizador (PdfCanvas/SheetCanvas/img) e o stream de anexos (/api/attachment-file) na Home (módulo attachmentViewer.tsx)
 - [x] TS limpo + 196 testes vitest passando + validado no preview (documentos PDF/planilha abrem e baixam na Home) + checkpoint
+
+## Ajustes Jun/2026 (6) — Tradução CN⇄PT nos documentos
+- [x] Eyebrow dos cards de entrada: Terrário mostra "TERRÁRIO", Aquário mostra "AQUÁRIO" (não mais "AQUÁRIOS & TERRÁRIOS")
+- [x] Procedure de tradução no servidor (data.translate.toPt): LLM com saída JSON estruturada, filtra CJK, cache em memória, processa em blocos
+- [x] Visualizador de planilha: toggle 中文/PT que traduz células CN⇄PT com cache no cliente (alternância instantânea)
+- [x] Visualizador de PDF: modo PT com painel de tradução do texto por página; modo 中文 mostra o original renderizado
+- [x] Download: menu de idioma (中文 original / Português) — planilha gera .xlsx-PT, PDF gera .txt-PT
+- [x] TS limpo + 201 testes vitest passando + validado no preview (tradução CN⇄PT da planilha + alternância instantânea + menu de download por idioma) + checkpoint
