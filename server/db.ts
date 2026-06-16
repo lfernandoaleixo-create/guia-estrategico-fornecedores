@@ -369,6 +369,7 @@ export async function seedSupplierGroups(): Promise<void> {
 import { viabilitySheets, type InsertViabilitySheetRow } from "../drizzle/schema";
 import { partnerTopics, type InsertPartnerTopicRow } from "../drizzle/schema";
 import { macros, type InsertMacroRow } from "../drizzle/schema";
+import { subgroups, type InsertSubgroupRow } from "../drizzle/schema";
 
 export async function getViabilitySheet(scope: string, supplierId: string) {
   const db = await getDb();
@@ -453,4 +454,35 @@ export async function deleteMacro(id: string) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   await db.delete(macros).where(eq(macros.id, id));
+}
+
+// =============================================================================
+// Subgrupos numerados (macro.sub) — vinculados a um MACRO pelo número.
+// =============================================================================
+export async function listSubgroups() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(subgroups);
+}
+
+export async function upsertSubgroup(row: InsertSubgroupRow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const { id, ...rest } = row;
+  await db.insert(subgroups).values(row).onDuplicateKeyUpdate({ set: rest });
+}
+
+export async function bulkUpsertSubgroups(rows: InsertSubgroupRow[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  for (const row of rows) {
+    const { id, ...rest } = row;
+    await db.insert(subgroups).values(row).onDuplicateKeyUpdate({ set: rest });
+  }
+}
+
+export async function deleteSubgroup(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.delete(subgroups).where(eq(subgroups.id, id));
 }

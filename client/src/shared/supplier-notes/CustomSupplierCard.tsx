@@ -16,6 +16,8 @@ import {
 } from "./useSupplierNotes";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import { TipoBadge } from "./TipoBadge";
+import { useSubgroups } from "./useSubgroups";
+import { formatSubgroupNumber } from "./subgroupNumber";
 
 interface Props {
   supplier: CustomSupplier;
@@ -50,6 +52,12 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
       : undefined;
   const subtipoCfg = subtipo ? SUBTIPO_CONFIG[subtipo] : undefined;
   const subtipoHier = useSubtipoHierLabel();
+
+  // Subgrupo vinculado (modelo macro.sub), gravado em fields.subgroupId.
+  const { byId: subgroupById } = useSubgroups();
+  const subgroupId = (tipoFields?.subgroupId as string | undefined) ?? "";
+  const subgroup =
+    supplier.scope === "aquario" && subgroupId ? subgroupById.get(subgroupId) : undefined;
 
   const prefilled = useMemo<PrefilledField[]>(() => {
     const fields: PrefilledField[] = [];
@@ -161,6 +169,22 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               >
                 <span className="leading-none">{subtipoCfg.emoji}</span>
                 <span>{subtipo ? subtipoHier[subtipo].withPrefix(subtipoCfg.label) : subtipoCfg.label}</span>
+              </span>
+            )}
+            {subgroup && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  color: "#fff",
+                  background: subgroup.color,
+                  border: `1px solid ${subgroup.color}`,
+                }}
+                title={`Subgrupo ${formatSubgroupNumber(subgroup.macroNumber, subgroup.sub)} - ${subgroup.name}`}
+              >
+                <span className="font-extrabold">
+                  {formatSubgroupNumber(subgroup.macroNumber, subgroup.sub)}
+                </span>
+                <span>· {subgroup.name}</span>
               </span>
             )}
           </div>

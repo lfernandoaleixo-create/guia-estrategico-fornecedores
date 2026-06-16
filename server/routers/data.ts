@@ -29,6 +29,10 @@ import {
   upsertMacro,
   bulkUpsertMacros,
   deleteMacro,
+  listSubgroups,
+  upsertSubgroup,
+  bulkUpsertSubgroups,
+  deleteSubgroup,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -145,6 +149,16 @@ const macroInput = z.object({
   name: z.string(),
   color: z.string().default("#8b5cf6"),
   items: z.array(macroItemSchema).default([]),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const subgroupInput = z.object({
+  id: z.string(),
+  macroNumber: z.number().int(),
+  sub: z.number().int(),
+  name: z.string(),
+  color: z.string().default("#10b981"),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -284,6 +298,27 @@ export const dataRouter = router({
       await upsertViabilitySheet(input);
       return { success: true } as const;
     }),
+  }),
+
+  // ---------- Subgrupos numerados (macro.sub) ----------
+  subgroups: router({
+    list: publicProcedure.query(() => listSubgroups()),
+    upsert: publicProcedure.input(subgroupInput).mutation(async ({ input }) => {
+      await upsertSubgroup(input);
+      return { success: true } as const;
+    }),
+    bulkUpsert: publicProcedure
+      .input(z.array(subgroupInput))
+      .mutation(async ({ input }) => {
+        await bulkUpsertSubgroups(input);
+        return { success: true } as const;
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        await deleteSubgroup(input.id);
+        return { success: true } as const;
+      }),
   }),
 
   // ---------- Macros (classificações MACRO da Home) ----------

@@ -38,10 +38,13 @@ export default function CustomSuppliersSection({
   specialtyById,
 }: Props) {
   const customSuppliers = useCustomSuppliers(scope);
-  // Notas do scope: usadas para gravar a especialidade do cadastro DUPLICADO.
+  // Notas do scope: usadas para gravar a especialidade do cadastro DUPLICADO
+  // e o vínculo de SUBGRUPO (fields.subgroupId).
   const notes = useSupplierNotes(scope);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CustomSupplier | null>(null);
+  // Subgrupo selecionado no formulário (modelo macro.sub). Só usado no scope aquario.
+  const [formSubgroupId, setFormSubgroupId] = useState<string | null>(null);
 
   // Duplica um fornecedor: novo cadastro independente + nota nova só com a
   // especialidade escolhida (negociação zerada).
@@ -74,10 +77,14 @@ export default function CustomSuppliersSection({
 
   function openCreate() {
     setEditing(null);
+    setFormSubgroupId(null);
     setDialogOpen(true);
   }
   function openEdit(s: CustomSupplier) {
     setEditing(s);
+    // Carrega o subgrupo atual gravado na nota (se houver).
+    const current = (notes.getEntry(s.id)?.fields?.subgroupId as string | undefined) ?? null;
+    setFormSubgroupId(current);
     setDialogOpen(true);
   }
   async function handleSubmit(
@@ -85,8 +92,15 @@ export default function CustomSuppliersSection({
   ) {
     if (editing) {
       await customSuppliers.update(editing.id, data);
+      // Persiste o vínculo de subgrupo na nota (string vazia limpa).
+      if (scope === "aquario") {
+        notes.upsertEntry(editing.id, { fields: { subgroupId: formSubgroupId ?? "" } });
+      }
     } else {
-      await customSuppliers.create(data);
+      const created = await customSuppliers.create(data);
+      if (created && scope === "aquario" && formSubgroupId) {
+        notes.upsertEntry(created.id, { fields: { subgroupId: formSubgroupId } });
+      }
     }
   }
 
@@ -144,6 +158,9 @@ export default function CustomSuppliersSection({
         tone={tone}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
+        enableSubgroup={scope === "aquario"}
+        subgroupId={formSubgroupId}
+        onSubgroupChange={setFormSubgroupId}
       />
     </div>
   );

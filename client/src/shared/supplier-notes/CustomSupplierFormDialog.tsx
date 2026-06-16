@@ -11,6 +11,7 @@ import {
   genContactId,
 } from "./useCustomSuppliers";
 import { GroupPicker } from "./GroupPicker";
+import { SubgroupPicker } from "./SubgroupPicker";
 
 interface Props {
   open: boolean;
@@ -19,6 +20,13 @@ interface Props {
   tone?: "dark" | "light";
   onClose: () => void;
   onSubmit: (data: Omit<CustomSupplier, "id" | "scope" | "createdAt" | "updatedAt">) => Promise<void> | void;
+  /**
+   * Subgrupo selecionado para este fornecedor (modelo macro.sub). O vínculo é
+   * persistido na NOTA pelo componente pai. Quando definido, exibe o seletor.
+   */
+  enableSubgroup?: boolean;
+  subgroupId?: string | null;
+  onSubgroupChange?: (id: string | null) => void;
 }
 
 interface FormState {
@@ -114,7 +122,12 @@ export default function CustomSupplierFormDialog({
   tone = "dark",
   onClose,
   onSubmit,
+  enableSubgroup = false,
+  subgroupId = null,
+  onSubgroupChange,
 }: Props) {
+  // Estado local do subgrupo (espelha a prop; persistência fica no pai).
+  const [localSubgroupId, setLocalSubgroupId] = useState<string | null>(subgroupId);
   const [state, setState] = useState<FormState>(emptyState);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,9 +135,10 @@ export default function CustomSupplierFormDialog({
   useEffect(() => {
     if (open) {
       setState(initial ? fromSupplier(initial) : emptyState());
+      setLocalSubgroupId(subgroupId ?? null);
       setError(null);
     }
-  }, [open, initial]);
+  }, [open, initial, subgroupId]);
 
   const isDark = tone === "dark";
 
@@ -313,6 +327,26 @@ export default function CustomSupplierFormDialog({
               onChange={(ids) => setField("groupIds", ids)}
             />
           </Section>
+
+          {/* Subgrupo (modelo macro.sub) */}
+          {enableSubgroup && (
+            <Section title="Subgrupo (classificação macro.sub)" palette={palette}>
+              <p className={`text-xs mb-2 ${palette.label}`}>
+                Escolha o subgrupo deste fornecedor (ex.: 1.1 - Terrário, 1.2 -
+                Aquário) ou crie um novo digitando o número livremente. O número
+                antes do ponto deve corresponder a um MACRO já criado na página
+                inicial.
+              </p>
+              <SubgroupPicker
+                tone={isDark ? "dark" : "light"}
+                selectedId={localSubgroupId}
+                onChange={(id) => {
+                  setLocalSubgroupId(id);
+                  onSubgroupChange?.(id);
+                }}
+              />
+            </Section>
+          )}
 
           {/* Localização */}
           <Section title="Localização" palette={palette}>

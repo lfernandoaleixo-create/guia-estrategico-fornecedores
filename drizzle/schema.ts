@@ -228,3 +228,32 @@ export const macros = mysqlTable("macros", {
 
 export type MacroRow = typeof macros.$inferSelect;
 export type InsertMacroRow = typeof macros.$inferInsert;
+
+/**
+ * SUBGRUPOS numerados livres sob cada MACRO (modelo macro.sub).
+ *
+ * Um subgrupo pertence a um MACRO (referenciado pelo NÚMERO do macro, ex.: 1)
+ * e tem um sufixo livre digitável pelo usuário (ex.: 1 → "1.1", 4 → "1.4").
+ * Tem nome livre (ex.: "Terrário", "Coleira de Cachorro") e cor.
+ *
+ * A combinação (macroNumber, sub) é a numeração exibida ("1.1", "3.4").
+ * Pode repetir o mesmo `sub` em macros diferentes (o macroNumber distingue).
+ * Os fornecedores se vinculam ao subgrupo via fields.subgroupId na nota.
+ */
+export const subgroups = mysqlTable("subgroups", {
+  /** ID textual gerado no cliente (ex.: "sg_xxx"). Chave primária. */
+  id: varchar("id", { length: 96 }).primaryKey(),
+  /** Número do MACRO ao qual pertence (referencia macros.number). */
+  macroNumber: int("macroNumber").notNull(),
+  /** Sufixo livre dentro do macro (o "x" em macro.x). Digitado pelo usuário. */
+  sub: int("sub").notNull(),
+  /** Nome livre do subgrupo (ex.: "Terrário", "Coleira de Cachorro"). */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Cor de destaque (hex). */
+  color: varchar("color", { length: 32 }).notNull().default("#10b981"),
+  createdAt: varchar("createdAt", { length: 40 }).notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type SubgroupRow = typeof subgroups.$inferSelect;
+export type InsertSubgroupRow = typeof subgroups.$inferInsert;
