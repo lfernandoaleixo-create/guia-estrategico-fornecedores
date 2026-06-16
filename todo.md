@@ -569,3 +569,7 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] BUG: dropdown "Baixar em" cortado pela borda do modal (overflow) — trocar position absolute por fixed posicionado via getBoundingClientRect do botão Baixar
 - [x] z-index máximo no menu/backdrop para ficar acima de tudo; reposiciona ao reabrir
 - [x] TS limpo + validado no preview (menu aparece inteiro, ambas opções visíveis) + checkpoint
+
+## Correções Jun/2026 (9) — Remover filtro de grupos antigos do Yiwu
+- [x] BUG: barra "Grupos:" na página de Anotações do Yiwu mostrava classificações antigas (Nº 01 Aquários & Terrários, Nº 02 Tapete Higiênico Pet) que não se aplicam — bloco do filtro removido (grupos seguem intactos no banco)
+- [x] TS limpo + validado no preview (label "Grupos:" não existe mais na página) + checkpoint

@@ -325,49 +325,9 @@ export default function YiwuAnotacoes() {
               Migrados ({migratedCount})
             </button>
           )}
-          {allGroups.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Grupos:</span>
-              <button
-                onClick={() => setGroupFilter("all")}
-                className="text-xs px-2.5 py-1 rounded-md transition-colors"
-                style={{
-                  background: groupFilter === "all" ? "#0891b2" : "var(--secondary)",
-                  color: groupFilter === "all" ? "#fff" : undefined,
-                }}
-              >
-                Todos
-              </button>
-              {allGroups.map((g) => {
-                const active = groupFilter === g.id;
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => setGroupFilter(active ? "all" : g.id)}
-                    title={g.legend || g.name}
-                    className="text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5"
-                    style={{
-                      background: active ? g.color : "transparent",
-                      border: `1.5px solid ${g.color}`,
-                      color: active ? "#fff" : undefined,
-                      fontWeight: active ? 600 : 500,
-                    }}
-                  >
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? "#fff" : g.color }} />
-                    <span
-                      className="font-mono text-[9px] px-1 rounded"
-                      style={{
-                        background: active ? "rgba(255,255,255,0.25)" : `${g.color}33`,
-                      }}
-                    >
-                      Nº {String(g.number ?? 0).padStart(2, "0")}
-                    </span>
-                    {g.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Filtro "Grupos" removido do Yiwu: os grupos compartilhados
+              (Aquários & Terrários, Tapete Higiênico Pet) não se aplicam a
+              este dashboard e poluíam a barra de filtros. */}
           <div className="ml-auto text-xs text-muted-foreground font-mono">
             Mostrando {visible.length} de {filtered.length}
           </div>
