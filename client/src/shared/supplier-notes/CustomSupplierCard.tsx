@@ -7,7 +7,13 @@ import { useMemo, useState } from "react";
 import SupplierNotesPanel, { type PrefilledField } from "./SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "./field-presets";
 import { type CustomSupplier, formatCreatedDateBR } from "./useCustomSuppliers";
-import { useSupplierNotes, SUBTIPO_CONFIG, type SubtipoAquario } from "./useSupplierNotes";
+import {
+  useSupplierNotes,
+  SUBTIPO_CONFIG,
+  STATUS_CONFIG,
+  type SubtipoAquario,
+  type SupplierStatus,
+} from "./useSupplierNotes";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import { TipoBadge } from "./TipoBadge";
 
@@ -32,6 +38,10 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
   // no cabeçalho recolhido, sem precisar expandir o card.
   const { entries } = useSupplierNotes(supplier.scope);
   const tipoFields = entries[supplier.id]?.fields;
+  // Status atual da negociação (Não visitado, Contato feito, ...) — exibido no
+  // cabeçalho recolhido como selo, igual aos cards do catálogo.
+  const status = (entries[supplier.id]?.status as SupplierStatus | undefined) ?? "nao-visitado";
+  const statusCfg = STATUS_CONFIG[status];
   // Especialidade (🐟 Aquário / 🦎 Terrário) — só no scope aquario.
   const rawSubtipo = (tipoFields?.subtipoAquario as string | undefined) ?? "";
   const subtipo: SubtipoAquario | undefined =
@@ -117,6 +127,18 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${palette.badge}`}>
               ★ Cadastro manual
+            </span>
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+              style={{
+                color: statusCfg.color,
+                background: statusCfg.bg,
+                border: `1px solid ${statusCfg.border}`,
+              }}
+              title={statusCfg.label}
+            >
+              <span className="leading-none">{statusCfg.emoji}</span>
+              <span>{statusCfg.label}</span>
             </span>
             {supplier.category && (
               <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${palette.chip}`}>
