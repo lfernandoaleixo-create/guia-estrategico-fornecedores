@@ -29,7 +29,7 @@ import {
 } from "./partnerAggregation";
 import { normalizePartner } from "./partners";
 
-function parseAttachments(raw: unknown): { id: string; name: string; category?: string }[] {
+function parseAttachments(raw: unknown): import("./partnerAggregation").AggNoteAttachment[] {
   let arr: unknown = raw;
   if (typeof raw === "string" && raw.trim()) {
     try {
@@ -45,6 +45,12 @@ function parseAttachments(raw: unknown): { id: string; name: string; category?: 
       id: String(a.id ?? ""),
       name: String(a.name ?? "arquivo"),
       category: typeof a.category === "string" ? a.category : undefined,
+      type: typeof a.type === "string" ? a.type : undefined,
+      size: typeof a.size === "number" ? a.size : undefined,
+      url: typeof a.url === "string" ? a.url : undefined,
+      fileKey: typeof a.fileKey === "string" ? a.fileKey : undefined,
+      dataUrl: typeof a.dataUrl === "string" ? a.dataUrl : undefined,
+      addedAt: typeof a.addedAt === "string" ? a.addedAt : undefined,
     }));
 }
 

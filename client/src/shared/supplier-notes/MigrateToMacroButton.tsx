@@ -38,7 +38,7 @@ import {
 export type { MigrateToMacroContext };
 
 interface Props {
-  /** Scope de origem (espera-se "yiwu"). */
+  /** Scope de origem (qualquer dashboard: aquario/tapete/yiwu/grupo-<id>). */
   fromScope: string;
   /** ID do fornecedor de origem. */
   fromSupplierId: string;
@@ -48,6 +48,8 @@ interface Props {
   accent?: string;
   /** Callback após migração bem-sucedida. */
   onMigrated?: () => void;
+  /** Rótulo do botão (padrão "Migrar contato"). */
+  label?: string;
 }
 
 type Step = "macro" | "item" | "confirm";
@@ -58,6 +60,7 @@ export function MigrateToMacroButton({
   context,
   accent = "#8b5cf6",
   onMigrated,
+  label = "Migrar contato",
 }: Props) {
   const { macros } = useMacros();
   // Hooks de destino (CustomSuppliers por scope + ExtraSuppliers de grupos).
@@ -174,9 +177,9 @@ export function MigrateToMacroButton({
         buildFullMigratedNote(dest.id, sourceEntry, extraFields),
       );
 
-      // 4. Marca a nota de origem no Yiwu como MIGRADA (sem apagar histórico).
-      //    A lista do Yiwu oculta por padrão fornecedores migrados e mostra
-      //    um selo "MIGRADO → <destino>". Preserva o status/observações originais.
+      // 4. Marca a nota de ORIGEM (qualquer dashboard) como MIGRADA, sem apagar
+      //    o histórico. As listas ocultam por padrão fornecedores migrados e
+      //    mostram um selo "Migrado → <destino>". Preserva status/observações.
       const destLabel = destinationLabel(selectedMacro.number, selectedItem.hier, item.label);
       const originEntry: SupplierNoteEntry = sourceEntry ?? {
         supplierId: fromSupplierId,
@@ -200,13 +203,13 @@ export function MigrateToMacroButton({
         },
         updatedAt: new Date().toLocaleDateString("pt-BR"),
       });
-      toast.success("Fornecedor migrado para o macro", {
+      toast.success("Contato migrado", {
         description: `${context.supplierName} → ${destLabel}`,
       });
       onMigrated?.();
       close();
     } catch (err) {
-      toast.error("Erro ao migrar para o macro", {
+      toast.error("Erro ao migrar contato", {
         description: err instanceof Error ? err.message : String(err),
       });
       setBusy(false);
@@ -233,10 +236,10 @@ export function MigrateToMacroButton({
           color: accent,
           border: `1px solid ${accent}55`,
         }}
-        title="Migrar este fornecedor para um macro (cadastro por subgrupo)"
+        title="Migrar este contato para um subgrupo de um macro"
       >
         <Layers className="w-3.5 h-3.5" />
-        Migrar para macro
+        {label}
       </button>
 
       {open &&
@@ -260,7 +263,7 @@ export function MigrateToMacroButton({
               {/* Cabeçalho */}
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-base font-bold text-zinc-900">Migrar para macro</h3>
+                  <h3 className="text-base font-bold text-zinc-900">{label}</h3>
                   <p className="text-xs text-zinc-500 mt-0.5">{context.supplierName}</p>
                 </div>
                 <button
@@ -284,7 +287,7 @@ export function MigrateToMacroButton({
               {step === "macro" && (
                 <>
                   <p className="text-xs text-zinc-500 mb-3">
-                    Escolha o macro para onde este fornecedor será cadastrado.
+Passo 1 de 3 · Escolha o <b>macro</b> ao qual este fornecedor pertence.
                   </p>
                   {macros.length === 0 ? (
                     <div className="text-xs text-zinc-500 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
@@ -364,7 +367,8 @@ export function MigrateToMacroButton({
                     </strong>
                   </p>
                   <p className="text-xs text-zinc-500 mb-3">
-                    Escolha o subgrupo (destino) dentro deste macro.
+                    Passo 2 de 3 · Escolha o <b>subgrupo</b> de destino. Ao confirmar, o
+                    fornecedor sai da lista atual e passa a aparecer aqui.
                   </p>
 
                   {macroItems.length === 0 ? (

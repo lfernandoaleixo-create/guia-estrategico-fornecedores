@@ -17,14 +17,36 @@ import {
   X,
   Users,
   FileText,
-  ChevronRight,
   Layers,
   ExternalLink,
   UserCheck,
+  Eye,
+  Download,
 } from "lucide-react";
 import { usePartnerFilter } from "./usePartnerFilter";
 import { normalizePartner } from "./partners";
-import type { PartnerResult } from "./partnerAggregation";
+import type { PartnerResult, AggNoteAttachment } from "./partnerAggregation";
+import type { SupplierAttachment } from "./useSupplierNotes";
+import {
+  AttachmentLightbox,
+  canPreviewAtt,
+  downloadAttachment,
+} from "./attachmentViewer";
+
+/** Converte o anexo agregado (Home) no formato completo usado pelo visualizador. */
+function toSupplierAttachment(att: AggNoteAttachment): SupplierAttachment {
+  return {
+    id: att.id,
+    name: att.name,
+    type: att.type ?? "",
+    size: att.size ?? 0,
+    url: att.url,
+    fileKey: att.fileKey,
+    dataUrl: att.dataUrl,
+    addedAt: att.addedAt ?? "",
+    category: att.category as SupplierAttachment["category"],
+  };
+}
 
 export function PartnerFilterPanel() {
   const { results, suggestions, loading, byPartner } = usePartnerFilter();
@@ -42,6 +64,9 @@ export function PartnerFilterPanel() {
   }, [suggestions, queryKey]);
 
   const result: PartnerResult | null = selected ? byPartner(selected) : null;
+
+  // Anexo aberto no visualizador (lightbox) — direto da Home.
+  const [viewing, setViewing] = useState<SupplierAttachment | null>(null);
 
   const choose = (name: string) => {
     setSelected(name);
@@ -217,16 +242,25 @@ export function PartnerFilterPanel() {
                 Nenhum fornecedor vinculado a <strong>{selected}</strong> ainda.
               </div>
             ) : (
-              <PartnerResultTree result={result} />
+              <PartnerResultTree result={result} onView={setViewing} />
             )}
           </div>
         )}
       </div>
+
+      {/* Visualizador de documentos — abre direto na Home, sem trocar de página */}
+      <AttachmentLightbox attachment={viewing} onClose={() => setViewing(null)} />
     </section>
   );
 }
 
-function PartnerResultTree({ result }: { result: PartnerResult }) {
+function PartnerResultTree({
+  result,
+  onView,
+}: {
+  result: PartnerResult;
+  onView: (att: SupplierAttachment) => void;
+}) {
   return (
     <div>
       {/* Resumo */}
@@ -351,26 +385,49 @@ function PartnerResultTree({ result }: { result: PartnerResult }) {
                           </span>
                         </div>
 
-                        {/* Documentos */}
+                        {/* Documentos — visualizar/baixar DIRETO daqui */}
                         {s.attachments.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            {s.attachments.map((att) => (
-                              <Link
-                                key={att.id}
-                                href={s.href}
-                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium border transition-colors hover:brightness-125"
-                                style={{
-                                  borderColor: "oklch(0.3 0.02 250)",
-                                  background: "oklch(0.14 0.02 250)",
-                                  color: "oklch(0.8 0.02 80)",
-                                }}
-                                title={`Abrir o fornecedor para baixar: ${att.name}`}
-                              >
-                                <FileText className="w-3 h-3" style={{ color: "oklch(0.78 0.16 75)" }} />
-                                <span className="max-w-[160px] truncate">{att.name}</span>
-                                <ChevronRight className="w-3 h-3 opacity-50" />
-                              </Link>
-                            ))}
+                            {s.attachments.map((att) => {
+                              const full = toSupplierAttachment(att);
+                              const previewable = canPreviewAtt(full);
+                              return (
+                                <span
+                                  key={att.id}
+                                  className="group inline-flex items-center gap-1 rounded-md pl-2 pr-1 py-1 text-[11px] font-medium border"
+                                  style={{
+                                    borderColor: "oklch(0.3 0.02 250)",
+                                    background: "oklch(0.14 0.02 250)",
+                                    color: "oklch(0.8 0.02 80)",
+                                  }}
+                                >
+                                  <FileText className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.78 0.16 75)" }} />
+                                  <span className="max-w-[150px] truncate">{att.name}</span>
+                                  {previewable && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onView(full)}
+                                      title="Visualizar documento"
+                                      aria-label={`Visualizar ${att.name}`}
+                                      className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
+                                      style={{ background: "oklch(0.78 0.16 300 / 0.18)", color: "oklch(0.85 0.12 300)" }}
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => void downloadAttachment(full)}
+                                    title="Baixar documento"
+                                    aria-label={`Baixar ${att.name}`}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
+                                    style={{ background: "oklch(0.78 0.16 75 / 0.18)", color: "oklch(0.82 0.14 75)" }}
+                                  >
+                                    <Download className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

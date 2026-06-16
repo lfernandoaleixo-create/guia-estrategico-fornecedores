@@ -541,3 +541,12 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Adicionar.tsx: removida numeração antiga (toast/atalho, lista de subgrupos, seletor de destino); badge numérico trocado por marcador
 - [x] GroupBadges: removido "Nº XX", mantendo ponto colorido + nome
 - [x] Aquário/Terrário: quando aberto por ?subtipo, a lista exclui a especialidade oposta (trava em filteredSuppliers)
+
+## Ajustes Jun/2026 (5) — Card de migração + documentos no filtro da Home
+- [x] Unificar a migração em UM único card "Migrar contato" com fluxo Macro → Subgrupo → migra e some da origem (reaproveita MigrateToMacroButton; título do modal e textos dos passos atualizados)
+- [x] Liberar o fluxo macro→subgrupo para QUALQUER dashboard (não só Yiwu): Aquário, Terrário, Tapete, Yiwu e grupos promovidos
+- [x] Remover o card antigo "Migrar contato" (MigrateButton) do SupplierNotesPanel (cabeçalho + barra compacta) e excluir o arquivo órfão
+- [x] Ocultar migrados em TODOS os dashboards via ReportPanel central: filtro "Migrados (N)" + selo "Migrado" + migrados fora dos contadores (teste vitest migratedVisibility)
+- [x] Filtro por parceiro na Home: VISUALIZAR e BAIXAR cada documento direto dali (sem botão que joga para o dashboard) — validado no preview (PDF + planilha)
+- [x] Reaproveitar o lightbox/visualizador (PdfCanvas/SheetCanvas/img) e o stream de anexos (/api/attachment-file) na Home (módulo attachmentViewer.tsx)
+- [x] TS limpo + 196 testes vitest passando + validado no preview (documentos PDF/planilha abrem e baixam na Home) + checkpoint

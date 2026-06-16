@@ -18,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SubgroupPicker } from "./SubgroupPicker";
-import { MigrateButton } from "./MigrateButton";
 import { MigrateToMacroButton } from "./MigrateToMacroButton";
 import PartnerEditor from "./PartnerEditor";
 import { parsePartners, serializePartners, PARTNERS_FIELD_KEY } from "./partners";
@@ -844,27 +843,19 @@ export default function SupplierNotesPanel({
                 <span>Atualizado em {entry.updatedAt}</span>
               </div>
             )}
-            {isYiwu && (
-              <MigrateToMacroButton
-                fromScope={scope}
-                fromSupplierId={supplierId}
-                accent="#8b5cf6"
-                context={migrationContext}
-                onMigrated={onSaved}
-              />
-            )}
-            <MigrateButton
+            <MigrateToMacroButton
               fromScope={scope}
               fromSupplierId={supplierId}
-              accent={accent ?? "#475569"}
+              accent="#8b5cf6"
               context={migrationContext}
+              onMigrated={onSaved}
             />
           </div>
         </div>
       )}
 
-      {/* MODO COMPACTO — barra de ações de migração (usada nas listas do Yiwu) */}
-      {compact && isYiwu && (
+      {/* MODO COMPACTO — barra de ação de migração (em qualquer dashboard) */}
+      {compact && (
         <div className="flex items-center justify-end gap-2 flex-wrap mb-3">
           <MigrateToMacroButton
             fromScope={scope}
@@ -872,12 +863,6 @@ export default function SupplierNotesPanel({
             accent="#8b5cf6"
             context={migrationContext}
             onMigrated={onSaved}
-          />
-          <MigrateButton
-            fromScope={scope}
-            fromSupplierId={supplierId}
-            accent={accent ?? "#475569"}
-            context={migrationContext}
           />
         </div>
       )}

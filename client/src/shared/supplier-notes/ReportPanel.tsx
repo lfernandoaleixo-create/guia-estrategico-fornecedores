@@ -155,6 +155,15 @@ export default function ReportPanel({
   const [detailOpen, setDetailOpen] = useState(false);
   // Filtro por especialidade (🐟 Aquário x 🦎 Terrário). Só ativo quando specialtyEnabled.
   const [specialtyFilter, setSpecialtyFilter] = useState<SpecialtyFilter>(initialSpecialty);
+  // Fornecedores migrados para outro destino ficam OCULTOS por padrão (saíram
+  // daqui e foram para o destino). O botão "Migrados (N)" mostra apenas eles.
+  const [showMigrated, setShowMigrated] = useState(false);
+
+  // Total de fornecedores migrados para outro destino (para o botão de filtro).
+  const migratedCount = useMemo(
+    () => Object.values(entries).filter((e) => !!e?.fields?.migratedTo).length,
+    [entries],
+  );
 
   // Build virtual entries: fornecedores sem entry = "nao-visitado"
   const allEntries = useMemo(() => {
@@ -178,16 +187,23 @@ export default function ReportPanel({
     return [...real, ...virtual];
   }, [entries, allSupplierIds]);
 
+  // Oculta migrados por padrão; quando showMigrated=true, mostra SOMENTE migrados.
+  const migrationFiltered = useMemo(() => {
+    return allEntries.filter((e) =>
+      showMigrated ? !!e.fields?.migratedTo : !e.fields?.migratedTo,
+    );
+  }, [allEntries, showMigrated]);
+
   // Filtra por especialidade ANTES de tudo (quando habilitado).
   const specialtyEntries = useMemo(() => {
-    if (!specialtyEnabled || specialtyFilter === "todos") return allEntries;
+    if (!specialtyEnabled || specialtyFilter === "todos") return migrationFiltered;
     return filterEntriesBySpecialty(
-      allEntries,
+      migrationFiltered,
       specialtyFilter,
       subtipoById ?? {},
       categoryById ?? {},
     );
-  }, [allEntries, specialtyEnabled, specialtyFilter, subtipoById, categoryById]);
+  }, [migrationFiltered, specialtyEnabled, specialtyFilter, subtipoById, categoryById]);
 
   // Contagem por especialidade para os rótulos do seletor (sobre o universo do período? não:
   // usa todas as entries para refletir o total cadastrado em cada especialidade).
@@ -662,6 +678,31 @@ export default function ReportPanel({
             </div>
           </div>
         )}
+        {migratedCount > 0 && (
+          <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: dark ? "rgba(63,63,70,0.5)" : "#e4e4e7" }}>
+            <button
+              type="button"
+              onClick={() => setShowMigrated((v) => !v)}
+              aria-pressed={showMigrated}
+              title={showMigrated ? "Voltar a ocultar os migrados" : "Ver apenas os fornecedores migrados para outro destino"}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all active:scale-[0.97] ${
+                showMigrated
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : dark ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" : "bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50"
+              }`}
+            >
+              <span>{showMigrated ? "Mostrando migrados" : "Migrados"}</span>
+              <span className={`tabular-nums rounded-full px-1.5 py-0.5 text-[10px] font-bold ${showMigrated ? "bg-white/25 text-white" : dark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-100 text-zinc-600"}`}>
+                {migratedCount}
+              </span>
+            </button>
+            {showMigrated && (
+              <span className={`text-[11px] ${dark ? "text-zinc-400" : "text-zinc-500"}`}>
+                Fornecedores que saíram deste dashboard para outro destino.
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status Summary Cards — clicáveis para filtrar a lista (toggle) */}
@@ -920,19 +961,29 @@ export default function ReportPanel({
                       >
                         {cfg.emoji}
                       </span>
-                      <span className={`flex-1 text-sm font-medium truncate ${dark ? 'text-zinc-100' : 'text-zinc-800'}`}>
+                      <span className={`flex-1 min-w-0 text-sm font-medium truncate ${dark ? 'text-zinc-100' : 'text-zinc-800'}`}>
                         {name}
                       </span>
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                        style={{
-                          background: cfg.bg,
-                          color: cfg.color,
-                          border: `1px solid ${cfg.border}`,
-                        }}
-                      >
-                        {cfg.label}
-                      </span>
+                      {entry.fields?.migratedTo ? (
+                        <span
+                          className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0"
+                          style={{ background: "#8b5cf618", color: "#7c3aed", border: "1px solid #8b5cf655" }}
+                          title={`Migrado para ${entry.fields.migratedTo}`}
+                        >
+                          Migrado → {entry.fields.migratedTo}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0"
+                          style={{
+                            background: cfg.bg,
+                            color: cfg.color,
+                            border: `1px solid ${cfg.border}`,
+                          }}
+                        >
+                          {cfg.label}
+                        </span>
+                      )}
                       <span className="text-[10px] text-zinc-500 ml-2">
                         {entry.updatedAt}
                       </span>

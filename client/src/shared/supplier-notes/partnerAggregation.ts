@@ -26,6 +26,13 @@ export interface AggNoteAttachment {
   id: string;
   name: string;
   category?: string;
+  /** Campos necessários para VISUALIZAR/BAIXAR direto na Home. */
+  type?: string;
+  size?: number;
+  url?: string;
+  fileKey?: string;
+  dataUrl?: string;
+  addedAt?: string;
 }
 
 export interface AggNote {
