@@ -10,7 +10,6 @@ import {
   type SupplierScope,
   genContactId,
 } from "./useCustomSuppliers";
-import { GroupPicker } from "./GroupPicker";
 import { SubgroupPicker } from "./SubgroupPicker";
 
 interface Props {
@@ -313,19 +312,6 @@ export default function CustomSupplierFormDialog({
                 palette={palette}
               />
             </Grid>
-          </Section>
-
-          {/* Grupos */}
-          <Section title="Grupos" palette={palette}>
-            <p className={`text-xs mb-2 ${palette.label}`}>
-              Marque os grupos a que este fornecedor pertence. Você pode escolher entre os já criados
-              ou clicar em “+ novo grupo” para criar uma nova categoria.
-            </p>
-            <GroupPicker
-              tone={isDark ? "dark" : "light"}
-              selectedIds={state.groupIds}
-              onChange={(ids) => setField("groupIds", ids)}
-            />
           </Section>
 
           {/* Subgrupo (modelo macro.sub) */}

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSubgroups, SUBGROUP_PALETTE, type Subgroup } from "./useSubgroups";
+import { useMacros } from "./useMacros";
 import {
-  GROUP_COLOR_PALETTE,
-  type SupplierGroup,
-  useSupplierGroups,
-} from "./useSupplierGroups";
-import { useCustomGroups } from "./useCustomGroups";
+  validateSubgroupNumber,
+  subgroupErrorMessage,
+  formatSubgroupNumber,
+  nextSubForMacro,
+} from "./subgroupNumber";
 
 interface Props {
   /** "dark" para dashboard escuro (Yiwu); "light" para Aquário/Tapete. */
@@ -12,22 +14,60 @@ interface Props {
 }
 
 /**
- * Componente "Gerenciar Grupos" — disponível dentro de cada página de anotações.
- * Permite criar / editar / excluir grupos compartilhados pelos 3 dashboards.
- * Os grupos podem depois ser marcados em cada fornecedor via SupplierNotesPanel.
+ * Componente "Subgrupos" — disponível dentro de cada página de anotações.
+ *
+ * Substitui o antigo gestor de "grupos" (entidade supplier_groups). Agora opera
+ * diretamente sobre os SUBGRUPOS no modelo macro.sub (ex.: 1.1, 1.2, 2.1), que
+ * são amarrados a um MACRO criado na página inicial (Classificações). A criação
+ * é bloqueada se o macro digitado não existir.
+ *
+ * Os subgrupos são compartilhados pelos dashboards e podem ser vinculados a cada
+ * fornecedor (fields.subgroupId), aparecendo como selo no card recolhido.
  */
 export function GroupsManager({ tone = "light" }: Props) {
-  const { groups, createGroup, updateGroup, deleteGroup } = useSupplierGroups();
-  // Grupos personalizados (criados na aba "Adicionar Fornecedores"). Exibidos aqui
-  // em modo somente leitura para dar visão completa em todos os dashboards.
-  const { groups: customGroups } = useCustomGroups();
+  const { subgroups, createSubgroup, updateSubgroup, deleteSubgroup } = useSubgroups();
+  const { macros } = useMacros();
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ name: string; legend: string; color: string; number: number }>(
-    { name: "", legend: "", color: GROUP_COLOR_PALETTE[0], number: 1 }
-  );
+  const [numberRaw, setNumberRaw] = useState("");
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(SUBGROUP_PALETTE[0]);
 
   const isDark = tone === "dark";
+
+  const existingMacroNumbers = useMemo(
+    () => macros.map((m) => m.number).filter((n) => Number.isFinite(n)),
+    [macros],
+  );
+  const macroNameByNumber = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const m of macros) map.set(m.number, m.name);
+    return map;
+  }, [macros]);
+
+  // Validação ao vivo do número digitado.
+  const validation = useMemo(
+    () =>
+      validateSubgroupNumber({
+        raw: numberRaw,
+        existingMacroNumbers,
+        existingSubgroups: subgroups.map((s) => ({
+          macroNumber: s.macroNumber,
+          sub: s.sub,
+          id: s.id,
+        })),
+        editingId: editing,
+      }),
+    [numberRaw, existingMacroNumbers, subgroups, editing],
+  );
+
+  const errorMsg =
+    numberRaw.trim() && !validation.ok
+      ? subgroupErrorMessage(validation.error, validation.parsed?.macroNumber)
+      : "";
+
+  const canSave = validation.ok && !!name.trim();
 
   const containerStyle: React.CSSProperties = {
     background: isDark ? "rgba(15,23,42,0.55)" : "#ffffff",
@@ -37,50 +77,71 @@ export function GroupsManager({ tone = "light" }: Props) {
     color: isDark ? "#f1f5f9" : "#0f172a",
   };
 
+  function suggestNextNumber(): string {
+    // Sugere "macro.prox" para o primeiro macro existente (se houver).
+    const firstMacro = existingMacroNumbers[0];
+    if (firstMacro == null) return "";
+    const sub = nextSubForMacro(
+      firstMacro,
+      subgroups.map((s) => ({ macroNumber: s.macroNumber, sub: s.sub })),
+    );
+    return formatSubgroupNumber(firstMacro, sub);
+  }
+
   function startCreate() {
     setEditing(null);
-    const usedNumbers = groups.map((g) => g.number).filter(Boolean);
-    let nextNum = 1;
-    while (usedNumbers.includes(nextNum)) nextNum++;
-    setDraft({ name: "", legend: "", color: GROUP_COLOR_PALETTE[0], number: nextNum });
+    setNumberRaw(suggestNextNumber());
+    setName("");
+    setColor(SUBGROUP_PALETTE[subgroups.length % SUBGROUP_PALETTE.length] ?? SUBGROUP_PALETTE[0]);
     setOpen(true);
   }
 
-  function startEdit(g: SupplierGroup) {
-    setEditing(g.id);
-    setDraft({ name: g.name, legend: g.legend, color: g.color, number: g.number ?? 1 });
+  function startEdit(sg: Subgroup) {
+    setEditing(sg.id);
+    setNumberRaw(formatSubgroupNumber(sg.macroNumber, sg.sub));
+    setName(sg.name);
+    setColor(sg.color);
     setOpen(true);
   }
 
   async function handleSave() {
-    if (!draft.name.trim()) return;
+    if (!canSave || !validation.parsed) return;
+    const { macroNumber, sub } = validation.parsed;
     if (editing) {
-      await updateGroup(editing, { name: draft.name, legend: draft.legend, color: draft.color, number: draft.number });
+      await updateSubgroup(editing, { macroNumber, sub, name, color });
     } else {
-      await createGroup({ name: draft.name, legend: draft.legend, color: draft.color, number: draft.number });
+      await createSubgroup({ macroNumber, sub, name, color });
     }
     setOpen(false);
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(sg: Subgroup) {
     if (
       window.confirm(
-        "Excluir este grupo? Os fornecedores marcados com ele NÃO serão apagados, apenas perderão o vínculo."
+        `Excluir o subgrupo ${formatSubgroupNumber(sg.macroNumber, sg.sub)} - ${sg.name}? Os fornecedores marcados com ele NÃO serão apagados, apenas perderão o vínculo.`,
       )
     ) {
-      await deleteGroup(id);
+      await deleteSubgroup(sg.id);
     }
   }
+
+  const hasMacros = existingMacroNumbers.length > 0;
+  const macrosHint =
+    existingMacroNumbers
+      .map((n) => `${n}${macroNameByNumber.get(n) ? ` (${macroNameByNumber.get(n)})` : ""}`)
+      .join(" · ") || "nenhum";
 
   return (
     <div style={containerStyle}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7 }}>
-            Grupos de fornecedores
+            Subgrupos
           </div>
           <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
-            Crie categorias (ex.: Brinquedos, Aquário/Terrário, Tapete artesanal…) para organizar os fornecedores nos 3 dashboards. Cada anotação pode ser marcada com um ou mais grupos.
+            Crie subgrupos numerados no formato <strong>macro.sub</strong> (ex.: 1.1, 1.2, 2.1).
+            Cada subgrupo pertence a um <strong>MACRO</strong> criado na página inicial (Classificações).
+            Depois, vincule cada fornecedor a um subgrupo — o número aparece no card.
           </div>
         </div>
         <button
@@ -97,39 +158,39 @@ export function GroupsManager({ tone = "light" }: Props) {
             whiteSpace: "nowrap",
           }}
         >
-          + Novo grupo
+          + Novo subgrupo
         </button>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-        {groups.length === 0 && (
+        {subgroups.length === 0 && (
           <div style={{ fontSize: 13, opacity: 0.65, fontStyle: "italic" }}>
-            Nenhum grupo criado ainda. Clique em &quot;+ Novo grupo&quot; para começar.
+            Nenhum subgrupo criado ainda. Clique em &quot;+ Novo subgrupo&quot; para começar.
           </div>
         )}
-        {groups.map((g) => (
+        {subgroups.map((sg) => (
           <div
-            key={g.id}
+            key={sg.id}
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
               padding: "6px 10px",
               borderRadius: 999,
-              border: `2px solid ${g.color}`,
-              background: `${g.color}1a`, // 10% alpha
+              border: `2px solid ${sg.color}`,
+              background: `${sg.color}1a`, // 10% alpha
               color: isDark ? "#f1f5f9" : "#1f2937",
               fontWeight: 600,
               fontSize: 13,
             }}
-            title={g.legend || g.name}
+            title={`${formatSubgroupNumber(sg.macroNumber, sg.sub)} - ${sg.name}`}
           >
             <span
               style={{
                 width: 10,
                 height: 10,
                 borderRadius: 999,
-                background: g.color,
+                background: sg.color,
                 display: "inline-block",
               }}
             />
@@ -137,123 +198,35 @@ export function GroupsManager({ tone = "light" }: Props) {
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: 11,
-                opacity: 0.85,
-                background: `${g.color}33`,
+                fontWeight: 800,
+                opacity: 0.95,
+                background: `${sg.color}33`,
                 padding: "1px 6px",
                 borderRadius: 4,
               }}
             >
-              Nº {String(g.number ?? 0).padStart(2, "0")}
+              {formatSubgroupNumber(sg.macroNumber, sg.sub)}
             </span>
-            <span>{g.name}</span>
-            {g.legend && <span style={{ opacity: 0.7, fontWeight: 400 }}>· {g.legend}</span>}
+            <span>{sg.name}</span>
             <button
               type="button"
-              onClick={() => startEdit(g)}
+              onClick={() => startEdit(sg)}
               style={{ background: "transparent", border: "none", cursor: "pointer", color: "inherit", fontSize: 12, opacity: 0.7 }}
-              title="Editar grupo"
+              title="Editar subgrupo"
             >
               ✎
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(g.id)}
+              onClick={() => handleDelete(sg)}
               style={{ background: "transparent", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 12 }}
-              title="Excluir grupo"
+              title="Excluir subgrupo"
             >
               ✕
             </button>
           </div>
         ))}
       </div>
-
-      {/* Grupos personalizados (somente leitura aqui; geridos em "Adicionar Fornecedores") */}
-      {customGroups.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              opacity: 0.6,
-              marginBottom: 8,
-            }}
-          >
-            Grupos personalizados ({customGroups.length})
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {customGroups.map((g) => (
-              <div
-                key={g.id}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: `2px solid ${g.color}`,
-                  background: `${g.color}1a`,
-                  color: isDark ? "#f1f5f9" : "#1f2937",
-                  fontWeight: 600,
-                  fontSize: 13,
-                }}
-                title={g.description || g.branch || g.name}
-              >
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: g.color,
-                    display: "inline-block",
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 11,
-                    opacity: 0.85,
-                    background: `${g.color}33`,
-                    padding: "1px 6px",
-                    borderRadius: 4,
-                  }}
-                >
-                  Nº {String(g.number ?? 0).padStart(2, "0")}
-                </span>
-                <span>{g.name}</span>
-                {g.branch && <span style={{ opacity: 0.7, fontWeight: 400 }}>· {g.branch}</span>}
-                <span
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    opacity: 0.7,
-                    background: isDark ? "rgba(148,163,184,0.25)" : "rgba(15,23,42,0.08)",
-                    padding: "1px 5px",
-                    borderRadius: 4,
-                  }}
-                  title="Grupo personalizado — criado em Adicionar Fornecedores"
-                >
-                  PERS.
-                </span>
-                {g.promotedToDashboard && (
-                  <span
-                    style={{ fontSize: 11, opacity: 0.8 }}
-                    title="Promovido a dashboard independente"
-                  >
-                    ★
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8, fontStyle: "italic" }}>
-            Grupos personalizados são criados e editados na aba “Adicionar Fornecedores”. Esta lista se atualiza automaticamente.
-          </div>
-        </div>
-      )}
 
       {open && (
         <div
@@ -284,71 +257,80 @@ export function GroupsManager({ tone = "light" }: Props) {
             }}
           >
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-              {editing ? "Editar grupo" : "Novo grupo"}
+              {editing ? "Editar subgrupo" : "Novo subgrupo"}
             </h3>
             <p style={{ margin: "4px 0 16px", fontSize: 13, opacity: 0.7 }}>
-              Os grupos são compartilhados entre Aquário, Tapete e Yiwu.
+              O subgrupo pertence a um MACRO existente. Os subgrupos são compartilhados entre os dashboards.
             </p>
 
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7 }}>
-              Número do grupo
-            </label>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={draft.number}
-              onChange={(e) => setDraft({ ...draft, number: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, marginTop: 4, fontSize: 16, fontWeight: 700, fontFamily: "'Fraunces', serif" }}
-            />
-            <span style={{ fontSize: 10, opacity: 0.6, marginTop: 2, display: "block" }}>Sugestão automática do próximo livre.</span>
-
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7, marginTop: 12 }}>
-              Nome do grupo
+              Número (macro.sub)
             </label>
             <input
               autoFocus
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              placeholder="Ex.: Brinquedos, Aquário/Terrário, Tapete artesanal…"
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, marginTop: 4, fontSize: 14 }}
+              value={numberRaw}
+              onChange={(e) => setNumberRaw(e.target.value)}
+              placeholder="Ex.: 1.3"
+              inputMode="decimal"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: `1px solid ${errorMsg ? "#dc2626" : "#d1d5db"}`,
+                borderRadius: 8,
+                marginTop: 4,
+                fontSize: 16,
+                fontWeight: 700,
+                fontFamily: "'Fraunces', serif",
+              }}
             />
+            <span style={{ fontSize: 10, opacity: 0.6, marginTop: 4, display: "block" }}>
+              Macros disponíveis: {macrosHint}
+            </span>
+            {!hasMacros && (
+              <span style={{ fontSize: 11, color: "#b45309", marginTop: 4, display: "block" }}>
+                Nenhum macro criado ainda. Crie um macro na página inicial (Classificações) antes de adicionar subgrupos.
+              </span>
+            )}
+            {errorMsg && (
+              <span style={{ fontSize: 11, color: "#dc2626", marginTop: 4, display: "block" }}>
+                {errorMsg}
+              </span>
+            )}
 
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7, marginTop: 12 }}>
-              Legenda / descrição
+              Nome do subgrupo
             </label>
-            <textarea
-              value={draft.legend}
-              onChange={(e) => setDraft({ ...draft, legend: e.target.value })}
-              placeholder="Descrição rápida do grupo (opcional). Ex.: Fornecedores de brinquedos infantis até 5 anos."
-              rows={2}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, marginTop: 4, fontSize: 14, resize: "vertical" }}
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex.: Terrário, Aquário, Marmita…"
+              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, marginTop: 4, fontSize: 14 }}
             />
 
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7, marginTop: 12 }}>
               Cor
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-              {GROUP_COLOR_PALETTE.map((c) => (
+              {SUBGROUP_PALETTE.map((c) => (
                 <button
                   key={c}
                   type="button"
-                  onClick={() => setDraft({ ...draft, color: c })}
+                  onClick={() => setColor(c)}
                   aria-label={`Cor ${c}`}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: 999,
                     background: c,
-                    border: draft.color === c ? "3px solid #0f172a" : "2px solid #e5e7eb",
+                    border: color === c ? "3px solid #0f172a" : "2px solid #e5e7eb",
                     cursor: "pointer",
                   }}
                 />
               ))}
               <input
                 type="color"
-                value={draft.color}
-                onChange={(e) => setDraft({ ...draft, color: e.target.value })}
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
                 style={{ width: 28, height: 28, border: "none", padding: 0, cursor: "pointer", background: "transparent" }}
                 title="Cor personalizada"
               />
@@ -365,18 +347,18 @@ export function GroupsManager({ tone = "light" }: Props) {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!draft.name.trim()}
+                disabled={!canSave}
                 style={{
                   padding: "8px 14px",
                   borderRadius: 8,
                   border: "none",
-                  background: draft.name.trim() ? "#0f172a" : "#94a3b8",
+                  background: canSave ? "#0f172a" : "#94a3b8",
                   color: "#fff",
-                  cursor: draft.name.trim() ? "pointer" : "not-allowed",
+                  cursor: canSave ? "pointer" : "not-allowed",
                   fontWeight: 600,
                 }}
               >
-                {editing ? "Salvar alterações" : "Criar grupo"}
+                {editing ? "Salvar alterações" : "Criar subgrupo"}
               </button>
             </div>
           </div>

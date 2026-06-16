@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { GroupPicker } from "./GroupPicker";
+import { SubgroupPicker } from "./SubgroupPicker";
 import { MigrateButton } from "./MigrateButton";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import ViabilitySheetDialog from "./ViabilitySheetDialog";
@@ -552,7 +552,6 @@ export default function SupplierNotesPanel({
     removeAttachment,
     upsertQuoteRows,
     deleteEntry,
-    setSupplierGroups,
   } = useSupplierNotes(scope);
 
   const entry = getEntry(supplierId);
@@ -561,7 +560,6 @@ export default function SupplierNotesPanel({
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
-  const [groupIds, setGroupIdsState] = useState<string[]>(entry?.groupIds ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Progresso de upload por categoria: nome do arquivo + percentual (0..100).
   const [uploadProgress, setUploadProgress] = useState<
@@ -584,8 +582,7 @@ export default function SupplierNotesPanel({
     setObservacoes(entry?.observacoes ?? "");
     setFields(entry?.fields ?? {});
     setQuoteRows(entry?.quoteRows ?? []);
-    setGroupIdsState(entry?.groupIds ?? []);
-  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows, entry?.groupIds]);
+  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
 
   const attachments = entry?.attachments ?? [];
   const groupAttachments = (cat: AttachmentCategory) =>
@@ -860,14 +857,18 @@ export default function SupplierNotesPanel({
         </div>
       )}
 
-      {/* GRUPOS DO FORNECEDOR */}
+      {/* SUBGRUPO DO FORNECEDOR (modelo macro.sub) */}
       <div className="mb-4">
-        <GroupPicker
+        <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
+          Subgrupo (classificação macro.sub)
+        </label>
+        <SubgroupPicker
           tone="light"
-          selectedIds={groupIds}
-          onChange={(ids) => {
-            setGroupIdsState(ids);
-            setSupplierGroups(supplierId, ids);
+          selectedId={(fields.subgroupId as string | undefined) ?? null}
+          onChange={(id) => {
+            const nextFields = { ...fields, subgroupId: id ?? "" };
+            setFields(nextFields);
+            upsertEntry(supplierId, { status, observacoes, fields: nextFields });
             flashSaved();
           }}
         />

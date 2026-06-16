@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, SUBTIPO_CONFIG, type PrecoClassificacao, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
-import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { useSubtipoHierLabel } from "@/shared/supplier-notes/useSubtipoHierLabel";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
@@ -209,7 +209,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
               </span>
             )}
             <TipoBadge fields={entry?.fields} />
-            <GroupBadges groupIds={entry?.groupIds} />
+            <SubgroupBadge fields={entry?.fields} />
           </div>
           <h3
             className="font-display font-semibold leading-tight"

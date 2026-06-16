@@ -18,7 +18,6 @@ import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSecti
 import MigrateSubtipoButton from "@/shared/supplier-notes/MigrateSubtipoButton";
 import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
-import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { type SpecialtyFilter } from "@/shared/supplier-notes/specialtyReport";
 import { useSupplierNotes, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
@@ -154,13 +153,6 @@ export default function Home() {
     (s: Supplier): string => specialtyById[s.id] ?? s.category,
     [specialtyById],
   );
-  const resolveAquarioGroupName = (sid: string) => {
-    const found = suppliers.find((s) => s.id === sid);
-    if (found) return found.name;
-    const custom = customSuppliersAquario.find((s) => s.id === sid);
-    if (custom) return custom.name;
-    return sid;
-  };
 
   const filteredSuppliers = useMemo(() => {
     let result = suppliers;
@@ -910,19 +902,9 @@ export default function Home() {
                 />
               </div>
 
-              {/* Gerenciar grupos */}
+              {/* Gerenciar subgrupos (macro.sub) */}
               <div className="mb-5">
                 <GroupsManager tone="light" />
-              </div>
-
-              {/* Cards agregadores por grupo (atualiza conforme fornecedores são marcados) */}
-              <div className="mb-5">
-                <GroupSummaryCards
-                  scope="aquario"
-                  tone="light"
-                  accent="#dc2626"
-                  resolveSupplierName={resolveAquarioGroupName}
-                />
               </div>
 
               {/* Relatório de Atividades */}

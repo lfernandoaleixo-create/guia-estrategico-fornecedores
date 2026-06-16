@@ -23,7 +23,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
-import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
@@ -222,19 +222,9 @@ export default function YiwuAnotacoes() {
           <UploadMetrics scope="yiwu" tone="dark" accent="#0891b2" />
         </div>
 
-        {/* Gerenciar grupos */}
+                {/* Gerenciar subgrupos (macro.sub) */}
         <div className="mb-5">
           <GroupsManager tone="dark" />
-        </div>
-
-        {/* Cards agregadores por grupo (atualiza conforme fornecedores são marcados) */}
-        <div className="mb-5">
-          <GroupSummaryCards
-            scope="yiwu"
-            tone="dark"
-            accent="#0891b2"
-            resolveSupplierName={resolveYiwuName}
-          />
         </div>
 
         {/* Relatório de Atividades */}
@@ -503,11 +493,11 @@ export default function YiwuAnotacoes() {
                           {s.products}
                         </p>
                       )}
-                      {entry?.groupIds && entry.groupIds.length > 0 && (
+                      {entry?.fields?.subgroupId ? (
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          <GroupBadges groupIds={entry.groupIds} />
+                          <SubgroupBadge fields={entry?.fields} />
                         </div>
-                      )}
+                      ) : null}
                       {entry?.observacoes && (
                         <p className="text-sm text-foreground/80 mt-1 line-clamp-2 italic">
                           “{entry.observacoes}”

@@ -16,7 +16,7 @@ import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
-import { GroupBadges } from "@/shared/supplier-notes/GroupBadges";
+import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -626,19 +626,9 @@ export default function Anotacoes() {
         <UploadMetrics scope="tapete" tone="light" accent="#0891b2" />
       </div>
 
-      {/* Gerenciar grupos */}
+            {/* Gerenciar subgrupos (macro.sub) */}
       <div className="mb-4">
         <GroupsManager tone="light" />
-
-        {/* Cards agregadores por grupo (atualiza conforme fábricas são marcadas) */}
-        <div className="mt-5">
-          <GroupSummaryCards
-            scope="tapete"
-            tone="light"
-            accent="#dc2626"
-            resolveSupplierName={resolveTapeteName}
-          />
-        </div>
       </div>
 
       {/* Relatório de Atividades */}
@@ -752,7 +742,7 @@ export default function Anotacoes() {
                                  </span>
                                )}
                                <TipoBadge fields={tEntry?.fields} />
-                               <GroupBadges groupIds={tEntry?.groupIds} />
+                               <SubgroupBadge fields={tEntry?.fields} />
                                </>
                              );
                            })()}
@@ -1000,7 +990,7 @@ export default function Anotacoes() {
                           </span>
                         )}
                         <TipoBadge fields={tEntry?.fields} />
-                        <GroupBadges groupIds={tEntry?.groupIds} />
+                        <SubgroupBadge fields={tEntry?.fields} />
                         </>
                       );
                     })()}

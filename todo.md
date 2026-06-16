@@ -453,3 +453,19 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Contagem de anexos respeita a especialidade efetiva de cada fornecedor (reaproveita matchesSpecialty)
 - [x] Ligar na Home do Aquário (passar specialtyById/categoryById); demais dashboards inalterados
 - [x] Validar no preview (Todos 5/4/9 · Aquário 2/1/3 · Terrário 3/3/6; somas batem) — TS limpo, 159/159 testes; checkpoint salvo
+
+## GroupsManager → Subgrupos (macro.sub) nos dashboards
+- [x] Converter GroupsManager para operar sobre useSubgroups (em vez de supplier_groups)
+- [x] Renomear UI: "Grupos de fornecedores" → "Subgrupos"; botão "+ Novo grupo" → "+ Novo subgrupo"; modal "Novo/Editar subgrupo"
+- [x] Campo Número no formato macro.sub (ex.: 1.3) + dica "Macros disponíveis: N (NOME)"; validar com validateSubgroupNumber (bloqueia macro inexistente/formato/duplicado)
+- [x] Lista exibe subgrupos reais (1.1, 1.2…) ordenados, com editar/excluir (aviso ao excluir)
+- [x] Ocultar numeração antiga: supplier_groups e grupos personalizados somem desta seção (GroupSummaryCards/GroupBadges removidos; dados preservados no banco)
+- [x] Manter compatibilidade com Aquário/Tapete/Yiwu (mesmo componente compartilhado)
+- [x] TS limpo + testes passando (159/159) + validado no preview (criado/removido 2.1 Marmita) + checkpoint
+
+## Selo do subgrupo (macro.sub) no card recolhido de TODO fornecedor
+- [x] DiaryCard (catálogo Aquário): ler fields.subgroupId e exibir selo "2.1 · Nome" via SubgroupBadge/useSubgroups (qualquer macro, não só Aquário/Terrário)
+- [x] SupplierNotesPanel/Tapete/Yiwu: selo de subgrupo (SubgroupBadge) no cabeçalho recolhido
+- [x] CustomSupplierCard: selo macro.sub já exibido a partir de fields.subgroupId
+- [x] Número derivado do macro: usar formatSubgroupNumber(macroNumber, sub); reflete mudanças automaticamente
+- [x] TS limpo + testes + validado no preview (selos 1.1/1.2 nos cards) + checkpoint
