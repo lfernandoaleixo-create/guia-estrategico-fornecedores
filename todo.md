@@ -523,9 +523,20 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 
 
 ## Fase — Migrar fornecedor Yiwu para macro (com subgrupo)
-- [ ] Helper puro `migrateToMacro.ts` (plano de cópia de nota + criação de subgrupo + remoção da origem)
-- [ ] Teste vitest do helper puro
-- [ ] Componente `MigrateToMacroButton` (escolhe macro já criado → escolhe/cria subgrupo via SubgroupPicker com macro fixo)
-- [ ] Cria CustomSupplier no scope "aquario" com dados do fornecedor Yiwu + nota com fields.subgroupId + remove nota da origem Yiwu
-- [ ] Integrar botão no SupplierNotesPanel (visível apenas no scope Yiwu) ao lado de "Migrar contato"
-- [ ] Validar TS, rodar testes e testar no preview
+- [x] Helper puro `migrateToMacro.ts` (payload CustomSupplier + payload ExtraSupplier + nota completa por destino)
+- [x] Teste vitest do helper puro (8 testes, total 191 passando)
+- [x] Componente `MigrateToMacroButton` (escolhe macro já criado → escolhe item real do macro: subgrupo do Aquário OU grupo promovido, com rótulo macro.sub)
+- [x] Cadastro no destino correto: grupo promovido → ExtraSupplier(groupId); subgrupo Aquário → CustomSupplier(aquario)+subtipo; dashboard fixo → CustomSupplier(scope). Copia status/observações/cotações. Marca a origem Yiwu como "Migrado → destino" (sem apagar histórico)
+- [x] Integrar botão no SupplierNotesPanel (cabeçalho completo + barra compacta) visível apenas no Yiwu, ao lado de "Migrar contato"
+- [x] Lista do Yiwu: oculta migrados por padrão + filtro "Migrados (N)" + selo "Migrado → destino" no card + migrados fora dos contadores de status
+- [x] Validar TS (0 erros) e rodar testes (191 passando)
+- [x] Validado no preview: migração para subgrupo (HongchenFirm → 2.1) e para grupo promovido (YangguangFirm → Marmita Plástica, contagem subiu)
+- [ ] Validação ponta-a-ponta da PERSISTÊNCIA exige login (preview do sandbox sem sessão = notas não gravam); pendente confirmar logado
+
+## Fase — Numeração nova + separação Aquário/Terrário (Jun/2026)
+- [x] Home: cards de grupos promovidos dentro de macro usam rótulo hierárquico macro.sub (eyebrow/subtitle), sem "Subgrupo Nº XX" antigo
+- [x] Home: cards de grupos promovidos fora de macro mostram só o nome do ramo (sem número antigo)
+- [x] GrupoDashboard: selo do cabeçalho e scopeLabel do ReportPanel usam macro.sub; selo nos cards de fornecedor sem "Nº XX"
+- [x] Adicionar.tsx: removida numeração antiga (toast/atalho, lista de subgrupos, seletor de destino); badge numérico trocado por marcador
+- [x] GroupBadges: removido "Nº XX", mantendo ponto colorido + nome
+- [x] Aquário/Terrário: quando aberto por ?subtipo, a lista exclui a especialidade oposta (trava em filteredSuppliers)
