@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import AdicionarPage from "./pages/Adicionar";
 import GrupoDashboard from "./pages/GrupoDashboard";
+import SubgroupDashboard from "./pages/SubgroupDashboard";
 import AquarioApp from "@aquario/AquarioApp";
 import TapeteApp from "@tapete/TapeteApp";
 import YiwuApp from "@yiwu/YiwuApp";
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/adicionar" component={AdicionarPage} />
       <Route path="/grupo/:groupId" component={GrupoDashboard} />
+      <Route path="/subgrupo/:id" component={SubgroupDashboard} />
       <Route path="/aquario" nest>
         <AquarioApp />
       </Route>

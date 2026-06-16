@@ -18,6 +18,11 @@ import {
 import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
 import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
+import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
+import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
+import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
+import { formatSubgroupNumber } from "@/shared/supplier-notes/subgroupNumber";
+import { countSuppliersBySubgroup } from "@/shared/supplier-notes/subgroupFilter";
 import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
@@ -138,6 +143,9 @@ export default function Home() {
   const { groups: customGroups } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
   const { macros, itemAssignment, reorderMacros } = useMacros();
+  const { subgroups } = useSubgroups();
+  const { list: aquarioSuppliers } = useCustomSuppliers("aquario");
+  const aquarioNotes = useSupplierNotes("aquario");
   const [managerOpen, setManagerOpen] = useState(false);
   // Macro a partir do qual estamos adicionando um fornecedor (null = fechado).
   const [addToMacro, setAddToMacro] = useState<{ number: number; name: string } | null>(null);
@@ -230,6 +238,44 @@ export default function Home() {
     const keys = Object.keys(allCards).filter((k) => !itemAssignment.has(k));
     return keys.map((k) => allCards[k]);
   }, [allCards, itemAssignment]);
+
+  // Contagem de fornecedores por subgrupo (macro.sub): cruza customSuppliers do
+  // scope "aquario" com a nota (fields.subgroupId).
+  const countBySubgroup = useMemo<Record<string, number>>(() => {
+    return countSuppliersBySubgroup(aquarioSuppliers, aquarioNotes.entries);
+  }, [aquarioSuppliers, aquarioNotes.entries]);
+
+  // Cards de SUBGRUPO (macro.sub) por número de macro. Cada subgrupo vira um card
+  // clicável que abre seu dashboard dedicado (/subgrupo/:id).
+  const subgroupCardsByMacro = useMemo<Record<number, DashboardCardData[]>>(() => {
+    const map: Record<number, DashboardCardData[]> = {};
+    for (const sg of subgroups) {
+      const count = countBySubgroup[sg.id] ?? 0;
+      const hier = formatSubgroupNumber(sg.macroNumber, sg.sub);
+      const card: DashboardCardData = {
+        href: `/subgrupo/${sg.id}`,
+        eyebrow: `SUBGRUPO ${hier}`,
+        title: sg.name,
+        subtitle: "Subgrupo do macro",
+        description: `Dashboard dedicado do subgrupo ${hier} · ${sg.name}. Lista os fornecedores deste ramo com status, contatos, anexos (com tradução PT) e cotações.`,
+        accent: sg.color,
+        accentSoft: sg.color,
+        accentBg: `${sg.color}1f`,
+        accentBorder: `${sg.color}88`,
+        icon: Layers,
+        chips: [
+          `${count} fornecedor${count === 1 ? "" : "es"}`,
+          `Subgrupo ${hier}`,
+          "Dashboard próprio",
+        ],
+        badge: "\u2317",
+        hierLabel: hier,
+      };
+      if (!map[sg.macroNumber]) map[sg.macroNumber] = [];
+      map[sg.macroNumber].push(card);
+    }
+    return map;
+  }, [subgroups, countBySubgroup]);
 
   // Total de cards exibidos (para o cabeçalho/stats).
   const totalCards = Object.keys(allCards).length;
@@ -438,7 +484,9 @@ export default function Home() {
         {/* Seções por macro */}
         {macros.map((m, macroIdx) => {
           const items = m.items.filter((it) => allCards[it.key]);
-          if (items.length === 0) return null;
+          const subgroupCards = subgroupCardsByMacro[m.number] ?? [];
+          const totalAcessos = items.length + subgroupCards.length;
+          if (totalAcessos === 0) return null;
           const collapsed = collapsedMacros.has(m.id);
           const isFirst = macroIdx === 0;
           const isLast = macroIdx === macros.length - 1;
@@ -484,7 +532,7 @@ export default function Home() {
                       className="block text-[10px] tracking-[0.22em] uppercase font-semibold"
                       style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
                     >
-                      Classificação Macro Nº {m.number} · {items.length} acesso{items.length === 1 ? "" : "s"}
+                      Classificação Macro Nº {m.number} · {totalAcessos} acesso{totalAcessos === 1 ? "" : "s"}
                     </span>
                     <span
                       className="block truncate"
@@ -569,6 +617,10 @@ export default function Home() {
                         <DashboardCard key={it.key} d={d} index={idx} />
                       );
                     })}
+                    {/* Cards dos subgrupos macro.sub criados neste macro */}
+                    {subgroupCards.map((d, idx) => (
+                      <DashboardCard key={d.href} d={d} index={items.length + idx} />
+                    ))}
                   </div>
                   <div className="mt-4">
                     <button

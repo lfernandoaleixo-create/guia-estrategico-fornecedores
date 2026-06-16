@@ -595,3 +595,17 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] FIX: anexos do painel de fornecedor abriam um visualizador duplicado (AttachmentPreviewModal local, sem tradução). Unificado para usar o AttachmentLightbox (com toggle Original/PT, OCR e download por idioma).
 - [x] FIX (causa raiz da tradução): o useEffect de reset do AttachmentLightbox tinha `imageOcr` (objeto não memoizado) nas deps, fazendo `setLang("zh")` rodar a cada render e reverter o idioma logo após clicar em "PT". Corrigido para depender apenas de `attachment?.id` (reset via ref estável). Tradução EN→PT agora aplica nas células.
 - [x] TESTE: server/sheetTranslatableEnglish.test.ts cobre a heurística de tradução EN→PT (frases traduzem; números/preços/dimensões/códigos não). Suíte completa: 210 testes verdes.
+
+## Feature 12 — Dashboard automático por subgrupo (macro.sub)
+
+Problema: ao cadastrar um fornecedor num subgrupo NOVO dentro de um macro (ex.: 1.4 Coleira de cachorro), o fornecedor é salvo (scope aquario + fields.subgroupId) mas não aparece em nenhum dashboard navegável. A Home só mostra cards fixos e grupos personalizados promovidos; o dashboard /aquario só filtra Aquário/Terrário.
+
+- [x] Criar página SubgroupDashboard em /subgrupo/:id (reaproveita visual do GrupoDashboard)
+- [x] Listar customSuppliers (scope aquario) com fields.subgroupId === id, com busca, cadastro/edição e SupplierNotesPanel (anexos + tradução)
+- [x] Registrar rota /subgrupo/:id em App.tsx
+- [x] Na Home, renderizar os subgrupos de cada macro (useSubgroups.byMacro) como cards extras, linkando para /subgrupo/:id, no mesmo padrão visual
+- [x] Garantir contagem de fornecedores por subgrupo no card
+- [x] Validar no preview com 1.4 Coleira de cachorro (Zé Coleiras) + criar fornecedor + subgrupo novo 1.5 de uma vez (card surge na Home, dashboard navegável)
+- [x] FIX UX: criar subgrupo novo no formulário não apaga mais o nome do fornecedor já digitado (effect de reset deixou de depender de subgroupId)
+- [x] Helpers puros subgroupFilter.ts (filtro/contagem/busca) compartilhados entre página e Home
+- [x] TESTE: server/subgroupFilter.test.ts (19 testes). Suíte completa: 231 testes verdes. TypeScript sem erros. Checkpoint salvo.

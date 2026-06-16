@@ -137,13 +137,23 @@ export default function CustomSupplierFormDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset do formulário acontece SOMENTE quando o dialog abre ou o fornecedor
+  // em edição (`initial`) muda. NÃO depende de `subgroupId` — caso contrário,
+  // criar/selecionar um subgrupo (que atualiza `subgroupId` no pai) zeraria os
+  // campos já preenchidos (ex.: o nome digitado).
   useEffect(() => {
     if (open) {
       setState(initial ? fromSupplier(initial) : emptyState());
       setLocalSubgroupId(subgroupId ?? null);
       setError(null);
     }
-  }, [open, initial, subgroupId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial]);
+
+  // Mantém o subgrupo local em sincronia com a prop sem resetar o formulário.
+  useEffect(() => {
+    if (open) setLocalSubgroupId(subgroupId ?? null);
+  }, [open, subgroupId]);
 
   const isDark = tone === "dark";
 
