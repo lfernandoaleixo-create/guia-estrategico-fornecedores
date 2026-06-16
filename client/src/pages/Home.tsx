@@ -613,16 +613,9 @@ export default function Home() {
               {unclassifiedCards.map((d, idx) => (
                 <DashboardCard key={d.href} d={d} index={idx} />
               ))}
-              {/* Card de adicionar sempre por último */}
-              <DashboardCard d={addCard} index={unclassifiedCards.length} />
+              {/* Card avulso "Adicionar Fornecedores" ocultado a pedido do usuário:
+                  o cadastro agora é feito pelo botão "Adicionar fornecedor" dentro de cada macro. */}
             </div>
-          </div>
-        )}
-
-        {/* Se tudo está classificado, ainda mostramos o card de adicionar */}
-        {unclassifiedCards.length === 0 && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <DashboardCard d={addCard} index={0} />
           </div>
         )}
       </section>

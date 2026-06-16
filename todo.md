@@ -504,3 +504,7 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Resultados organizados por macro/subgrupo, navegáveis até o fornecedor para baixar documentos
 - [x] Testes vitest da agregação parceiro→fornecedores + normalização de nomes (12 novos testes)
 - [x] TS limpo + validar no preview + checkpoint
+
+## Ajustes Jun/2026 (2)
+- [x] Remover/ocultar a seção "SUBGRUPOS" (bloco "+ Novo subgrupo" + chips) dos dashboards (aquario, tapete, yiwu) + imports limpos
+- [x] Ocultar o card avulso "Adicionar Fornecedores" da área "Sem classificação macro" (cada macro já tem seu próprio botão "Adicionar fornecedor") — validado no preview

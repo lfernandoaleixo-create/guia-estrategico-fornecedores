@@ -17,7 +17,6 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import MigrateSubtipoButton from "@/shared/supplier-notes/MigrateSubtipoButton";
 import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
-import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { type SpecialtyFilter } from "@/shared/supplier-notes/specialtyReport";
 import { useSupplierNotes, type SubtipoAquario } from "@/shared/supplier-notes/useSupplierNotes";
@@ -902,10 +901,8 @@ export default function Home() {
                 />
               </div>
 
-              {/* Gerenciar subgrupos (macro.sub) */}
-              <div className="mb-5">
-                <GroupsManager tone="light" />
-              </div>
+              {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário.
+                  A criação/edição de subgrupo continua disponível no painel de cada fornecedor. */}
 
               {/* Relatório de Atividades */}
               <AquarioReportSection

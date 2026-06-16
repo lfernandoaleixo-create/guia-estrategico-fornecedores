@@ -23,7 +23,6 @@ import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
-import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import type { ContatoFabrica } from "@/dashboards/tapete/lib/contatos";
@@ -626,10 +625,7 @@ export default function Anotacoes() {
         <UploadMetrics scope="tapete" tone="light" accent="#0891b2" />
       </div>
 
-            {/* Gerenciar subgrupos (macro.sub) */}
-      <div className="mb-4">
-        <GroupsManager tone="light" />
-      </div>
+            {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário. */}
 
       {/* Relatório de Atividades */}
       <div className="mb-4 p-5 rounded-xl border border-zinc-200 bg-white/80">

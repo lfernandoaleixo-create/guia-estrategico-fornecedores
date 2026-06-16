@@ -21,7 +21,6 @@ import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
-import { GroupsManager } from "@/shared/supplier-notes/GroupsManager";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
@@ -222,10 +221,7 @@ export default function YiwuAnotacoes() {
           <UploadMetrics scope="yiwu" tone="dark" accent="#0891b2" />
         </div>
 
-                {/* Gerenciar subgrupos (macro.sub) */}
-        <div className="mb-5">
-          <GroupsManager tone="dark" />
-        </div>
+                {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário. */}
 
         {/* Relatório de Atividades */}
         <div className="mb-5 p-5 rounded-xl border border-zinc-700/50 bg-zinc-900/40">
