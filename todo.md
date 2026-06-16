@@ -609,3 +609,23 @@ Problema: ao cadastrar um fornecedor num subgrupo NOVO dentro de um macro (ex.: 
 - [x] FIX UX: criar subgrupo novo no formulário não apaga mais o nome do fornecedor já digitado (effect de reset deixou de depender de subgroupId)
 - [x] Helpers puros subgroupFilter.ts (filtro/contagem/busca) compartilhados entre página e Home
 - [x] TESTE: server/subgroupFilter.test.ts (19 testes). Suíte completa: 231 testes verdes. TypeScript sem erros. Checkpoint salvo.
+
+
+## Feature 13 — Excluir subgrupo pelo card (Home)
+
+- [ ] Adicionar botão de excluir no card de subgrupo da Home (com confirmação via AlertDialog)
+- [ ] Ao excluir, desvincular os fornecedores (limpar fields.subgroupId das notas do scope aquario)
+- [ ] Atualizar a contagem/lista após exclusão (reload)
+- [ ] Validar no preview removendo 1.1 Terrário e 1.2 Aquário (subgrupos de teste)
+- [ ] Teste vitest do helper de desvínculo + checkpoint
+
+## Feature 13 — Excluir subgrupo pelo card (Home)
+- [x] DashboardCard: prop opcional `onDelete` + botão de lixeira (Trash2) no hover (canto superior esquerdo)
+- [x] useSupplierNotes: adicionar `upsertEntryAsync` (versão que aguarda persistência)
+- [x] Home: estados `subgroupToDelete`/`deletingSubgroup` + `deleteSubgroup` do hook
+- [x] Home: handler `handleDeleteSubgroup` (desvincula fornecedores e depois deleteSubgroup)
+- [x] Home: passar `onDelete`/`deleteTitle` aos cards de subgrupo
+- [x] Home: AlertDialog de confirmação (não window.confirm)
+- [ ] Type-check + testes verdes
+- [ ] Validar no preview excluindo subgrupos 1.1 e 1.2 de teste (PET)
+- [ ] Checkpoint

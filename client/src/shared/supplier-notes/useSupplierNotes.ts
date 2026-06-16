@@ -424,6 +424,33 @@ export function useSupplierNotes(scope: Scope) {
     [buildBase, persist],
   );
 
+  // Versão assíncrona de upsertEntry: aguarda a persistência no servidor.
+  // Útil quando é preciso garantir que a gravação foi concluída antes de
+  // executar outra operação (ex.: desvincular fornecedores antes de apagar um subgrupo).
+  const upsertEntryAsync = useCallback(
+    async (
+      supplierId: string,
+      patch: {
+        status?: SupplierStatus;
+        observacoes?: string;
+        fields?: Record<string, string>;
+        groupIds?: string[];
+      },
+    ) => {
+      const base = buildBase(supplierId);
+      const mergedFields = { ...base.fields, ...(patch.fields ?? {}) };
+      const updated: SupplierNoteEntry = {
+        ...base,
+        status: patch.status ?? base.status,
+        observacoes: patch.observacoes ?? base.observacoes,
+        fields: patch.fields ? mergedFields : base.fields,
+        groupIds: patch.groupIds ?? base.groupIds,
+      };
+      await persist(updated);
+    },
+    [buildBase, persist],
+  );
+
   // NOVO MODELO: cada arquivo é enviado individualmente ao S3 via XHR (com
   // progresso real), e o servidor anexa apenas a referência (url/fileKey) ao
   // registro da nota. Isso evita reenviar todos os anexos em base64 (que
@@ -535,6 +562,7 @@ export function useSupplierNotes(scope: Scope) {
     entries,
     loaded,
     upsertEntry,
+    upsertEntryAsync,
     addAttachment,
     removeAttachment,
     upsertQuoteRows,

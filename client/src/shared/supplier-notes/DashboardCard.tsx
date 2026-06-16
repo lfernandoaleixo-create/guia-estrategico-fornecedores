@@ -5,7 +5,7 @@
 // =============================================================================
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
 
 export interface DashboardCardData {
   href: string;
@@ -25,7 +25,18 @@ export interface DashboardCardData {
   hierLabel?: string;
 }
 
-export function DashboardCard({ d, index }: { d: DashboardCardData; index: number }) {
+export function DashboardCard({
+  d,
+  index,
+  onDelete,
+  deleteTitle,
+}: {
+  d: DashboardCardData;
+  index: number;
+  /** Quando presente, exibe um botão de excluir no canto do card. */
+  onDelete?: () => void;
+  deleteTitle?: string;
+}) {
   const Icon = d.icon;
   return (
     <Link href={d.href}>
@@ -60,6 +71,28 @@ export function DashboardCard({ d, index }: { d: DashboardCardData; index: numbe
         >
           {d.badge}
         </div>
+
+        {/* Botão de excluir (opcional) — intercepta o clique para não navegar */}
+        {onDelete && (
+          <button
+            type="button"
+            title={deleteTitle ?? "Excluir"}
+            aria-label={deleteTitle ?? "Excluir"}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="absolute top-5 left-5 z-10 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95"
+            style={{
+              background: "oklch(0.16 0.02 250)",
+              border: "1px solid oklch(0.30 0.03 250)",
+              color: "oklch(0.70 0.16 25)",
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Eyebrow */}
         <div

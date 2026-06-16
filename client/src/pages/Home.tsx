@@ -22,7 +22,17 @@ import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { useSupplierNotes } from "@/shared/supplier-notes/useSupplierNotes";
 import { formatSubgroupNumber } from "@/shared/supplier-notes/subgroupNumber";
-import { countSuppliersBySubgroup } from "@/shared/supplier-notes/subgroupFilter";
+import { countSuppliersBySubgroup, suppliersForSubgroup } from "@/shared/supplier-notes/subgroupFilter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
@@ -143,10 +153,40 @@ export default function Home() {
   const { groups: customGroups } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
   const { macros, itemAssignment, reorderMacros } = useMacros();
-  const { subgroups } = useSubgroups();
+  const { subgroups, deleteSubgroup } = useSubgroups();
   const { list: aquarioSuppliers } = useCustomSuppliers("aquario");
   const aquarioNotes = useSupplierNotes("aquario");
+  // Subgrupo pendente de exclusão (null = dialog fechado).
+  const [subgroupToDelete, setSubgroupToDelete] = useState<{
+    id: string;
+    label: string;
+    name: string;
+    count: number;
+  } | null>(null);
+  const [deletingSubgroup, setDeletingSubgroup] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+
+  // Exclui um subgrupo: primeiro DESVINCULA todos os fornecedores marcados com ele
+  // (limpa fields.subgroupId), aguardando a persistência, e só depois apaga o subgrupo.
+  // Os fornecedores NÃO são apagados — apenas perdem o vínculo.
+  const handleDeleteSubgroup = async () => {
+    if (!subgroupToDelete) return;
+    setDeletingSubgroup(true);
+    try {
+      const toUnlink = suppliersForSubgroup(
+        aquarioSuppliers,
+        aquarioNotes.entries,
+        subgroupToDelete.id,
+      );
+      for (const s of toUnlink) {
+        await aquarioNotes.upsertEntryAsync(s.id, { fields: { subgroupId: "" } });
+      }
+      await deleteSubgroup(subgroupToDelete.id);
+      setSubgroupToDelete(null);
+    } finally {
+      setDeletingSubgroup(false);
+    }
+  };
   // Macro a partir do qual estamos adicionando um fornecedor (null = fechado).
   const [addToMacro, setAddToMacro] = useState<{ number: number; name: string } | null>(null);
 
@@ -618,9 +658,33 @@ export default function Home() {
                       );
                     })}
                     {/* Cards dos subgrupos macro.sub criados neste macro */}
-                    {subgroupCards.map((d, idx) => (
-                      <DashboardCard key={d.href} d={d} index={items.length + idx} />
-                    ))}
+                    {subgroupCards.map((d, idx) => {
+                      const sgId = d.href.split("/").pop() ?? "";
+                      const sg = subgroups.find((s) => s.id === sgId);
+                      return (
+                        <DashboardCard
+                          key={d.href}
+                          d={d}
+                          index={items.length + idx}
+                          onDelete={
+                            sg
+                              ? () =>
+                                  setSubgroupToDelete({
+                                    id: sg.id,
+                                    label: formatSubgroupNumber(sg.macroNumber, sg.sub),
+                                    name: sg.name,
+                                    count: countBySubgroup[sg.id] ?? 0,
+                                  })
+                              : undefined
+                          }
+                          deleteTitle={
+                            sg
+                              ? `Excluir subgrupo ${formatSubgroupNumber(sg.macroNumber, sg.sub)}`
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                   </div>
                   <div className="mt-4">
                     <button
@@ -713,6 +777,42 @@ export default function Home() {
           onCreated={() => setAddToMacro(null)}
         />
       )}
+
+      {/* Confirmação de exclusão de subgrupo (desvincula fornecedores, não os apaga) */}
+      <AlertDialog
+        open={!!subgroupToDelete}
+        onOpenChange={(o) => {
+          if (!o && !deletingSubgroup) setSubgroupToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Excluir o subgrupo {subgroupToDelete?.label} · {subgroupToDelete?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Os fornecedores marcados com ele NÃO serão apagados, apenas perderão o vínculo.
+              {subgroupToDelete && subgroupToDelete.count > 0
+                ? ` (${subgroupToDelete.count} fornecedor${
+                    subgroupToDelete.count === 1 ? "" : "es"
+                  } serão desvinculados)`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingSubgroup}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteSubgroup();
+              }}
+              disabled={deletingSubgroup}
+            >
+              {deletingSubgroup ? "Excluindo…" : "Excluir subgrupo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
