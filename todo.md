@@ -402,3 +402,23 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] vitest da ordenação de macros (mover) e helper de categorias visíveis por subtipo (server/macroOrder.test.ts — 10 testes; total 104/104)
 - [x] Validar no preview: cores (Aquário verde, Terrário vermelho, Tapete azul), recolher/expandir, reordenar macros (PET 1→2→1), categorias contextuais
 - [x] Checkpoint
+
+## Filtro por especialidade + botão Duplicar fornecedor (rodada 3)
+
+### Filtro por especialidade (Aquário x Terrário)
+- [x] Fornecedor marcado como Terrário (subtipoAquario=terrario) deve SUMIR da visão Aquário (?subtipo=aquario) e aparecer só em Terrário (validado: Jiarong sumiu do Aquário)
+- [x] Fornecedor marcado como Aquário some da visão Terrário
+- [x] Fornecedores SEM especialidade definida NÃO aparecem nas visões filtradas (só na visão geral); na visão geral todos aparecem
+- [x] Aplicado na seção de manuais do Diário (CustomSuppliersSection) via filterSubtipo + specialtyById
+
+### Botão Duplicar fornecedor
+- [x] Botão "⧉ Duplicar para outra negociação" no card do fornecedor manual
+- [x] Copia dados de cadastro (nome, zh, contatos, cidade, província, categoria, links, telefones, emails)
+- [x] Cria NOVO cadastro independente (novo id) com especialidade à escolha (Aquário/Terrário)
+- [x] Negociação ZERADA (não herda status/observações/anexos/cotações da origem) — validado
+- [x] Destinos v1: dentro do Aquário (Terrário↔Aquário); sufixo no nome para diferenciar
+
+### Testes / Validação
+- [x] vitest do helper de filtro por subtipo (customSupplierFilter.test.ts, 8 testes) e da duplicação (duplicateSupplier.test.ts, 8 testes) — total 120/120
+- [x] Validar no preview (Jiarong some do Aquário; duplicar gera cadastro novo zerado e visível só na especialidade escolhida)
+- [x] Checkpoint

@@ -895,8 +895,12 @@ export default function Home() {
               {/* Relatório de Atividades */}
               <AquarioReportSection />
 
-              {/* Cadastro manual de fornecedores */}
-              <CustomSuppliersSection scope="aquario" />
+              {/* Cadastro manual de fornecedores (filtra pela especialidade do atalho) */}
+              <CustomSuppliersSection
+                scope="aquario"
+                filterSubtipo={subtipoContext}
+                specialtyById={specialtyById}
+              />
 
               {/* Contagem de filtros aplicados */}
               <div

@@ -16,10 +16,16 @@ interface Props {
   tone?: "dark" | "light";
   onEdit: () => void;
   onDelete: () => void;
+  /**
+   * Duplica este fornecedor em um NOVO cadastro independente, com a especialidade
+   * escolhida e negociação zerada. Só oferecido no scope aquario (Aquário/Terrário).
+   */
+  onDuplicate?: (subtipo: SubtipoAquario) => void;
 }
 
-export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, onDelete }: Props) {
+export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, onDelete, onDuplicate }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
   const isDark = tone === "dark";
 
   // Lê a anotação deste fornecedor manual para exibir o tipo (Direto/Trader)
@@ -176,7 +182,60 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
             >
               🗑 Remover
             </button>
+            {onDuplicate && supplier.scope === "aquario" && (
+              <button
+                type="button"
+                onClick={() => setDupOpen((v) => !v)}
+                className={`text-xs px-3 py-1.5 rounded-lg ${isDark ? "bg-white/10 hover:bg-white/15 text-white border border-white/15" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"}`}
+                title="Criar um novo cadastro independente deste mesmo fornecedor (outra especialidade/negociação)"
+              >
+                ⧉ Duplicar para outra negociação
+              </button>
+            )}
           </div>
+
+          {onDuplicate && supplier.scope === "aquario" && dupOpen && (
+            <div
+              className={`mb-3 rounded-lg p-3 ${isDark ? "bg-white/5 border border-white/10" : "bg-zinc-50 border border-zinc-200"}`}
+            >
+              <p className={`text-xs mb-2 ${isDark ? "text-white/80" : "text-zinc-700"}`}>
+                Cria um <strong>novo cadastro independente</strong> com os mesmos dados de contato,
+                porém com <strong>negociação zerada</strong> (status, anotações, anexos e cotações começam vazios).
+                Escolha a especialidade do novo cadastro:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {((["aquario", "terrario"] as SubtipoAquario[])).map((t) => {
+                  const cfg = SUBTIPO_CONFIG[t];
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        onDuplicate(t);
+                        setDupOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-transform active:scale-[0.97]"
+                      style={{
+                        color: cfg.color,
+                        background: cfg.bg,
+                        border: `1px solid ${cfg.border}`,
+                      }}
+                    >
+                      <span>{cfg.emoji}</span>
+                      <span>Duplicar como {cfg.label}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setDupOpen(false)}
+                  className={`text-xs px-3 py-1.5 rounded-lg ${isDark ? "text-white/60 hover:text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
           <SupplierNotesPanel
             supplierId={supplier.id}
