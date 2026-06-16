@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { SubgroupPicker } from "./SubgroupPicker";
 import { MigrateButton } from "./MigrateButton";
+import PartnerEditor from "./PartnerEditor";
+import { parsePartners, serializePartners, PARTNERS_FIELD_KEY } from "./partners";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import ViabilitySheetDialog from "./ViabilitySheetDialog";
 import {
@@ -648,6 +650,15 @@ export default function SupplierNotesPanel({
     flashSaved();
   };
 
+  // Persiste a lista de Parceiro(s) Chinês(es) Responsável(eis) em
+  // fields.parceirosChineses (JSON). Salvamos imediatamente ao adicionar/remover.
+  const handlePartnersChange = (next: string[]) => {
+    const nextFields = { ...fields, [PARTNERS_FIELD_KEY]: serializePartners(next) };
+    setFields(nextFields);
+    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    flashSaved();
+  };
+
   const handlePrecoClick = (p: PrecoClassificacao) => {
     // Alterna: clicar na mesma opção remove a classificação.
     const nextFields = { ...fields };
@@ -1161,6 +1172,13 @@ export default function SupplierNotesPanel({
           </p>
         </div>
       )}
+
+      {/* PARCEIRO(S) CHINÊS(ES) RESPONSÁVEL(EIS) */}
+      <PartnerEditor
+        value={parsePartners(fields)}
+        onChange={handlePartnersChange}
+        accent={accent}
+      />
 
       {/* OBSERVAÇÕES */}
       <div className="mb-4">

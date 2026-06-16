@@ -21,6 +21,7 @@ import { useMacros } from "@/shared/supplier-notes/useMacros";
 import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
+import PartnerFilterPanel from "@/shared/supplier-notes/PartnerFilterPanel";
 import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
@@ -383,6 +384,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* FILTRO POR PARCEIRO CHINÊS */}
+      <PartnerFilterPanel />
 
       {/* DASHBOARDS POR MACRO */}
       <section className="relative z-10 container pb-24">

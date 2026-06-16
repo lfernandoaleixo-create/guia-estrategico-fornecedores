@@ -483,9 +483,9 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Página Adicionar: bloco "Grupos Personalizados (N)" -> "Subgrupos Personalizados (N)"; texto e botão "Novo subgrupo"
 - [x] Modal de criação: "Novo/Editar subgrupo"; "Número/Nome do subgrupo"; "Criar subgrupo"; placeholder e toasts
 - [x] Varredura: GrupoDashboard (header SUBGRUPO Nº, rebaixar, scopeLabel) e Home (cards promovidos) renomeados; TS limpo
-- [ ] Adicionar botão/card "Adicionar fornecedor" dentro de cada seção de macro na Home
-- [ ] Ao adicionar a partir de um macro: fixar o número do macro e pedir só a 2ª parte do subgrupo (ex.: 1.__ Coleira de Cachorro)
-- [ ] TS limpo + testes + validar no preview + checkpoint
+- [x] Adicionar botão/card "Adicionar fornecedor" dentro de cada seção de macro na Home
+- [x] Ao adicionar a partir de um macro: fixar o número do macro e pedir só a 2ª parte do subgrupo (ex.: 1.__ Coleira de Cachorro)
+- [x] TS limpo + testes + validar no preview + checkpoint
 
 ## Botão "Adicionar fornecedor" por macro na Home (Jun/2026)
 - [x] Botão "Adicionar fornecedor em N · Nome" dentro de cada macro expandido na Home
@@ -495,3 +495,12 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Renomear todas as ocorrências de "grupo" para "subgrupo" (fotos anexadas)
 - [x] Testes do caminho "macro fixo" em subgroupNumber.test.ts (164 testes verdes) + TS limpo
 - [x] Validado no preview (macro 1 PET: chips 1.1/1.2 filtrados, prefixo "1." fixo, sugestão "3")
+
+## Parceiro Chinês Responsável + filtro global por parceiro (Jun/2026)
+- [x] Persistir lista de parceiros chineses (multi-nomes) por fornecedor (em fields da nota: partners JSON ou campo dedicado)
+- [x] Editor "Parceiro Chinês Responsável" no painel do fornecedor: input para escrever o nome + cardzinhos removíveis (suporta vários)
+- [x] Agregação global: dado um parceiro, listar todos os macros → subgrupos → fornecedores ligados a ele (todos os scopes), incluindo co-parceiros e anexos
+- [x] Filtro por parceiro na página inicial (Home) com autosugestão dos nomes já cadastrados
+- [x] Resultados organizados por macro/subgrupo, navegáveis até o fornecedor para baixar documentos
+- [x] Testes vitest da agregação parceiro→fornecedores + normalização de nomes (12 novos testes)
+- [x] TS limpo + validar no preview + checkpoint
