@@ -486,3 +486,29 @@ export async function deleteSubgroup(id: string) {
   if (!db) throw new Error("Database unavailable");
   await db.delete(subgroups).where(eq(subgroups.id, id));
 }
+
+// =============================================================================
+// App Settings — chave/valor JSON genérico (ex.: cards de acesso ocultos).
+// =============================================================================
+import { appSettings, type InsertAppSettingRow } from "../drizzle/schema";
+
+export async function getAppSetting(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(appSettings).where(eq(appSettings.key, key));
+  return rows[0]?.value ?? null;
+}
+
+export async function setAppSetting(key: string, value: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const row: InsertAppSettingRow = {
+    key,
+    value,
+    updatedAt: new Date().toISOString(),
+  };
+  await db
+    .insert(appSettings)
+    .values(row)
+    .onDuplicateKeyUpdate({ set: { value, updatedAt: row.updatedAt } });
+}

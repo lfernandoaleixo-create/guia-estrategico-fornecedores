@@ -14,8 +14,12 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Trash2,
+  RotateCcw,
+  EyeOff,
 } from "lucide-react";
 import { useCustomGroups } from "@/shared/supplier-notes/useCustomGroups";
+import { useHiddenCards } from "@/shared/supplier-notes/useHiddenCards";
 import { useExtraSuppliers } from "@/shared/supplier-notes/useExtraSuppliers";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
 import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
@@ -152,8 +156,9 @@ function nDashboardsLabel(n: number): string {
 export default function Home() {
   const { groups: customGroups } = useCustomGroups();
   const { list: extraSuppliers } = useExtraSuppliers();
-  const { macros, itemAssignment, reorderMacros } = useMacros();
+  const { macros, itemAssignment, reorderMacros, deleteMacro } = useMacros();
   const { subgroups, deleteSubgroup } = useSubgroups();
+  const { isHidden, hideCard, showCard, hiddenKeys } = useHiddenCards();
   const { list: aquarioSuppliers } = useCustomSuppliers("aquario");
   const aquarioNotes = useSupplierNotes("aquario");
   // Subgrupo pendente de exclusão (null = dialog fechado).
@@ -165,6 +170,44 @@ export default function Home() {
   } | null>(null);
   const [deletingSubgroup, setDeletingSubgroup] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  // Card de acesso fixo pendente de ocultar (null = dialog fechado).
+  const [cardToHide, setCardToHide] = useState<{ key: string; title: string } | null>(null);
+  const [hidingCard, setHidingCard] = useState(false);
+  // Macro pendente de exclusão (null = dialog fechado).
+  const [macroToDelete, setMacroToDelete] = useState<{
+    id: string;
+    number: number;
+    name: string;
+    itemCount: number;
+  } | null>(null);
+  const [deletingMacro, setDeletingMacro] = useState(false);
+  // Painel de cards ocultos (para restaurar).
+  const [hiddenPanelOpen, setHiddenPanelOpen] = useState(false);
+
+  // Oculta um card de acesso fixo do portal (NÃO apaga dados do dashboard).
+  const handleHideCard = async () => {
+    if (!cardToHide) return;
+    setHidingCard(true);
+    try {
+      await hideCard(cardToHide.key);
+      setCardToHide(null);
+    } finally {
+      setHidingCard(false);
+    }
+  };
+
+  // Exclui um macro inteiro (a classificação). Os itens dentro dele (dashboards,
+  // subgrupos, grupos) NÃO são apagados — voltam para "Sem classificação".
+  const handleDeleteMacro = async () => {
+    if (!macroToDelete) return;
+    setDeletingMacro(true);
+    try {
+      await deleteMacro(macroToDelete.id);
+      setMacroToDelete(null);
+    } finally {
+      setDeletingMacro(false);
+    }
+  };
 
   // Exclui um subgrupo: primeiro DESVINCULA todos os fornecedores marcados com ele
   // (limpa fields.subgroupId), aguardando a persistência, e só depois apaga o subgrupo.
@@ -259,11 +302,18 @@ export default function Home() {
     return map;
   }, [customGroups, extraSuppliers]);
 
-  // Índice completo de cards atribuíveis (fixos + promovidos).
-  const allCards = useMemo<Record<string, DashboardCardData>>(
-    () => ({ ...cardByKey, ...promotedCardByKey }),
-    [promotedCardByKey],
-  );
+  // Índice completo de cards atribuíveis (fixos + promovidos), EXCETO os cards
+  // de acesso fixos que o usuário ocultou do portal. Ocultar não apaga dados:
+  // o dashboard segue existindo e o card pode ser restaurado.
+  const allCards = useMemo<Record<string, DashboardCardData>>(() => {
+    const merged = { ...cardByKey, ...promotedCardByKey };
+    for (const key of Object.keys(merged)) {
+      // Só cards FIXOS (cardByKey) podem ser ocultos por aqui; promovidos têm
+      // seu próprio fluxo. Ainda assim respeitamos a lista de ocultos.
+      if (isHidden(key)) delete merged[key];
+    }
+    return merged;
+  }, [promotedCardByKey, isHidden]);
 
   const promotedGroupsForManager = useMemo(
     () =>
@@ -274,10 +324,20 @@ export default function Home() {
   );
 
   // Itens que NÃO estão em nenhum macro (seção "Sem classificação").
+  // Mantém a `key` junto do card para permitir ocultar cards de acesso fixos.
   const unclassifiedCards = useMemo(() => {
     const keys = Object.keys(allCards).filter((k) => !itemAssignment.has(k));
-    return keys.map((k) => allCards[k]);
+    return keys.map((k) => ({ key: k, card: allCards[k] }));
   }, [allCards, itemAssignment]);
+
+  // Cards de acesso fixos atualmente ocultos (para o painel de restauração).
+  const hiddenFixedCards = useMemo(
+    () =>
+      hiddenKeys
+        .filter((k) => cardByKey[k])
+        .map((k) => ({ key: k, card: cardByKey[k] })),
+    [hiddenKeys],
+  );
 
   // Contagem de fornecedores por subgrupo (macro.sub): cruza customSuppliers do
   // scope "aquario" com a nota (fields.subgroupId).
@@ -628,6 +688,30 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Excluir macro inteiro (remove a classificação; itens voltam para "Sem classificação") */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMacroToDelete({
+                      id: m.id,
+                      number: m.number,
+                      name: m.name,
+                      itemCount: totalAcessos,
+                    })
+                  }
+                  title={`Excluir macro ${m.number} · ${m.name}`}
+                  aria-label={`Excluir macro ${m.number} · ${m.name}`}
+                  className="w-9 h-9 rounded-md flex items-center justify-center border flex-shrink-0 transition-colors hover:brightness-125 active:scale-[0.92]"
+                  style={{
+                    borderColor: "oklch(0.30 0.05 25)",
+                    background: "oklch(0.14 0.03 25)",
+                    color: "oklch(0.70 0.16 25)",
+                    transitionDuration: "160ms",
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
                 <div className="flex-1 h-px ml-2" style={{ background: `linear-gradient(90deg, ${m.color}55, transparent)` }} />
               </div>
 
@@ -653,8 +737,21 @@ export default function Home() {
                               : {}),
                           }
                         : base;
+                      // Cards de ACESSO FIXOS (Terrário, Aquário, Tapete, Yiwu)
+                      // ganham botão de ocultar (remove do portal sem apagar dados).
+                      const isFixed = !!cardByKey[it.key];
                       return (
-                        <DashboardCard key={it.key} d={d} index={idx} />
+                        <DashboardCard
+                          key={it.key}
+                          d={d}
+                          index={idx}
+                          onDelete={
+                            isFixed
+                              ? () => setCardToHide({ key: it.key, title: base.title })
+                              : undefined
+                          }
+                          deleteTitle={isFixed ? `Remover “${base.title}” do portal` : undefined}
+                        />
                       );
                     })}
                     {/* Cards dos subgrupos macro.sub criados neste macro */}
@@ -741,12 +838,112 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-              {unclassifiedCards.map((d, idx) => (
-                <DashboardCard key={d.href} d={d} index={idx} />
-              ))}
+              {unclassifiedCards.map(({ key, card }, idx) => {
+                const isFixed = !!cardByKey[key];
+                return (
+                  <DashboardCard
+                    key={card.href}
+                    d={card}
+                    index={idx}
+                    onDelete={
+                      isFixed
+                        ? () => setCardToHide({ key, title: card.title })
+                        : undefined
+                    }
+                    deleteTitle={isFixed ? `Remover “${card.title}” do portal` : undefined}
+                  />
+                );
+              })}
               {/* Card avulso "Adicionar Fornecedores" ocultado a pedido do usuário:
                   o cadastro agora é feito pelo botão "Adicionar fornecedor" dentro de cada macro. */}
             </div>
+          </div>
+        )}
+
+        {/* Cards removidos do portal (restauráveis) */}
+        {hiddenFixedCards.length > 0 && (
+          <div className="mb-12">
+            <button
+              type="button"
+              onClick={() => setHiddenPanelOpen((v) => !v)}
+              className="flex items-center gap-3 mb-5 w-full text-left group active:scale-[0.997]"
+              style={{ transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1)" }}
+              aria-expanded={hiddenPanelOpen}
+            >
+              <span
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "oklch(0.18 0.03 25)", border: "1px solid oklch(0.30 0.05 25)", color: "oklch(0.70 0.16 25)" }}
+              >
+                <EyeOff className="w-5 h-5" />
+              </span>
+              <span className="min-w-0">
+                <span
+                  className="block text-[10px] tracking-[0.22em] uppercase font-semibold"
+                  style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Removidos do portal
+                </span>
+                <span
+                  className="block"
+                  style={{
+                    fontFamily: "'Fraunces', serif",
+                    fontSize: "1.5rem",
+                    fontWeight: 600,
+                    letterSpacing: "-0.02em",
+                    color: "oklch(0.97 0.01 80)",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Cards removidos ({hiddenFixedCards.length})
+                </span>
+              </span>
+              <span className="flex items-center justify-center flex-shrink-0" style={{ color: "oklch(0.6 0.02 80)" }}>
+                {hiddenPanelOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+              </span>
+              <div className="flex-1 h-px ml-2" style={{ background: "linear-gradient(90deg, oklch(0.30 0.05 25), transparent)" }} />
+            </button>
+
+            {hiddenPanelOpen && (
+              <div className="flex flex-col gap-3">
+                {hiddenFixedCards.map(({ key, card }) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-4 rounded-xl p-4 border"
+                    style={{ background: "oklch(0.10 0.02 250)", borderColor: "oklch(0.22 0.03 250)" }}
+                  >
+                    <div className="min-w-0">
+                      <div
+                        className="text-[10px] tracking-[0.22em] uppercase font-semibold mb-1"
+                        style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {card.eyebrow}
+                      </div>
+                      <div
+                        className="truncate"
+                        style={{ fontFamily: "'Fraunces', serif", fontSize: "1.1rem", fontWeight: 600, color: "oklch(0.95 0.01 80)" }}
+                      >
+                        {card.title}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void showCard(key)}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-semibold uppercase tracking-[0.12em] flex-shrink-0 transition-colors hover:brightness-110 active:scale-[0.97]"
+                      style={{
+                        borderColor: "oklch(0.72 0.19 145 / 0.5)",
+                        background: "oklch(0.72 0.19 145 / 0.1)",
+                        color: "oklch(0.82 0.15 145)",
+                        fontFamily: "'Inter', sans-serif",
+                        transitionDuration: "160ms",
+                      }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Restaurar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -809,6 +1006,75 @@ export default function Home() {
               disabled={deletingSubgroup}
             >
               {deletingSubgroup ? "Excluindo…" : "Excluir subgrupo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmação de ocultar card de acesso fixo (remove do portal, não apaga dados) */}
+      <AlertDialog
+        open={!!cardToHide}
+        onOpenChange={(o) => {
+          if (!o && !hidingCard) setCardToHide(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover “{cardToHide?.title}” do portal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O card sai da página inicial, mas NENHUM dado é apagado: os fornecedores,
+              anexos e o dashboard correspondente continuam existindo. Você pode
+              restaurá-lo a qualquer momento em “Cards removidos”, no fim da página.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={hidingCard}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleHideCard();
+              }}
+              disabled={hidingCard}
+            >
+              {hidingCard ? "Removendo…" : "Remover do portal"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmação de exclusão de macro inteiro (itens voltam para "Sem classificação") */}
+      <AlertDialog
+        open={!!macroToDelete}
+        onOpenChange={(o) => {
+          if (!o && !deletingMacro) setMacroToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Excluir o macro {macroToDelete?.number} · {macroToDelete?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              A classificação macro será removida. Os itens que estavam dentro dela
+              (dashboards, subgrupos e grupos) NÃO serão apagados — voltam para a seção
+              “Sem classificação macro” e podem ser reorganizados depois.
+              {macroToDelete && macroToDelete.itemCount > 0
+                ? ` (${macroToDelete.itemCount} acesso${
+                    macroToDelete.itemCount === 1 ? "" : "s"
+                  } serão desclassificados)`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingMacro}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteMacro();
+              }}
+              disabled={deletingMacro}
+            >
+              {deletingMacro ? "Excluindo…" : "Excluir macro"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

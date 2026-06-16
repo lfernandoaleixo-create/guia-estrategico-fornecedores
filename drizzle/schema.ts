@@ -262,3 +262,20 @@ export const subgroups = mysqlTable("subgroups", {
 
 export type SubgroupRow = typeof subgroups.$inferSelect;
 export type InsertSubgroupRow = typeof subgroups.$inferInsert;
+
+/**
+ * Configurações genéricas do app no formato chave/valor (JSON serializado).
+ * Usado para preferências de exibição que não pertencem a nenhuma outra tabela,
+ * como a lista de cards de acesso fixos OCULTOS na Home (chave "hiddenCards").
+ * Compartilhado entre todos os acessos (sem login), igual aos demais dados.
+ */
+export const appSettings = mysqlTable("app_settings", {
+  /** Chave única da configuração (ex.: "hiddenCards"). */
+  key: varchar("key", { length: 96 }).primaryKey(),
+  /** Valor serializado como JSON (string). */
+  value: longtext("value").notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type AppSettingRow = typeof appSettings.$inferSelect;
+export type InsertAppSettingRow = typeof appSettings.$inferInsert;

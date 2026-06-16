@@ -629,3 +629,13 @@ Problema: ao cadastrar um fornecedor num subgrupo NOVO dentro de um macro (ex.: 
 - [ ] Type-check + testes verdes
 - [ ] Validar no preview excluindo subgrupos 1.1 e 1.2 de teste (PET)
 - [ ] Checkpoint
+
+## Feature 14 — Excluir cards de acesso fixos e macros inteiros (Home)
+Confirmado com o usuário: excluir card de acesso fixo = apenas oculta do portal (Home), sem apagar dados dos fornecedores do dashboard correspondente. Excluir macro = remove a classificação e desvincula (não apaga) os itens.
+
+- [x] Persistir lista de cards de acesso fixos ocultos (hook useHiddenCards + tabela app_settings + procedures settings.get/set)
+- [x] Botão de lixeira + AlertDialog nos cards de acesso fixos (Terrário, Aquário, Tapete, Yiwu)
+- [x] Excluir macro inteiro (deleteMacro) com AlertDialog (camada aditiva: itens voltam para Sem classificação, nada é apagado)
+- [x] Painel "Cards removidos" no fim da Home com botão Restaurar (reversível)
+- [x] Testes de unidade da lógica de ocultar/excluir (server/hiddenCards.test.ts — 11 testes)
+- [x] Validado no preview: remover Terrário (7→6), restaurar (6→7), lixeira de macro presente. Suíte: 247 testes verdes. TypeScript sem erros.

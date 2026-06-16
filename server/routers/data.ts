@@ -34,6 +34,8 @@ import {
   upsertSubgroup,
   bulkUpsertSubgroups,
   deleteSubgroup,
+  getAppSetting,
+  setAppSetting,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -340,6 +342,22 @@ export const dataRouter = router({
       .input(z.object({ id: z.string() }))
       .mutation(async ({ input }) => {
         await deleteMacro(input.id);
+        return { success: true } as const;
+      }),
+  }),
+
+  // ---------- App Settings (chave/valor JSON: ex. cards ocultos) ----------
+  settings: router({
+    get: publicProcedure
+      .input(z.object({ key: z.string() }))
+      .query(async ({ input }) => {
+        const value = await getAppSetting(input.key);
+        return { value } as const;
+      }),
+    set: publicProcedure
+      .input(z.object({ key: z.string(), value: z.string() }))
+      .mutation(async ({ input }) => {
+        await setAppSetting(input.key, input.value);
         return { success: true } as const;
       }),
   }),
