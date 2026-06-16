@@ -79,9 +79,6 @@ export function GroupBadges({ groupIds, maxNameWidth = 140 }: Props) {
             className="inline-block w-1.5 h-1.5 rounded-full"
             style={{ background: info.color }}
           />
-          <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            Nº {String(info.number).padStart(2, "0")}
-          </span>
           <span className="truncate" style={{ maxWidth: maxNameWidth }}>
             {info.name}
           </span>

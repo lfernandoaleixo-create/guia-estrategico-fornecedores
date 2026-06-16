@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 import { useCustomGroups, type CustomGroup } from "@/shared/supplier-notes/useCustomGroups";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
+import { useMacros } from "@/shared/supplier-notes/useMacros";
 import {
   useExtraSuppliers,
   genExtraContactId,
@@ -469,6 +470,19 @@ export default function GrupoDashboard() {
     [groups, params.groupId],
   );
 
+  // Hierarquia macro.sub deste grupo promovido (ex.: "2.1"), derivada da posição
+  // do item `group:<id>` dentro do macro a que pertence. null se não estiver em
+  // nenhum macro (a numeração antiga "Nº XX" deixou de ser usada).
+  const { macros } = useMacros();
+  const macroHier = useMemo<string | null>(() => {
+    const key = `group:${params.groupId}`;
+    for (const m of macros) {
+      const idx = m.items.findIndex((it) => it.key === key);
+      if (idx >= 0) return `${m.number}.${idx + 1}`;
+    }
+    return null;
+  }, [macros, params.groupId]);
+
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<ExtraSupplier | null>(null);
@@ -624,7 +638,7 @@ export default function GrupoDashboard() {
             className="text-[11px] tracking-[0.18em] uppercase font-semibold"
             style={{ color: accent, fontFamily: "'Inter', sans-serif" }}
           >
-            SUBGRUPO Nº {String(group.number ?? 0).padStart(2, "0")} · {group.branch || "Subgrupo personalizado"}
+            {macroHier ? `SUBGRUPO ${macroHier}` : "SUBGRUPO"} · {group.branch || "Subgrupo personalizado"}
           </span>
         </div>
         <h1
@@ -1011,7 +1025,7 @@ export default function GrupoDashboard() {
           ) : (
             <ReportPanel
               scope={scope}
-              scopeLabel={`${group.name} · Subgrupo Nº ${String(group.number ?? 0).padStart(2, "0")}`}
+              scopeLabel={macroHier ? `${group.name} · Subgrupo ${macroHier}` : group.name}
               entries={groupEntries}
               allSupplierIds={allSupplierIds}
               resolveSupplierName={resolveSupplierName}
@@ -1136,9 +1150,6 @@ export default function GrupoDashboard() {
                                   className="inline-block w-1.5 h-1.5 rounded-full"
                                   style={{ background: info!.color }}
                                 />
-                                <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                  Nº {String(info!.number).padStart(2, "0")}
-                                </span>
                                 <span className="truncate max-w-[140px]">{info!.name}</span>
                               </span>
                             ))}

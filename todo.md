@@ -520,3 +520,12 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Mover o bloco "Parceiro Chinês Responsável" para o TOPO do painel do fornecedor (acima do Subgrupo)
 - [x] Deixar o bloco mais destacado (cartão com borda/fundo de acento, título maior, ícone reforçado)
 - [x] TS limpo + 183 testes + validado no preview + checkpoint
+
+
+## Fase — Migrar fornecedor Yiwu para macro (com subgrupo)
+- [ ] Helper puro `migrateToMacro.ts` (plano de cópia de nota + criação de subgrupo + remoção da origem)
+- [ ] Teste vitest do helper puro
+- [ ] Componente `MigrateToMacroButton` (escolhe macro já criado → escolhe/cria subgrupo via SubgroupPicker com macro fixo)
+- [ ] Cria CustomSupplier no scope "aquario" com dados do fornecedor Yiwu + nota com fields.subgroupId + remove nota da origem Yiwu
+- [ ] Integrar botão no SupplierNotesPanel (visível apenas no scope Yiwu) ao lado de "Migrar contato"
+- [ ] Validar TS, rodar testes e testar no preview

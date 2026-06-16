@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { FileText, Search, X, Filter, ChevronDown } from "lucide-react";
+import { FileText, Search, X, Filter, ChevronDown, Layers } from "lucide-react";
 import Header from "@yiwu/components/Header";
 import suppliersData from "@yiwu/data/suppliers.json";
 import {
@@ -110,6 +110,7 @@ export default function YiwuAnotacoes() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<SupplierStatus | "all" | "with-notes">("all");
   const [groupFilter, setGroupFilter] = useState<string | "all">("all");
+  const [showMigrated, setShowMigrated] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -135,6 +136,13 @@ export default function YiwuAnotacoes() {
     const q = query.trim().toLowerCase();
     return allSuppliers.filter((s) => {
       const status = statusOf(s.id);
+      const supEntry0 = entries[String(s.id)];
+      const isMigrated = !!supEntry0?.fields?.migratedTo;
+
+      // Fornecedores migrados para um macro ficam ocultos por padrão.
+      if (isMigrated && !showMigrated) return false;
+      // Quando o filtro "Migrados" está ativo, mostra SOMENTE os migrados.
+      if (showMigrated && !isMigrated) return false;
 
       // Filtro por status
       if (statusFilter === "with-notes") {
@@ -158,12 +166,18 @@ export default function YiwuAnotacoes() {
       }
       return true;
     });
-  }, [allSuppliers, query, statusFilter, groupFilter, entries]);
+  }, [allSuppliers, query, statusFilter, groupFilter, entries, showMigrated]);
+
+  // Conta quantos fornecedores foram migrados (para o botão de filtro).
+  const migratedCount = useMemo(
+    () => Object.values(entries).filter((e) => !!e?.fields?.migratedTo).length,
+    [entries],
+  );
 
   // Paginação
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, statusFilter, groupFilter]);
+  }, [query, statusFilter, groupFilter, showMigrated]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
@@ -179,6 +193,8 @@ export default function YiwuAnotacoes() {
       descartado: 0,
     };
     allSuppliers.forEach((s) => {
+      // Migrados não contam nas métricas de status do Yiwu.
+      if (entries[String(s.id)]?.fields?.migratedTo) return;
       const st = statusOf(s.id);
       c[st] = (c[st] ?? 0) + 1;
     });
@@ -295,6 +311,20 @@ export default function YiwuAnotacoes() {
             <Filter className="w-3 h-3" />
             Só com anotações
           </button>
+          {migratedCount > 0 && (
+            <button
+              onClick={() => setShowMigrated((v) => !v)}
+              className="text-xs px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5"
+              style={{
+                background: showMigrated ? "#8b5cf6" : "var(--secondary)",
+                color: showMigrated ? "#fff" : undefined,
+              }}
+              title="Mostrar apenas fornecedores migrados para um macro"
+            >
+              <Layers className="w-3 h-3" />
+              Migrados ({migratedCount})
+            </button>
+          )}
           {allGroups.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Grupos:</span>
@@ -492,6 +522,22 @@ export default function YiwuAnotacoes() {
                       {entry?.fields?.subgroupId ? (
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           <SubgroupBadge fields={entry?.fields} />
+                        </div>
+                      ) : null}
+                      {entry?.fields?.migratedTo ? (
+                        <div className="mt-1.5">
+                          <span
+                            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                            style={{
+                              background: "rgba(139,92,246,0.12)",
+                              color: "#a78bfa",
+                              border: "1px solid rgba(139,92,246,0.35)",
+                            }}
+                            title={`Migrado para ${entry.fields.migratedTo}`}
+                          >
+                            <Layers className="w-3 h-3" />
+                            Migrado → {entry.fields.migratedTo}
+                          </span>
                         </div>
                       ) : null}
                       {entry?.observacoes && (

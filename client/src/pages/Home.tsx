@@ -189,10 +189,9 @@ export default function Home() {
       const count = extraSuppliers.filter((s) => s.groupId === g.id).length;
       map[`group:${g.id}`] = {
         href: `/grupo/${g.id}`,
-        eyebrow: `SUBGRUPO Nº ${String(g.number ?? 0).padStart(2, "0")}`,
-        groupNumber: g.number ?? 0,
+        eyebrow: "SUBGRUPO PERSONALIZADO",
         title: g.name,
-        subtitle: `Subgrupo Nº ${String(g.number ?? 0).padStart(2, "0")} · ${g.branch || "Personalizado"}`,
+        subtitle: g.branch || "Subgrupo personalizado",
         description:
           g.description ||
           `Dashboard independente promovido a partir do subgrupo personalizado "${g.name}". Lista os fornecedores cadastrados neste ramo.`,
@@ -547,13 +546,29 @@ export default function Home() {
               {!collapsed && (
                 <>
                   <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {items.map((it, idx) => (
-                      <DashboardCard
-                        key={it.key}
-                        d={{ ...allCards[it.key], hierLabel: `${m.number}.${idx + 1}` }}
-                        index={idx}
-                      />
-                    ))}
+                    {items.map((it, idx) => {
+                      const base = allCards[it.key];
+                      const hier = `${m.number}.${idx + 1}`;
+                      // Dentro de um macro a numeração antiga "Subgrupo Nº XX"
+                      // perde o sentido: usamos a hierarquia macro.sub (ex.: 2.1)
+                      // no eyebrow e exibimos apenas o nome/ramo no subtitle.
+                      const isPromoted = it.key.startsWith("group:");
+                      const d = base
+                        ? {
+                            ...base,
+                            hierLabel: hier,
+                            ...(isPromoted
+                              ? {
+                                  eyebrow: `SUBGRUPO ${hier}`,
+                                  subtitle: base.title,
+                                }
+                              : {}),
+                          }
+                        : base;
+                      return (
+                        <DashboardCard key={it.key} d={d} index={idx} />
+                      );
+                    })}
                   </div>
                   <div className="mt-4">
                     <button

@@ -335,7 +335,7 @@ export default function AdicionarPage() {
       });
       toast.success(`Fornecedor "${name}" cadastrado${group ? ` no subgrupo “${group.name}”` : ""}`);
       if (group) {
-        const label = `Subgrupo Nº ${String(group.number ?? 0).padStart(2, "0")} · ${group.name}`;
+        const label = `Subgrupo · ${group.name}`;
         setLastSaved({ label, route: `/grupo/${group.id}?tab=diario` });
       }
     }
@@ -534,7 +534,7 @@ export default function AdicionarPage() {
                         className="text-[10px] uppercase tracking-[0.18em] mb-1.5 font-semibold"
                         style={{ color: g.color, fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        SUBGRUPO Nº {String(g.number ?? 0).padStart(2, "0")} · {g.branch || "Sem ramo"}
+                        SUBGRUPO · {g.branch || "Sem ramo"}
                       </div>
                       <h3
                         className="font-semibold leading-tight"
@@ -747,7 +747,7 @@ export default function AdicionarPage() {
                     <optgroup label="Subgrupos personalizados">
                       {groups.map((g) => (
                         <option key={g.id} value={g.id}>
-                          Subgrupo Nº {String(g.number ?? 0).padStart(2, "0")} · {g.name}
+                          {g.name}
                           {g.branch ? ` · ${g.branch}` : ""}
                         </option>
                       ))}
@@ -930,7 +930,7 @@ export default function AdicionarPage() {
                         letterSpacing: "0.1em",
                       }}
                     >
-                      Nº {String(g.number ?? 0).padStart(2, "0")}
+                      SUBGRUPO
                     </span>
                     <h3
                       className="text-lg font-semibold"

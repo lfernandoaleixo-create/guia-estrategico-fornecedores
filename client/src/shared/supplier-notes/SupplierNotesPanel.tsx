@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { SubgroupPicker } from "./SubgroupPicker";
 import { MigrateButton } from "./MigrateButton";
+import { MigrateToMacroButton } from "./MigrateToMacroButton";
 import PartnerEditor from "./PartnerEditor";
 import { parsePartners, serializePartners, PARTNERS_FIELD_KEY } from "./partners";
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
@@ -587,6 +588,29 @@ export default function SupplierNotesPanel({
   }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
 
   const attachments = entry?.attachments ?? [];
+
+  // Contexto reaproveitado pelos botões de migração (Migrar contato / Migrar
+  // para macro): extrai nome + contatos + localização dos campos pré-preenchidos.
+  const migrationContext = {
+    supplierName: supplierName ?? supplierId,
+    ...(prefilledFields ?? []).reduce((ctx, f) => {
+      const k = f.label.toLowerCase();
+      if (k.includes("chinês")) ctx.chineseName = f.value;
+      else if (k === "cidade / província") {
+        const [c, p] = f.value.split(",").map((s) => s.trim());
+        ctx.city = c;
+        ctx.province = p;
+      } else if (k === "endereço") ctx.address = f.value;
+      else if (k.includes("contato")) ctx.contactName = f.value;
+      else if (k.includes("e-mail")) ctx.email = f.value;
+      else if (k.includes("whatsapp") || k.includes("telefone")) ctx.phone = f.value;
+      else if (k.includes("site")) ctx.website = f.value;
+      else if (k.includes("categoria") || k.includes("produto")) ctx.category = f.value;
+      return ctx;
+    }, {} as Record<string, string>),
+  };
+  const isYiwu = scope === "yiwu";
+
   const groupAttachments = (cat: AttachmentCategory) =>
     attachments.filter((a) =>
       cat === "outros"
@@ -820,28 +844,41 @@ export default function SupplierNotesPanel({
                 <span>Atualizado em {entry.updatedAt}</span>
               </div>
             )}
+            {isYiwu && (
+              <MigrateToMacroButton
+                fromScope={scope}
+                fromSupplierId={supplierId}
+                accent="#8b5cf6"
+                context={migrationContext}
+                onMigrated={onSaved}
+              />
+            )}
             <MigrateButton
               fromScope={scope}
               fromSupplierId={supplierId}
               accent={accent ?? "#475569"}
-              context={{
-                supplierName: supplierName ?? supplierId,
-                ...(prefilledFields ?? []).reduce((ctx, f) => {
-                  const k = f.label.toLowerCase();
-                  if (k.includes("chinês")) ctx.chineseName = f.value;
-                  else if (k === "cidade / província") {
-                    const [c, p] = f.value.split(",").map((s) => s.trim());
-                    ctx.city = c; ctx.province = p;
-                  } else if (k === "endereço") ctx.address = f.value;
-                  else if (k.includes("contato")) ctx.contactName = f.value;
-                  else if (k.includes("e-mail")) ctx.email = f.value;
-                  else if (k.includes("whatsapp") || k.includes("telefone")) ctx.phone = f.value;
-                  else if (k.includes("site")) ctx.website = f.value;
-                  return ctx;
-                }, {} as Record<string, string>),
-              }}
+              context={migrationContext}
             />
           </div>
+        </div>
+      )}
+
+      {/* MODO COMPACTO — barra de ações de migração (usada nas listas do Yiwu) */}
+      {compact && isYiwu && (
+        <div className="flex items-center justify-end gap-2 flex-wrap mb-3">
+          <MigrateToMacroButton
+            fromScope={scope}
+            fromSupplierId={supplierId}
+            accent="#8b5cf6"
+            context={migrationContext}
+            onMigrated={onSaved}
+          />
+          <MigrateButton
+            fromScope={scope}
+            fromSupplierId={supplierId}
+            accent={accent ?? "#475569"}
+            context={migrationContext}
+          />
         </div>
       )}
 

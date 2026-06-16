@@ -156,6 +156,14 @@ export default function Home() {
   const filteredSuppliers = useMemo(() => {
     let result = suppliers;
 
+    // Trava de especialidade: quando o dashboard foi aberto por um atalho
+    // (?subtipo=aquario|terrario), NUNCA mostra fornecedores da especialidade
+    // oposta — Aquário só aquário, Terrário só terrário — independentemente da
+    // categoria selecionada na barra lateral.
+    if (subtipoContext === "aquario" || subtipoContext === "terrario") {
+      result = result.filter((s) => effectiveCategory(s) === subtipoContext);
+    }
+
     if (selectedCategory !== "all") {
       // Categoria efetiva: a classificação feita no Diário (subtipoAquario)
       // tem prioridade sobre s.category, replicando o fornecedor na aba certa.
@@ -191,7 +199,7 @@ export default function Home() {
       const pb = priorityOrder[b.priority || "low"];
       return pa - pb;
     });
-  }, [selectedCategory, selectedSubCategories, searchQuery, effectiveCategory]);
+  }, [selectedCategory, selectedSubCategories, searchQuery, effectiveCategory, subtipoContext]);
 
   const toggleSubCategory = useCallback((sc: string) => {
     setSelectedSubCategories((prev) =>
