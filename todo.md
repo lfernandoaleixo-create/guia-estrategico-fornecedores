@@ -573,3 +573,11 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 ## Correções Jun/2026 (9) — Remover filtro de grupos antigos do Yiwu
 - [x] BUG: barra "Grupos:" na página de Anotações do Yiwu mostrava classificações antigas (Nº 01 Aquários & Terrários, Nº 02 Tapete Higiênico Pet) que não se aplicam — bloco do filtro removido (grupos seguem intactos no banco)
 - [x] TS limpo + validado no preview (label "Grupos:" não existe mais na página) + checkpoint
+
+## Feature Jun/2026 (10) — Migrar contato para "Sem classificação macro" (Yiwu)
+- [x] No modal "Migrar contato" (MigrateToMacroButton), adicionar no Passo 1 a opção "Sem classificação macro" além dos macros existentes (sempre visível quando há macros)
+- [x] Ao escolher "Sem classificação", o Passo 2 lista os destinos sem macro (dashboards/subgrupos/grupos não atribuídos a nenhum macro — inclui Yiwu); estado vazio explicativo quando não há destino
+- [x] Reaproveitar createInDestination existente; o destino Yiwu cria CustomSupplier scope "yiwu"
+- [x] Evitar listar a própria origem como destino (opção A)
+- [x] 5 testes de unidade em unclassifiedDestinations.test.ts (origem Yiwu → vazio; origem Tapete/Aquário → Yiwu disponível) — 206 testes verdes
+- [x] TS limpo + validado no preview (opção aparece no topo do Passo 1) + checkpoint

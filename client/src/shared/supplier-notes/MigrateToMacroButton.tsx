@@ -17,9 +17,11 @@
 // =============================================================================
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronRight, Layers, Loader2, X } from "lucide-react";
+import { Check, ChevronRight, Layers, Loader2, Waves, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMacros, type MacroItem } from "./useMacros";
+import { useCustomGroups } from "./useCustomGroups";
+import { buildCatalog } from "./macroCatalog";
 import { useCustomSuppliers, type SupplierScope } from "./useCustomSuppliers";
 import { useExtraSuppliers } from "./useExtraSuppliers";
 import {
@@ -62,7 +64,8 @@ export function MigrateToMacroButton({
   onMigrated,
   label = "Migrar contato",
 }: Props) {
-  const { macros } = useMacros();
+  const { macros, itemAssignment } = useMacros();
+  const { groups: customGroups } = useCustomGroups();
   // Hooks de destino (CustomSuppliers por scope + ExtraSuppliers de grupos).
   // As NOTAS do destino são gravadas via helpers diretos (writeEntryDirect),
   // pois o scope de grupo promovido é dinâmico (grupo-<id>) e não pode ser
@@ -77,6 +80,27 @@ export function MigrateToMacroButton({
   const [macroId, setMacroId] = useState<string | null>(null);
   const [itemKey, setItemKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // ID sentinela para o destino "Sem classificação macro" (não é um macro real).
+  const UNCLASSIFIED_ID = "__unclassified__";
+  const isUnclassified = macroId === UNCLASSIFIED_ID;
+
+  // Itens do catálogo (dashboards/subgrupos/grupos promovidos) que NÃO estão
+  // atribuídos a nenhum macro — é onde mora o Yiwu quando não classificado.
+  // Exclui a própria origem para não oferecer migração para o mesmo lugar.
+  const unclassifiedItems = useMemo(() => {
+    const promoted = customGroups
+      .filter((g) => g.promotedToDashboard)
+      .map((g) => ({ id: g.id, name: g.name, number: g.number ?? 0 }));
+    const catalog = buildCatalog(promoted);
+    return catalog.filter((it) => {
+      if (itemAssignment.has(it.key)) return false; // já pertence a um macro
+      // Não oferecer o próprio dashboard de origem como destino.
+      if (it.kind === "group" && fromScope === `grupo-${it.refId}`) return false;
+      if (it.kind !== "group" && fromScope === it.refId) return false;
+      return true;
+    });
+  }, [customGroups, itemAssignment, fromScope]);
 
   // Trava scroll do body quando aberto.
   useEffect(() => {
@@ -104,15 +128,24 @@ export function MigrateToMacroButton({
     [macros, macroId],
   );
 
-  // Itens do macro com o rótulo hierárquico (m.number . posição).
+  // Itens do destino com o rótulo hierárquico (m.number . posição).
+  // No modo "Sem classificação macro", os itens vêm do catálogo não atribuído
+  // e usam o próprio label do item (sem numeração de macro).
   const macroItems = useMemo(() => {
+    if (isUnclassified) {
+      return unclassifiedItems.map((it) => ({
+        item: it,
+        hier: 0,
+        label: "—",
+      }));
+    }
     if (!selectedMacro) return [];
     return selectedMacro.items.map((it, idx) => ({
       item: it,
       hier: idx + 1,
       label: `${selectedMacro.number}.${idx + 1}`,
     }));
-  }, [selectedMacro]);
+  }, [isUnclassified, unclassifiedItems, selectedMacro]);
 
   const selectedItem = useMemo(
     () => macroItems.find((x) => x.item.key === itemKey) ?? null,
@@ -156,7 +189,8 @@ export function MigrateToMacroButton({
   }
 
   async function confirmMigration() {
-    if (!selectedMacro || !selectedItem) return;
+    if (!selectedItem) return;
+    if (!isUnclassified && !selectedMacro) return;
     const { item } = selectedItem;
     setBusy(true);
     try {
@@ -180,7 +214,10 @@ export function MigrateToMacroButton({
       // 4. Marca a nota de ORIGEM (qualquer dashboard) como MIGRADA, sem apagar
       //    o histórico. As listas ocultam por padrão fornecedores migrados e
       //    mostram um selo "Migrado → <destino>". Preserva status/observações.
-      const destLabel = destinationLabel(selectedMacro.number, selectedItem.hier, item.label);
+      const destLabel =
+        isUnclassified || !selectedMacro
+          ? `Sem classificação · ${item.label}`
+          : destinationLabel(selectedMacro.number, selectedItem.hier, item.label);
       const originEntry: SupplierNoteEntry = sourceEntry ?? {
         supplierId: fromSupplierId,
         status: "nao-visitado",
@@ -289,13 +326,58 @@ export function MigrateToMacroButton({
                   <p className="text-xs text-zinc-500 mb-3">
 Passo 1 de 3 · Escolha o <b>macro</b> ao qual este fornecedor pertence.
                   </p>
-                  {macros.length === 0 ? (
+                  {macros.length === 0 && unclassifiedItems.length === 0 ? (
                     <div className="text-xs text-zinc-500 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
                       Nenhum macro criado ainda. Crie um macro em "Classificações"
                       na página inicial antes de migrar.
                     </div>
                   ) : (
                     <div className="space-y-1.5 mb-4">
+                      {/* Destino especial: Sem classificação macro (onde mora o Yiwu
+                          quando não atribuído a nenhum macro). Sempre visível para
+                          manter o recurso descoberto; quando não há destino disponível
+                          (ex.: a própria origem é o único item sem macro), o Passo 2
+                          mostra um estado vazio explicativo. */}
+                      {(
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMacroId(UNCLASSIFIED_ID);
+                            setItemKey(null);
+                          }}
+                          className="w-full text-left flex items-center gap-3 p-2.5 rounded-lg border transition-colors"
+                          style={{
+                            borderColor: isUnclassified ? "#64748b" : "#e4e4e7",
+                            background: isUnclassified ? "#64748b14" : "white",
+                          }}
+                        >
+                          <span
+                            className="flex-shrink-0 flex items-center justify-center rounded-md"
+                            style={{
+                              background: "#64748b22",
+                              color: "#475569",
+                              width: 30,
+                              height: 26,
+                              border: "1px solid #64748b55",
+                            }}
+                          >
+                            <Waves className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold text-zinc-800 truncate">
+                              Sem classificação macro
+                            </span>
+                            <span className="block text-[11px] text-zinc-500 truncate">
+                              {unclassifiedItems.length > 0
+                                ? `${unclassifiedItems.length} destino(s) disponíve(is)`
+                                : "Nenhum destino disponível agora"}
+                            </span>
+                          </span>
+                          {isUnclassified && (
+                            <Check className="w-4 h-4" style={{ color: "#475569" }} />
+                          )}
+                        </button>
+                      )}
                       {macros.map((m) => (
                         <button
                           key={m.id}
@@ -358,45 +440,50 @@ Passo 1 de 3 · Escolha o <b>macro</b> ao qual este fornecedor pertence.
               )}
 
               {/* PASSO 2 — escolher o item/subgrupo do macro */}
-              {step === "item" && selectedMacro && (
+              {step === "item" && (selectedMacro || isUnclassified) && (
                 <>
                   <p className="text-xs text-zinc-500 mb-1">
-                    Macro selecionado:{" "}
+                    Destino selecionado:{" "}
                     <strong className="text-zinc-700">
-                      Nº {selectedMacro.number} · {selectedMacro.name}
+                      {isUnclassified || !selectedMacro
+                        ? "Sem classificação macro"
+                        : `Nº ${selectedMacro.number} · ${selectedMacro.name}`}
                     </strong>
                   </p>
                   <p className="text-xs text-zinc-500 mb-3">
-                    Passo 2 de 3 · Escolha o <b>subgrupo</b> de destino. Ao confirmar, o
-                    fornecedor sai da lista atual e passa a aparecer aqui.
+                    Passo 2 de 3 · Escolha o <b>destino</b>. Ao confirmar, o
+                    fornecedor sai da lista atual e passa a aparecer lá.
                   </p>
 
                   {macroItems.length === 0 ? (
                     <div className="text-xs text-zinc-500 p-4 bg-zinc-50 rounded-lg border border-zinc-200 mb-4">
-                      Este macro ainda não tem subgrupos/itens. Adicione itens a ele
-                      em "Classificações" na página inicial antes de migrar.
+                      {isUnclassified
+                        ? "Não há destinos sem classificação disponíveis."
+                        : 'Este macro ainda não tem subgrupos/itens. Adicione itens a ele em "Classificações" na página inicial antes de migrar.'}
                     </div>
                   ) : (
                     <div className="space-y-1.5 mb-4">
-                      {macroItems.map(({ item, label }) => (
+                      {macroItems.map(({ item, label }) => {
+                        const accentColor = selectedMacro?.color ?? "#64748b";
+                        return (
                         <button
                           key={item.key}
                           type="button"
                           onClick={() => setItemKey(item.key)}
                           className="w-full text-left flex items-center gap-3 p-2.5 rounded-lg border transition-colors"
                           style={{
-                            borderColor: itemKey === item.key ? selectedMacro.color : "#e4e4e7",
-                            background: itemKey === item.key ? `${selectedMacro.color}10` : "white",
+                            borderColor: itemKey === item.key ? accentColor : "#e4e4e7",
+                            background: itemKey === item.key ? `${accentColor}10` : "white",
                           }}
                         >
                           <span
                             className="font-mono text-[11px] font-bold flex-shrink-0"
                             style={{
-                              background: `${selectedMacro.color}22`,
-                              color: selectedMacro.color,
+                              background: `${accentColor}22`,
+                              color: accentColor,
                               padding: "2px 7px",
                               borderRadius: 5,
-                              border: `1px solid ${selectedMacro.color}55`,
+                              border: `1px solid ${accentColor}55`,
                             }}
                           >
                             {label}
@@ -410,12 +497,13 @@ Passo 1 de 3 · Escolha o <b>macro</b> ao qual este fornecedor pertence.
                             </span>
                           </span>
                           {itemKey === item.key ? (
-                            <Check className="w-4 h-4" style={{ color: selectedMacro.color }} />
+                            <Check className="w-4 h-4" style={{ color: accentColor }} />
                           ) : (
                             <ChevronRight className="w-4 h-4 text-zinc-300" />
                           )}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -439,20 +527,22 @@ Passo 1 de 3 · Escolha o <b>macro</b> ao qual este fornecedor pertence.
               )}
 
               {/* PASSO 3 — confirmar */}
-              {step === "confirm" && selectedMacro && selectedItem && (
+              {step === "confirm" && (selectedMacro || isUnclassified) && selectedItem && (
                 <>
                   <div className="rounded-lg border border-violet-300 bg-violet-50 p-3 mb-4">
                     <p className="text-sm text-violet-900 leading-relaxed">
                       Confirmar migração de <strong>{context.supplierName}</strong> para{" "}
                       <strong>
-                        {selectedMacro.number}.{selectedItem.hier} · {selectedItem.item.label}
+                        {isUnclassified || !selectedMacro
+                          ? `Sem classificação · ${selectedItem.item.label}`
+                          : `${selectedMacro.number}.${selectedItem.hier} · ${selectedItem.item.label}`}
                       </strong>
                       ?
                       <br />
                       O fornecedor será cadastrado nesse subgrupo levando os dados
                       (contatos, localização), o status, as observações e as
                       cotações — e será{" "}
-                      <strong>removido das anotações do Yiwu</strong>.
+                      <strong>removido da lista de origem</strong>.
                     </p>
                   </div>
                   <div className="flex justify-end gap-2">
