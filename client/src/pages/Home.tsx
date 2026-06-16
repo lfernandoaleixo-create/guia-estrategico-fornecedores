@@ -47,7 +47,7 @@ const AQUARIO_VERDE = {
 const cardByKey: Record<string, DashboardCardData> = {
   "subgroup:aquario:terrario": {
     href: "/aquario?subtipo=terrario",
-    eyebrow: "AQUÁRIOS & TERRÁRIOS",
+    eyebrow: "TERRÁRIO",
     title: "Fornecedores de Terrário",
     subtitle: "Mercado Oriental Premium",
     description:
@@ -59,7 +59,7 @@ const cardByKey: Record<string, DashboardCardData> = {
   },
   "subgroup:aquario:aquario": {
     href: "/aquario?subtipo=aquario",
-    eyebrow: "AQUÁRIOS & TERRÁRIOS",
+    eyebrow: "AQUÁRIO",
     title: "Fornecedores de Aquário",
     subtitle: "Mercado Oriental Premium",
     description:
