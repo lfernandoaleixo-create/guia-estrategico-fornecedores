@@ -14,7 +14,8 @@ import {
   ATTACHMENT_CATEGORY_LABEL,
   type AttachmentCategory,
 } from "./useSupplierNotes";
-import { Camera, BookOpen, DollarSign, Folder, Calendar, Filter } from "lucide-react";
+import { Camera, BookOpen, DollarSign, Folder, Calendar, Filter, Fish, Bug } from "lucide-react";
+import { matchesSpecialty, type SpecialtyFilter } from "./specialtyReport";
 
 interface Props {
   /** Aceita os scopes fixos (aquario|tapete|yiwu) ou dinâmicos como `grupo-{id}` */
@@ -23,6 +24,18 @@ interface Props {
   accent?: string;
   /** Tom claro (Aquário/Tapete usam cards brancos; Yiwu usa escuro) */
   tone?: "light" | "dark";
+  /**
+   * Quando true, exibe o seletor de especialidade (Todos / 🐟 Aquário / 🦎 Terrário)
+   * e conta apenas os anexos dos fornecedores que casam com a especialidade.
+   * Usado no dashboard Aquário para separar as métricas por subgrupo 1.1/1.2.
+   */
+  specialtyEnabled?: boolean;
+  /** Mapa supplierId -> subtipoAquario marcado no Diário ("aquario"|"terrario"). */
+  subtipoById?: Record<string, string | undefined>;
+  /** Mapa supplierId -> categoria original do catálogo (fallback de especialidade). */
+  categoryById?: Record<string, string | undefined>;
+  /** Especialidade inicial selecionada quando `specialtyEnabled`. */
+  initialSpecialty?: SpecialtyFilter;
 }
 
 type Range = "this_month" | "last_month" | "custom";
@@ -66,9 +79,18 @@ function fromInputDate(s: string): Date | null {
   return new Date(Number(y), Number(mo) - 1, Number(d));
 }
 
-export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Props) {
+export function UploadMetrics({
+  scope,
+  accent = "#0891b2",
+  tone = "light",
+  specialtyEnabled = false,
+  subtipoById,
+  categoryById,
+  initialSpecialty = "todos",
+}: Props) {
   const { entries } = useSupplierNotes(scope);
   const [range, setRange] = useState<Range>("this_month");
+  const [specialty, setSpecialty] = useState<SpecialtyFilter>(initialSpecialty);
   const today = useMemo(() => new Date(), []);
   const [customFrom, setCustomFrom] = useState<string>(toInputDate(startOfMonth(today)));
   const [customTo, setCustomTo] = useState<string>(toInputDate(today));
@@ -95,6 +117,16 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
   const counts = useMemo(() => {
     const c: Record<AttachmentCategory, number> = { catalogos: 0, fotos: 0, cotacoes: 0, outros: 0 };
     Object.values(entries).forEach((e) => {
+      // Filtro por especialidade (Aquário/Terrário), quando habilitado.
+      if (specialtyEnabled && specialty !== "todos") {
+        const matches = matchesSpecialty(
+          e.supplierId,
+          specialty,
+          subtipoById ?? {},
+          categoryById ?? {},
+        );
+        if (!matches) return;
+      }
       e.attachments.forEach((a) => {
         const d = parseAddedAt(a.addedAt);
         if (!d) return;
@@ -105,7 +137,7 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
       });
     });
     return c;
-  }, [entries, from, to]);
+  }, [entries, from, to, specialtyEnabled, specialty, subtipoById, categoryById]);
 
   const total = counts.catalogos + counts.fotos + counts.cotacoes + counts.outros;
   const isDark = tone === "dark";
@@ -155,6 +187,39 @@ export function UploadMetrics({ scope, accent = "#0891b2", tone = "light" }: Pro
           </button>
         </div>
       </div>
+
+      {specialtyEnabled && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <span
+            className={`text-[10px] font-mono uppercase tracking-wider mr-1 ${
+              isDark ? "text-white/50" : "text-zinc-400"
+            }`}
+          >
+            Especialidade
+          </span>
+          <button
+            type="button"
+            className={periodChip(specialty === "todos")}
+            onClick={() => setSpecialty("todos")}
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            className={`${periodChip(specialty === "aquario")} inline-flex items-center gap-1`}
+            onClick={() => setSpecialty("aquario")}
+          >
+            <Fish className="w-3.5 h-3.5" /> Aquário
+          </button>
+          <button
+            type="button"
+            className={`${periodChip(specialty === "terrario")} inline-flex items-center gap-1`}
+            onClick={() => setSpecialty("terrario")}
+          >
+            <Bug className="w-3.5 h-3.5" /> Terrário
+          </button>
+        </div>
+      )}
 
       {range === "custom" && (
         <div className="flex flex-wrap items-center gap-2 mb-4">

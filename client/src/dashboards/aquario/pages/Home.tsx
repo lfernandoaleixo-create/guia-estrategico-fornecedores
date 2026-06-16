@@ -899,7 +899,15 @@ export default function Home() {
 
               {/* Métricas de uploads */}
               <div className="mb-5">
-                <UploadMetrics scope="aquario" tone="light" accent="#dc2626" />
+                <UploadMetrics
+                  scope="aquario"
+                  tone="light"
+                  accent="#dc2626"
+                  specialtyEnabled
+                  subtipoById={specialtyById}
+                  categoryById={categoryById}
+                  initialSpecialty={initialSpecialty}
+                />
               </div>
 
               {/* Gerenciar grupos */}

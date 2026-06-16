@@ -447,3 +447,9 @@ Escopo: nova camada acima dos dashboards. Macro = número + nome (ex.: "1. PET")
 - [x] Migração: Aquários & Terrários -> subgrupos 1.1 Terrário e 1.2 Aquário no macro PET, re-vinculando fornecedores existentes (migrateSubtipo.ts + MigrateSubtipoButton; validado no browser: 5 fornecedores, 2 subgrupos)
 - [x] vitest dos helpers (parse/numeração/validação) e da migração (subgroupNumber 18 + migrateSubtipo 8; total 159/159)
 - [x] Validar no preview e checkpoint (migração, bloqueio de macro inexistente e criação válida 1.4 testados; dados de teste limpos; checkpoint salvo)
+
+## Métricas de Uploads separadas por especialidade (Aquário/Terrário)
+- [x] UploadMetrics aceita filtro de especialidade (specialtyEnabled + subtipoById + categoryById) com seletor Todos/🐟 Aquário/🦎 Terrário
+- [x] Contagem de anexos respeita a especialidade efetiva de cada fornecedor (reaproveita matchesSpecialty)
+- [x] Ligar na Home do Aquário (passar specialtyById/categoryById); demais dashboards inalterados
+- [x] Validar no preview (Todos 5/4/9 · Aquário 2/1/3 · Terrário 3/3/6; somas batem) — TS limpo, 159/159 testes; checkpoint salvo
