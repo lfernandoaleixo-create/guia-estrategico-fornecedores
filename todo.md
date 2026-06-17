@@ -651,3 +651,12 @@ Permitir que o usuário escolha a cor de cada card. Subgrupos e grupos promovido
 - [x] Derivar os 4 tons (accent/soft/bg/border) via deriveAccent (cardAccent.ts)
 - [x] Testes de unidade (server/cardColors.test.ts — 11 testes: deriveAccent + parseCardColors)
 - [x] Validado no preview: card Aquário vermelho->azul, persistido após reload. Suíte: 258 testes verdes. TypeScript sem erros.
+
+
+## Feature 16 — Reposicionar botões de ação + paleta de cores ampliada
+- [x] Reposicionar lixeira+paleta para o canto superior direito (agrupados, sem cobrir o eyebrow/título); pr-24 no eyebrow
+- [x] Ampliar CARD_COLOR_PALETTE para 47 cores organizadas por matiz (claro/médio/escuro) + Cinza e Branco gelo
+- [x] Popover com grade de 7 colunas + scroll + campo de cor personalizada (color picker nativo + input hex + OK)
+- [x] Overlay para fechar o popover ao clicar fora
+- [x] Testes atualizados (server/cardColors.test.ts: paleta >= 40, rótulos, deriveAccent para toda a paleta) — 260 testes verdes
+- [x] Validado no preview: botões no canto direito sem sobrepor texto; Yiwu trocado para índigo e restaurado para laranja

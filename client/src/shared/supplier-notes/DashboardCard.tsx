@@ -5,7 +5,7 @@
 // =============================================================================
 import { useState, type ComponentType } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Trash2, Palette, Check } from "lucide-react";
+import { ArrowRight, Trash2, Palette, Check, Pipette } from "lucide-react";
 import { CARD_COLOR_PALETTE } from "./cardAccent";
 
 export interface DashboardCardData {
@@ -46,6 +46,12 @@ export function DashboardCard({
 }) {
   const Icon = d.icon;
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [customColor, setCustomColor] = useState(
+    currentColor && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(currentColor)
+      ? currentColor
+      : "#f59e0b",
+  );
+  const hasActions = Boolean(onDelete || onChangeColor);
   return (
     <Link href={d.href}>
       <div
@@ -72,113 +78,201 @@ export function DashboardCard({
           style={{ background: `radial-gradient(circle, ${d.accent}, transparent 70%)` }}
         />
 
-        {/* Chinese badge */}
+        {/* Chinese badge — recuado p/ não colidir com os botões de ação */}
         <div
-          className="absolute top-5 right-5 text-3xl select-none opacity-30 group-hover:opacity-50 transition-opacity"
+          className={`absolute top-5 right-5 text-3xl select-none transition-opacity ${hasActions ? "opacity-20 group-hover:opacity-0" : "opacity-30 group-hover:opacity-50"}`}
           style={{ fontFamily: "'Fraunces', serif", color: d.accent }}
         >
           {d.badge}
         </div>
 
-        {/* Botão de excluir (opcional) — intercepta o clique para não navegar */}
-        {onDelete && (
-          <button
-            type="button"
-            title={deleteTitle ?? "Excluir"}
-            aria-label={deleteTitle ?? "Excluir"}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="absolute top-5 left-5 z-10 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95"
-            style={{
-              background: "oklch(0.16 0.02 250)",
-              border: "1px solid oklch(0.30 0.03 250)",
-              color: "oklch(0.70 0.16 25)",
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+        {/* Botões de ação (excluir + trocar cor) — agrupados no canto superior
+            direito, empilhados, sem cobrir o eyebrow/título. */}
+        {hasActions && (
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+            {/* Trocar cor */}
+            {onChangeColor && (
+              <div className="relative">
+                <button
+                  type="button"
+                  title="Trocar cor do card"
+                  aria-label="Trocar cor do card"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPaletteOpen((v) => !v);
+                  }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${paletteOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  style={{
+                    background: "oklch(0.16 0.02 250)",
+                    border: "1px solid oklch(0.30 0.03 250)",
+                    color: d.accent,
+                  }}
+                >
+                  <Palette className="w-4 h-4" />
+                </button>
 
-        {/* Botão de trocar cor (opcional) + popover de paleta */}
-        {onChangeColor && (
-          <div
-            className={`absolute top-5 z-20 ${onDelete ? "left-16" : "left-5"}`}
-          >
-            <button
-              type="button"
-              title="Trocar cor do card"
-              aria-label="Trocar cor do card"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setPaletteOpen((v) => !v);
-              }}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${paletteOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-              style={{
-                background: "oklch(0.16 0.02 250)",
-                border: "1px solid oklch(0.30 0.03 250)",
-                color: d.accent,
-              }}
-            >
-              <Palette className="w-4 h-4" />
-            </button>
-
-            {paletteOpen && (
-              <div
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="absolute top-11 left-0 z-30 p-2.5 rounded-xl grid grid-cols-4 gap-2 shadow-2xl"
-                style={{
-                  background: "oklch(0.13 0.02 250)",
-                  border: "1px solid oklch(0.30 0.03 250)",
-                  width: "max-content",
-                }}
-              >
-                {CARD_COLOR_PALETTE.map((c) => {
-                  const selected =
-                    (currentColor ?? "").toLowerCase() === c.value.toLowerCase();
-                  return (
-                    <button
-                      key={c.value}
-                      type="button"
-                      title={c.label}
-                      aria-label={c.label}
+                {paletteOpen && (
+                  <>
+                    {/* Overlay para fechar ao clicar fora */}
+                    <div
+                      className="fixed inset-0 z-20"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onChangeColor(c.value);
                         setPaletteOpen(false);
                       }}
-                      className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                    />
+                    <div
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      className="absolute top-10 right-0 z-30 p-3 rounded-xl shadow-2xl"
                       style={{
-                        background: c.value,
-                        boxShadow: selected
-                          ? "0 0 0 2px oklch(0.97 0.01 80), 0 0 0 4px " + c.value
-                          : "none",
+                        background: "oklch(0.13 0.02 250)",
+                        border: "1px solid oklch(0.30 0.03 250)",
+                        width: "232px",
                       }}
                     >
-                      {selected && (
-                        <Check
-                          className="w-3.5 h-3.5"
-                          style={{ color: "oklch(0.10 0.02 250)" }}
+                      <div
+                        className="text-[10px] tracking-[0.18em] font-semibold uppercase mb-2"
+                        style={{
+                          color: "oklch(0.60 0.02 80)",
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        Cor do card
+                      </div>
+                      <div className="grid grid-cols-7 gap-1.5 max-h-[180px] overflow-y-auto pr-1">
+                        {CARD_COLOR_PALETTE.map((c) => {
+                          const selected =
+                            (currentColor ?? "").toLowerCase() ===
+                            c.value.toLowerCase();
+                          return (
+                            <button
+                              key={c.value}
+                              type="button"
+                              title={c.label}
+                              aria-label={c.label}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onChangeColor(c.value);
+                                setPaletteOpen(false);
+                              }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center transition-transform hover:scale-115 active:scale-95"
+                              style={{
+                                background: c.value,
+                                boxShadow: selected
+                                  ? "0 0 0 2px oklch(0.97 0.01 80), 0 0 0 4px " +
+                                    c.value
+                                  : "none",
+                              }}
+                            >
+                              {selected && (
+                                <Check
+                                  className="w-3 h-3"
+                                  style={{ color: "oklch(0.10 0.02 250)" }}
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Cor personalizada */}
+                      <div
+                        className="mt-3 pt-3 flex items-center gap-2"
+                        style={{ borderTop: "1px solid oklch(0.24 0.03 250)" }}
+                      >
+                        <label
+                          className="relative w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0"
+                          style={{
+                            background: customColor,
+                            border: "1px solid oklch(0.35 0.03 250)",
+                          }}
+                          title="Escolher cor personalizada"
+                        >
+                          <Pipette
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.10 0.02 250)" }}
+                          />
+                          <input
+                            type="color"
+                            value={customColor}
+                            onChange={(e) => setCustomColor(e.target.value)}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            aria-label="Seletor de cor personalizada"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={customColor}
+                          onChange={(e) => setCustomColor(e.target.value)}
+                          spellCheck={false}
+                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md text-xs font-mono"
+                          style={{
+                            background: "oklch(0.10 0.02 250)",
+                            border: "1px solid oklch(0.30 0.03 250)",
+                            color: "oklch(0.92 0.01 80)",
+                          }}
+                          placeholder="#rrggbb"
                         />
-                      )}
-                    </button>
-                  );
-                })}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const v = customColor.trim();
+                            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+                              onChangeColor(v);
+                              setPaletteOpen(false);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider transition-transform hover:scale-105 active:scale-95 flex-shrink-0"
+                          style={{
+                            background: d.accentBg,
+                            color: d.accent,
+                            border: `1px solid ${d.accentBorder}`,
+                          }}
+                        >
+                          OK
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
+            )}
+
+            {/* Excluir */}
+            {onDelete && (
+              <button
+                type="button"
+                title={deleteTitle ?? "Excluir"}
+                aria-label={deleteTitle ?? "Excluir"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95"
+                style={{
+                  background: "oklch(0.16 0.02 250)",
+                  border: "1px solid oklch(0.30 0.03 250)",
+                  color: "oklch(0.70 0.16 25)",
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             )}
           </div>
         )}
 
         {/* Eyebrow */}
         <div
-          className="text-[10px] tracking-[0.25em] font-semibold mb-5"
+          className={`text-[10px] tracking-[0.25em] font-semibold mb-5 ${hasActions ? "pr-24" : ""}`}
           style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
         >
           {d.eyebrow}

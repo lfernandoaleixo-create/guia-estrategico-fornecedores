@@ -64,11 +64,27 @@ describe("deriveAccent — OKLCH e fallback", () => {
 });
 
 describe("CARD_COLOR_PALETTE", () => {
-  it("tem 8 cores, todas em hex válido e únicas", () => {
-    expect(CARD_COLOR_PALETTE).toHaveLength(8);
+  it("oferece uma paleta ampla (>= 40 cores), todas hex válido e únicas", () => {
+    expect(CARD_COLOR_PALETTE.length).toBeGreaterThanOrEqual(40);
     const values = CARD_COLOR_PALETTE.map((c) => c.value);
     for (const v of values) expect(isHexColor(v)).toBe(true);
     expect(new Set(values).size).toBe(values.length);
+  });
+
+  it("todas as cores possuem rótulo não-vazio", () => {
+    for (const c of CARD_COLOR_PALETTE) {
+      expect(typeof c.label).toBe("string");
+      expect(c.label.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("deriveAccent gera tons válidos para todas as cores da paleta", () => {
+    for (const c of CARD_COLOR_PALETTE) {
+      const a = deriveAccent(c.value);
+      expect(a.accent.toLowerCase()).toBe(c.value.toLowerCase());
+      expect(a.accentBg).toContain(c.value);
+      expect(a.accentBorder).toContain(c.value);
+    }
   });
 });
 

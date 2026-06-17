@@ -70,14 +70,73 @@ export function deriveAccent(base: string): CardAccent {
   };
 }
 
-/** Paleta de cores oferecida no seletor (alinhada à SUBGROUP_PALETTE). */
+/**
+ * Paleta de cores oferecida no seletor.
+ * Organizada por matiz (do vermelho ao rosa), com 3 níveis de saturação/clareza
+ * por matiz para dar variedade real ao usuário. ~48 cores predefinidas.
+ */
 export const CARD_COLOR_PALETTE: { value: string; label: string }[] = [
+  // Vermelho / Rosa-vermelho
+  { value: "#fca5a5", label: "Vermelho claro" },
   { value: "#ef4444", label: "Vermelho" },
+  { value: "#b91c1c", label: "Vermelho escuro" },
+  // Laranja
+  { value: "#fdba74", label: "Laranja claro" },
+  { value: "#f97316", label: "Laranja" },
+  { value: "#c2410c", label: "Laranja escuro" },
+  // Âmbar
+  { value: "#fcd34d", label: "Âmbar claro" },
   { value: "#f59e0b", label: "Âmbar" },
-  { value: "#10b981", label: "Verde" },
+  { value: "#b45309", label: "Âmbar escuro" },
+  // Amarelo
+  { value: "#fde047", label: "Amarelo claro" },
+  { value: "#eab308", label: "Amarelo" },
+  { value: "#a16207", label: "Amarelo escuro" },
+  // Lima
+  { value: "#bef264", label: "Lima claro" },
+  { value: "#84cc16", label: "Lima" },
+  { value: "#4d7c0f", label: "Lima escuro" },
+  // Verde
+  { value: "#86efac", label: "Verde claro" },
+  { value: "#22c55e", label: "Verde" },
+  { value: "#15803d", label: "Verde escuro" },
+  // Esmeralda
+  { value: "#6ee7b7", label: "Esmeralda claro" },
+  { value: "#10b981", label: "Esmeralda" },
+  { value: "#047857", label: "Esmeralda escuro" },
+  // Teal
+  { value: "#5eead4", label: "Teal claro" },
   { value: "#14b8a6", label: "Teal" },
+  { value: "#0f766e", label: "Teal escuro" },
+  // Ciano
+  { value: "#67e8f9", label: "Ciano claro" },
   { value: "#06b6d4", label: "Ciano" },
+  { value: "#0e7490", label: "Ciano escuro" },
+  // Azul céu
+  { value: "#7dd3fc", label: "Azul céu claro" },
+  { value: "#0ea5e9", label: "Azul céu" },
+  { value: "#0369a1", label: "Azul céu escuro" },
+  // Azul
+  { value: "#93c5fd", label: "Azul claro" },
   { value: "#3b82f6", label: "Azul" },
+  { value: "#1d4ed8", label: "Azul escuro" },
+  // Índigo
+  { value: "#a5b4fc", label: "Índigo claro" },
+  { value: "#6366f1", label: "Índigo" },
+  { value: "#4338ca", label: "Índigo escuro" },
+  // Violeta / Roxo
+  { value: "#c4b5fd", label: "Violeta claro" },
   { value: "#a855f7", label: "Roxo" },
+  { value: "#7e22ce", label: "Roxo escuro" },
+  // Fúcsia
+  { value: "#f0abfc", label: "Fúcsia claro" },
+  { value: "#d946ef", label: "Fúcsia" },
+  { value: "#a21caf", label: "Fúcsia escuro" },
+  // Rosa
+  { value: "#f9a8d4", label: "Rosa claro" },
   { value: "#ec4899", label: "Rosa" },
+  { value: "#be185d", label: "Rosa escuro" },
+  // Neutros
+  { value: "#94a3b8", label: "Cinza" },
+  { value: "#e2e8f0", label: "Branco gelo" },
 ];
