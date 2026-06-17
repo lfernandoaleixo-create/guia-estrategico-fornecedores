@@ -26,6 +26,9 @@ import CustomSupplierFormDialog from "@/shared/supplier-notes/CustomSupplierForm
 import { formatSubgroupNumber } from "@/shared/supplier-notes/subgroupNumber";
 import { subgroupEmoji } from "@/shared/supplier-notes/subgroupEmoji";
 import { suppliersForSubgroup, searchSuppliers } from "@/shared/supplier-notes/subgroupFilter";
+import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
+import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import type { SupplierNoteEntry } from "@/shared/supplier-notes/useSupplierNotes";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -83,6 +86,35 @@ export default function SubgroupDashboard() {
   const filtered = useMemo(
     () => searchSuppliers(suppliersInSubgroup, search),
     [suppliersInSubgroup, search],
+  );
+
+  // ── Dados para Métricas e Relatório (restritos a ESTE subgrupo) ────────────
+  // Os fornecedores deste subgrupo vivem no scope "aquario"; aqui isolamos
+  // apenas os ids do subgrupo para que as métricas e o relatório não misturem
+  // com o restante do macro.
+  const subgroupSupplierIds = useMemo(
+    () => suppliersInSubgroup.map((s) => s.id),
+    [suppliersInSubgroup],
+  );
+
+  const subgroupEntries = useMemo<Record<string, SupplierNoteEntry>>(() => {
+    const idSet = new Set(subgroupSupplierIds);
+    const map: Record<string, SupplierNoteEntry> = {};
+    Object.values(notes.entries).forEach((e) => {
+      if (idSet.has(e.supplierId)) map[e.supplierId] = e;
+    });
+    return map;
+  }, [notes.entries, subgroupSupplierIds]);
+
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    suppliersInSubgroup.forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [suppliersInSubgroup]);
+
+  const resolveSupplierName = useMemo(
+    () => (id: string) => nameById.get(id) ?? id,
+    [nameById],
   );
 
   async function handleCreate(
@@ -273,8 +305,49 @@ export default function SubgroupDashboard() {
         </div>
       </header>
 
+      {/* Métricas + Relatório do subgrupo */}
+      {!loading && suppliersInSubgroup.length > 0 && (
+        <section className="relative z-10 container max-w-6xl pb-2">
+          <div className="flex flex-col gap-5">
+            {/* Métricas de uploads (restritas aos fornecedores deste subgrupo) */}
+            <UploadMetrics
+              scope="aquario"
+              tone="dark"
+              accent={accent}
+              supplierIds={subgroupSupplierIds}
+            />
+
+            {/* Relatório de Atividades (status + detalhamento + PDF) */}
+            <div
+              className="rounded-2xl border p-5"
+              style={{ borderColor: BORDER, background: SURFACE }}
+            >
+              <ReportPanel
+                scope="aquario"
+                scopeLabel={
+                  hierLabel
+                    ? `${subgroup?.name ?? "Subgrupo"} · ${hierLabel}`
+                    : subgroup?.name ?? "Subgrupo"
+                }
+                entries={subgroupEntries}
+                allSupplierIds={subgroupSupplierIds}
+                resolveSupplierName={resolveSupplierName}
+                onDeleteEntry={(id) => notes.deleteEntry(id)}
+                tone="dark"
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Busca + lista */}
-      <section className="relative z-10 container max-w-6xl pb-16">
+      <section className="relative z-10 container max-w-6xl pb-16 pt-6">
+        <div
+          className="text-[10px] uppercase tracking-[0.25em] font-semibold mb-3"
+          style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Fornecedores deste subgrupo
+        </div>
         <div
           className="rounded-2xl border mb-5 px-3 py-2 flex items-center gap-3"
           style={{ borderColor: BORDER, background: SURFACE }}

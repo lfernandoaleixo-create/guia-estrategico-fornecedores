@@ -36,6 +36,13 @@ interface Props {
   categoryById?: Record<string, string | undefined>;
   /** Especialidade inicial selecionada quando `specialtyEnabled`. */
   initialSpecialty?: SpecialtyFilter;
+  /**
+   * Restringe a contagem a um subconjunto de fornecedores (por id). Usado no
+   * dashboard de SUBGRUPO, onde os fornecedores compartilham o mesmo scope
+   * ("aquario") mas só um subconjunto pertence ao subgrupo. Quando omitido,
+   * conta todos os fornecedores do scope (comportamento dos demais dashboards).
+   */
+  supplierIds?: string[];
 }
 
 type Range = "this_month" | "last_month" | "custom";
@@ -87,8 +94,14 @@ export function UploadMetrics({
   subtipoById,
   categoryById,
   initialSpecialty = "todos",
+  supplierIds,
 }: Props) {
   const { entries } = useSupplierNotes(scope);
+  // Conjunto opcional de ids permitidos (subgrupo). `undefined` = sem restrição.
+  const allowedIds = useMemo(
+    () => (supplierIds ? new Set(supplierIds) : null),
+    [supplierIds],
+  );
   const [range, setRange] = useState<Range>("this_month");
   const [specialty, setSpecialty] = useState<SpecialtyFilter>(initialSpecialty);
   const today = useMemo(() => new Date(), []);
@@ -117,6 +130,8 @@ export function UploadMetrics({
   const counts = useMemo(() => {
     const c: Record<AttachmentCategory, number> = { catalogos: 0, fotos: 0, cotacoes: 0, outros: 0 };
     Object.values(entries).forEach((e) => {
+      // Restrição por subgrupo (lista de ids), quando fornecida.
+      if (allowedIds && !allowedIds.has(e.supplierId)) return;
       // Filtro por especialidade (Aquário/Terrário), quando habilitado.
       if (specialtyEnabled && specialty !== "todos") {
         const matches = matchesSpecialty(
@@ -137,7 +152,7 @@ export function UploadMetrics({
       });
     });
     return c;
-  }, [entries, from, to, specialtyEnabled, specialty, subtipoById, categoryById]);
+  }, [entries, from, to, specialtyEnabled, specialty, subtipoById, categoryById, allowedIds]);
 
   const total = counts.catalogos + counts.fotos + counts.cotacoes + counts.outros;
   const isDark = tone === "dark";

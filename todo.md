@@ -714,3 +714,12 @@ Fernando: (1) algumas traduções deixam termos no idioma original (cabeçalhos/
 - [x] Garantir tradução de texto misto e nome de fornecedor com sufixo entre parênteses ((广)=Cantão) — prompt proíbe deixar CJK no resultado
 - [x] Corrigir download de PDF: Blob reembalado com MIME correto (application/pdf via mimeForName/blobWithCorrectType) + fallback <a download>; salva o binário .pdf
 - [x] Testes (mimeForName/blobWithCorrectType, CJK isolado, texto misto, nome com parênteses) — suíte 318 verde, TypeScript limpo
+
+## Feature 23 — Métricas/Relatório no dashboard de SUBGRUPO
+Fernando: ao criar subgrupos (ex.: 1.4 Coleiras pra cachorro), o dashboard do subgrupo só lista fornecedores — não mostra as métricas de upload nem o relatório de status (como os outros dashboards).
+
+- [x] Adicionado prop opcional `supplierIds?: string[]` ao UploadMetrics: quando presente, conta apenas anexos desses fornecedores (dashboards atuais inalterados)
+- [x] SubgroupDashboard agora exibe o painel "Métricas de uploads" restrito aos fornecedores do subgrupo (scope aquario + supplierIds)
+- [x] SubgroupDashboard agora exibe o "Relatório de Atividades" (ReportPanel) com entries/allSupplierIds só do subgrupo + resolveSupplierName + Exportar PDF
+- [x] Seção só aparece quando o subgrupo tem fornecedores (estado vazio coberto)
+- [x] Teste subgroupMetrics.test.ts (contagem por supplierIds) + suíte 322 verde + TypeScript limpo + validado no preview (subgrupo 1.4)
