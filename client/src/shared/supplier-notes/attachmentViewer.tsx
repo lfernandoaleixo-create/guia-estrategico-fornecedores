@@ -176,6 +176,55 @@ async function attachmentToDataUrl(att: SupplierAttachment): Promise<string | nu
   }
 }
 
+/**
+ * Mapeia a extensão do nome do arquivo para um MIME correto. Garante que o
+ * navegador trate o Blob como ARQUIVO (e o salve), em vez de abrir um link.
+ */
+export function mimeForName(name: string): string | null {
+  const m = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const ext = m ? m[1] : "";
+  switch (ext) {
+    case "pdf":
+      return "application/pdf";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "gif":
+      return "image/gif";
+    case "webp":
+      return "image/webp";
+    case "xlsx":
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    case "xls":
+      return "application/vnd.ms-excel";
+    case "csv":
+      return "text/csv";
+    case "docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case "doc":
+      return "application/msword";
+    case "txt":
+      return "text/plain";
+    default:
+      return null;
+  }
+}
+
+/** Reembala o Blob com o MIME esperado quando o servidor devolveu algo genérico. */
+export function blobWithCorrectType(blob: Blob, filename: string, fallbackMime?: string): Blob {
+  const wanted = mimeForName(filename) ?? (fallbackMime || "");
+  if (!wanted) return blob;
+  // Só reembala se o tipo atual estiver ausente/genérico ou divergir do esperado.
+  const current = blob.type || "";
+  if (current === wanted) return blob;
+  if (!current || current === "application/octet-stream" || current === "binary/octet-stream") {
+    return new Blob([blob], { type: wanted });
+  }
+  return blob;
+}
+
 function triggerBlobDownload(blob: Blob, filename: string) {
   const href = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -194,17 +243,27 @@ export async function downloadAttachment(att: SupplierAttachment): Promise<void>
     const fetchUrl = attachmentStreamSrc(att);
     try {
       const resp = await fetch(fetchUrl, { credentials: "include" });
-      const blob = await resp.blob();
-      triggerBlobDownload(blob, att.name);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const raw = await resp.blob();
+      // Garante o MIME correto (ex.: application/pdf) para que o navegador SALVE
+      // o arquivo binário em vez de abri-lo como link/aba.
+      triggerBlobDownload(blobWithCorrectType(raw, att.name, att.type), att.name);
       return;
     } catch {
-      window.open(att.url, "_blank", "noopener");
+      // Fallback: ainda assim tenta forçar download via <a download> na URL S3.
+      const a = document.createElement("a");
+      a.href = attachmentSrc(att);
+      a.download = att.name;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
   }
   if (att.dataUrl) {
     const blob = dataURLToBlob(att.dataUrl);
-    if (blob) triggerBlobDownload(blob, att.name);
+    if (blob) triggerBlobDownload(blobWithCorrectType(blob, att.name, att.type), att.name);
     else {
       const a = document.createElement("a");
       a.href = att.dataUrl;

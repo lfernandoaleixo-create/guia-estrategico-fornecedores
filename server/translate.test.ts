@@ -13,7 +13,7 @@ vi.mock("./_core/llm", () => ({
   }),
 }));
 
-import { hasChinese, translateTexts } from "./translate";
+import { hasChinese, isTranslatable, translateTexts } from "./translate";
 import { invokeLLM } from "./_core/llm";
 
 describe("hasChinese", () => {
@@ -25,6 +25,21 @@ describe("hasChinese", () => {
     expect(hasChinese("RS-01A")).toBe(false);
     expect(hasChinese("6.8")).toBe(false);
     expect(hasChinese("")).toBe(false);
+  });
+});
+
+describe("isTranslatable — Feature 22 (CJK isolado e texto misto)", () => {
+  it("considera unidades chinesas de 1 caractere como traduzíveis", () => {
+    for (const unit of ["只", "个", "支", "盒", "件", "元"]) {
+      expect(isTranslatable(unit)).toBe(true);
+    }
+  });
+  it("considera texto misto (chinês + latino) como traduzível", () => {
+    expect(isTranslatable("Motor 389元 Rotor 135元")).toBe(true);
+  });
+  it("NÃO marca um único caractere latino/número como traduzível", () => {
+    expect(isTranslatable("A")).toBe(false);
+    expect(isTranslatable("5")).toBe(false);
   });
 });
 
@@ -49,6 +64,13 @@ describe("translateTexts", () => {
     const out = await translateTexts(["RS-01A", "6.8", "60"]);
     expect(out).toEqual(["RS-01A", "6.8", "60"]);
     expect(invokeLLM).not.toHaveBeenCalled();
+  });
+
+  it("traduz unidades chinesas de 1 caractere (regressão Feature 22)", async () => {
+    const out = await translateTexts(["只", "个", "RS-01A"]);
+    expect(out[0]).toBe("PT:只");
+    expect(out[1]).toBe("PT:个");
+    expect(out[2]).toBe("RS-01A");
   });
 
   it("deduplica e usa cache em chamadas repetidas", async () => {

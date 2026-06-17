@@ -705,3 +705,12 @@ Fernando: o rótulo do topo do card de subgrupo deve mostrar o nome do dashboard
 - [x] UI para editar o subtítulo do subgrupo (edição inline com lápis no topo do dashboard do subgrupo)
 - [x] Procedure/db helper para salvar subtitle do subgrupo (coluna subtitle + subgroupInput + upsertSubgroup)
 - [x] Testes (subgroupSubtitle.test.ts) + validado no preview (editar/persistir/fallback) — 303 testes passando
+
+## Feature 22 — Melhorar tradução de planilha + download de PDF como arquivo
+Fernando: (1) algumas traduções deixam termos no idioma original (cabeçalhos/nome de fornecedor com "(广)", unidades 只/个/支/盒, células mistas "Motor 389元 Rotor 135元"); (2) ao baixar PDF, está vindo como link em vez de salvar o arquivo .pdf no computador.
+
+- [x] Melhorar heurística isTranslatableText (cliente + servidor): script não-latino SEMPRE traduz; removido o guard t.length<2 para CJK (pega texto misto e 1 caractere)
+- [x] Traduzir unidades comuns (只/个/支/盒/件/双/对/套/袋/瓶/卷/元) mesmo isoladas — prompt do LLM reforçado com lista e regra "sem resíduo de chinês"
+- [x] Garantir tradução de texto misto e nome de fornecedor com sufixo entre parênteses ((广)=Cantão) — prompt proíbe deixar CJK no resultado
+- [x] Corrigir download de PDF: Blob reembalado com MIME correto (application/pdf via mimeForName/blobWithCorrectType) + fallback <a download>; salva o binário .pdf
+- [x] Testes (mimeForName/blobWithCorrectType, CJK isolado, texto misto, nome com parênteses) — suíte 318 verde, TypeScript limpo

@@ -30,9 +30,13 @@ const EN_HINTS_RE =
 export function isTranslatableText(text: string): boolean {
   if (!text) return false;
   const t = text.trim();
-  if (t.length < 2) return false;
-  if (!/[a-zA-Z\u00c0-\u024f\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t)) return false;
+  if (!t) return false;
+  // Script não-latino (chinês, japonês, etc.) SEMPRE traduz — inclusive
+  // caracteres ISOLADOS como unidades 只/个/支/盒/件 (1 caractere).
   if (hasNonLatinScript(t)) return true;
+  // A partir daqui só sobra texto latino: exige ao menos 2 caracteres e 1 letra.
+  if (t.length < 2) return false;
+  if (!/[a-zA-Z\u00c0-\u024f]/.test(t)) return false;
   if (PT_HINTS_RE.test(t)) return false;
   if (EN_HINTS_RE.test(t)) return true;
   const words = t.match(/[a-zA-Z]{3,}/g) ?? [];

@@ -46,11 +46,14 @@ const EN_HINTS =
 export function isTranslatable(text: string): boolean {
   if (!text) return false;
   const t = text.trim();
+  if (!t) return false;
+  // Script não-latino (chinês, japonês, etc.) SEMPRE traduz — inclusive
+  // caracteres ISOLADOS como unidades 只/个/支/盒/件 (1 caractere).
+  if (hasNonLatinScript(t)) return true;
+  // A partir daqui só sobra texto latino: exige 2+ caracteres.
   if (t.length < 2) return false;
   // Precisa ter pelo menos uma letra (evita "RS-01A", "12.5", "$4.13").
-  if (!/[a-zA-Z\u00c0-\u024f\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t)) return false;
-
-  if (hasNonLatinScript(t)) return true;
+  if (!/[a-zA-Z\u00c0-\u024f]/.test(t)) return false;
 
   // Caminho latino: traduzir inglês, mas preservar português.
   const looksPt = PT_HINTS.test(t);
@@ -133,12 +136,16 @@ async function translateChunk(chunk: string[]): Promise<string[]> {
         content:
           "Você é um tradutor profissional especializado em comércio exterior (China/Ásia–Brasil). " +
           "Traduza para o português do Brasil cada item recebido, qualquer que seja o idioma de origem " +
-          "(chinês, inglês, etc.). Regras: " +
-          "mantenha números, códigos de modelo (ex.: RS-01A, NR-18, R-600), unidades, medidas, preços e moedas EXATAMENTE como estão; " +
-          "se um item já estiver em português, devolva-o sem alterações; " +
-          "use termos técnicos de importação/produtos pet/utensílios quando aplicável; " +
-          "seja conciso (são rótulos de planilha/catálogo, não frases longas); " +
-          "preserve o índice de cada item. Responda SOMENTE com o JSON pedido.",
+          "(chinês, inglês, etc.). Regras OBRIGATÓRIAS: " +
+          "(1) O resultado NÃO pode conter NENHUM caractere chinês/CJK. Traduza TUDO, inclusive: " +
+          "unidades isoladas (只=unidade, 个=peça/un., 支=un., 盒=caixa, 件=peça, 双=par, 对=par, 套=conjunto, 袋=saco, 瓶=frasco, 卷=rolo), " +
+          "e texto MISTO no mesmo item (ex.: 'Motor 389元 Rotor 135元' → 'Motor 389 yuans Rotor 135 yuans'); " +
+          "a moeda 元 (RMB/yuan) deve virar 'yuans' ou 'RMB'. " +
+          "(2) Se houver chinês dentro de parênteses (ex.: nome de fornecedor 'ABC (广)'), traduza também o conteúdo do parêntese (广 = Cantão/Guangdong). " +
+          "(3) Mantenha números, códigos de modelo (ex.: RS-01A, NR-18, R-600), medidas e dimensões EXATAMENTE como estão. " +
+          "(4) Se um item já estiver inteiramente em português, devolva-o sem alterações. " +
+          "(5) Use termos técnicos de importação/produtos pet/utensílios quando aplicável; seja conciso (são rótulos de planilha/catálogo). " +
+          "(6) Preserve o índice de cada item. Responda SOMENTE com o JSON pedido.",
       },
       {
         role: "user",

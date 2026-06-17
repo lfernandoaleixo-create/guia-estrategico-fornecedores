@@ -1,37 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { isTranslatableText } from "../client/src/shared/supplier-notes/translatableText";
 
 /**
  * Regressão do BUG (planilha NOMOYPET): a tabela de preços estava em INGLÊS e,
  * no modo PT, as células do corpo precisavam ser detectadas como "traduzíveis"
- * para serem enviadas ao tradutor. Estes testes reproduzem de forma pura a
- * heurística `isTranslatableText` do cliente
- * (client/src/shared/supplier-notes/attachmentViewer.tsx) para garantir que
- * frases em inglês entram na fila de tradução e que números/códigos/dimensões
- * NÃO são traduzidos (devem permanecer intactos).
+ * para serem enviadas ao tradutor. Este arquivo agora importa a heurística REAL
+ * (client/src/shared/supplier-notes/translatableText.ts) para garantir que o
+ * código de produção — e não uma cópia — está coberto.
+ *
+ * Feature 22: além do inglês, valida que caracteres CJK ISOLADOS (unidades como
+ * 只/个/支/盒), texto MISTO (chinês + latino na mesma célula) e nomes com sufixo
+ * entre parênteses ("(广)") também entram na fila de tradução.
  */
-
-function hasNonLatinScript(text: string): boolean {
-  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff\u0e00-\u0e7f\u0590-\u05ff]/.test(
-    text,
-  );
-}
-
-const PT_HINTS_RE =
-  /\b(de|da|do|das|dos|para|com|sem|não|são|é|às|cão|ões|ário|você|preço|fornecedor|produto|modelo|cor|tamanho|peso|quantidade|unidade|caixa|frete|pagamento|entrega|observa)/i;
-const EN_HINTS_RE =
-  /\b(the|and|with|without|price|model|name|color|size|weight|qty|quantity|unit|box|carton|series|new|switch|plug|timer|heater|pump|filter|light|product|supplier|payment|delivery|shipping|description|material|package|packing|min|order|sample)\b/i;
-
-function isTranslatableText(text: string): boolean {
-  if (!text) return false;
-  const t = text.trim();
-  if (t.length < 2) return false;
-  if (!/[a-zA-Z\u00c0-\u024f\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t)) return false;
-  if (hasNonLatinScript(t)) return true;
-  if (PT_HINTS_RE.test(t)) return false;
-  if (EN_HINTS_RE.test(t)) return true;
-  const words = t.match(/[a-zA-Z]{3,}/g) ?? [];
-  return words.length > 0;
-}
 
 describe("isTranslatableText — planilha em inglês (NOMOYPET)", () => {
   const englishCells = [
@@ -83,5 +63,30 @@ describe("isTranslatableText — planilha em inglês (NOMOYPET)", () => {
   it("detecta chinês/CJK como traduzível independentemente de hints", () => {
     expect(isTranslatableText("过滤器")).toBe(true);
     expect(isTranslatableText("UV灯系列")).toBe(true);
+  });
+});
+
+describe("isTranslatableText — Feature 22 (caracteres CJK isolados e texto misto)", () => {
+  it("detecta UNIDADES chinesas isoladas (1 caractere) como traduzíveis", () => {
+    // Bug: o antigo guard `t.length < 2` descartava estas células de 1 char,
+    // deixando-as no idioma original na planilha traduzida.
+    for (const unit of ["只", "个", "支", "盒", "件", "双", "对", "套", "袋", "瓶", "卷", "元"]) {
+      expect(isTranslatableText(unit)).toBe(true);
+    }
+  });
+
+  it("detecta texto MISTO (chinês + latino na mesma célula)", () => {
+    expect(isTranslatableText("Motor 389元 Rotor 135元")).toBe(true);
+    expect(isTranslatableText("Pump 12V 水泵")).toBe(true);
+  });
+
+  it("detecta nome de fornecedor com sufixo chinês entre parênteses", () => {
+    expect(isTranslatableText("Fornecedor ABC (广)")).toBe(true);
+    expect(isTranslatableText("(广)")).toBe(true);
+  });
+
+  it("ainda NÃO traduz um único caractere latino ou número isolado", () => {
+    expect(isTranslatableText("A")).toBe(false);
+    expect(isTranslatableText("5")).toBe(false);
   });
 });
