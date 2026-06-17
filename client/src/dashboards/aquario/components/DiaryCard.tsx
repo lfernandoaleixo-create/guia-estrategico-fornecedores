@@ -11,6 +11,7 @@ import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
 import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
+import { PartnerChips } from "@/shared/supplier-notes/PartnerChips";
 import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
@@ -194,6 +195,7 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             )}
             <TipoBadge fields={entry?.fields} />
             <SubgroupBadge fields={entry?.fields} />
+            <PartnerChips fields={entry?.fields} accent="#dc2626" />
           </div>
           <h3
             className="font-display font-semibold leading-tight"

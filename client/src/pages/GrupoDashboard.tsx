@@ -45,6 +45,7 @@ import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import PartnerTopicsPanel from "@/shared/supplier-notes/PartnerTopicsPanel";
+import { PartnerChips } from "@/shared/supplier-notes/PartnerChips";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
 const TEXT_MUTED = "oklch(0.65 0.02 80)";
@@ -1132,6 +1133,7 @@ export default function GrupoDashboard() {
                               <Folder className="w-3 h-3" /> {attachCount} anexo{attachCount === 1 ? "" : "s"}
                             </span>
                           )}
+                          <PartnerChips fields={entry?.fields} accent={accent} />
                           {(entry?.groupIds ?? [])
                             .map((gid) => ({ gid, info: groupInfoById.get(gid) }))
                             .filter((x) => x.info)

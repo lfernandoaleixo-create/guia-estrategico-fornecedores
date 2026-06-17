@@ -15,6 +15,7 @@ import {
   type SupplierStatus,
 } from "./useSupplierNotes";
 import { TipoBadge } from "./TipoBadge";
+import { PartnerChips } from "./PartnerChips";
 import { useSubgroups } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
 import { subgroupEmoji } from "./subgroupEmoji";
@@ -147,6 +148,7 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               Adicionado em {formatCreatedDateBR(supplier.createdAt)}
             </span>
             <TipoBadge fields={tipoFields} />
+            <PartnerChips fields={tipoFields} accent={isDark ? "#a78bfa" : "#7c3aed"} />
             {subgroup && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"

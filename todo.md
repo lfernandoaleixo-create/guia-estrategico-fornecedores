@@ -685,3 +685,13 @@ Fernando: o cadastro de parceiros acontece DENTRO do fornecedor (campo "Parceiro
 - [x] Testes de unidade da agregação de co-parceiros
 - [x] Validar no preview filtrando Betty (mostra Lilly relacionada) + checkpoint
 - [x] Corrigir agregação: fornecedores de Aquário por subtipo (Terrário/Aquário) com subgroupId vazio passam a ser associados ao macro (item subgroup:scope:subtipo)
+
+## Feature 19 — Tradução só para Word/Excel + parceiro no card recolhido
+Fernando: PDF não compensa traduzir (lento e desconfigura). Manter tradução apenas para Word e Excel (velocidade + precisão, sem desconfigurar). Além disso, exibir os parceiros chineses cadastrados no card recolhido do fornecedor, para boa visualização.
+
+- [x] Restringir tradução do visualizador apenas a planilhas (xlsx/csv/ods) e Word (docx) — remover toggle Original/PT de PDF e imagem
+- [x] Implementar tradução de Word (.docx) preservando formatação (gera .docx-PT) via JSZip + edição de document.xml
+- [x] PDF continua abrindo no visualizador, porém com download simples (sem opção PT)
+- [x] Exibir chips de "Parceiro Chinês" no card recolhido do fornecedor (junto de status/anexos/grupo)
+- [x] Garantir que o card recolhido fique legível com 1+ parceiros (truncar/limitar com "+N")
+- [x] Testes/validação no preview (Word PT validado: preview + download .docx-PT preservando tabela/estilos; chip Betty no card recolhido)

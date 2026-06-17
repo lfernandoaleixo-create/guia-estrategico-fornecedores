@@ -29,7 +29,11 @@ import {
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import * as XLSX from "xlsx";
+import mammoth from "mammoth";
+import JSZip from "jszip";
 import { trpc } from "@/lib/trpc";
+import { isTranslatableText, hasChinese, hasNonLatinScript } from "./translatableText";
+import { collectWordRunTexts, applyWordTranslation } from "./docxTranslate";
 import type { SupplierAttachment } from "./useSupplierNotes";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -54,44 +58,32 @@ export function isSheetAtt(att: SupplierAttachment): boolean {
     !!att.name.toLowerCase().match(/\.(xlsx?|csv|ods)$/)
   );
 }
-/** Qualquer tipo que conseguimos exibir embutido (sem só baixar). */
-export function canPreviewAtt(att: SupplierAttachment): boolean {
-  return isImageAtt(att) || isVideoAtt(att) || isPdfAtt(att) || isSheetAtt(att);
-}
-
-/** Detecta caracteres chineses (Han) numa string. */
-export function hasChinese(text: string): boolean {
-  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(text);
-}
-
-/** Detecta scripts não-latinos (CJK, cirílico, árabe, etc.). */
-function hasNonLatinScript(text: string): boolean {
-  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff\u0e00-\u0e7f\u0590-\u05ff]/.test(
-    text,
+export function isWordAtt(att: SupplierAttachment): boolean {
+  // Apenas .docx (Office Open XML) é manipulável preservando formatação via JSZip.
+  // .doc (binário legado) não é suportado para tradução/preview.
+  return (
+    att.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    att.name.toLowerCase().endsWith(".docx")
   );
 }
-
-const PT_HINTS_RE =
-  /\b(de|da|do|das|dos|para|com|sem|n\u00e3o|s\u00e3o|\u00e9|\u00e0s|c\u00e3o|\u00f5es|\u00e1rio|voc\u00ea|pre\u00e7o|fornecedor|produto|modelo|cor|tamanho|peso|quantidade|unidade|caixa|frete|pagamento|entrega|observa)/i;
-const EN_HINTS_RE =
-  /\b(the|and|with|without|price|model|name|color|size|weight|qty|quantity|unit|box|carton|series|new|switch|plug|timer|heater|pump|filter|light|product|supplier|payment|delivery|shipping|description|material|package|packing|min|order|sample)\b/i;
+/** Qualquer tipo que conseguimos exibir embutido (sem só baixar). */
+export function canPreviewAtt(att: SupplierAttachment): boolean {
+  return isImageAtt(att) || isVideoAtt(att) || isPdfAtt(att) || isSheetAtt(att) || isWordAtt(att);
+}
 
 /**
- * Heurística de cliente (espelha server/translate.ts:isTranslatable): decide se
- * um texto precisa ser traduzido para PT. Cobre chinês/CJK e inglês, e preserva
- * o que já está em português.
+ * Regra de NEGÓCIO da tradução automática (CN⇄PT): por decisão do Fernando,
+ * traduzir PDF é lento e desconfigura o documento; então a tradução fica
+ * disponível APENAS para planilhas (Excel/CSV/ODS) e Word (.docx), formatos em
+ * que conseguimos reescrever o conteúdo preservando o layout original. PDF e
+ * imagem continuam visíveis, porém sem toggle de idioma (download simples).
  */
-export function isTranslatableText(text: string): boolean {
-  if (!text) return false;
-  const t = text.trim();
-  if (t.length < 2) return false;
-  if (!/[a-zA-Z\u00c0-\u024f\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t)) return false;
-  if (hasNonLatinScript(t)) return true;
-  if (PT_HINTS_RE.test(t)) return false;
-  if (EN_HINTS_RE.test(t)) return true;
-  const words = t.match(/[a-zA-Z]{3,}/g) ?? [];
-  return words.length > 0;
+export function isTranslatableAtt(att: SupplierAttachment): boolean {
+  return isSheetAtt(att) || isWordAtt(att);
 }
+
+// isTranslatableText / hasChinese / hasNonLatinScript agora vêm de
+// ./translatableText (módulo puro reutilizado pelo núcleo de tradução de Word).
 
 // ----- Fontes / conversões ----------------------------------------------------
 
@@ -847,6 +839,195 @@ export function SheetCanvas({
   );
 }
 
+// ----- WordCanvas (.docx) -----------------------------------------------------
+
+// collectWordRunTexts / applyWordTranslation / (de|en)codeXmlEntities agora vêm
+// de ./docxTranslate (núcleo puro testável). Ver imports no topo do arquivo.
+
+export function WordCanvas({
+  att,
+  lang,
+  onChineseDetected,
+  translator,
+}: {
+  att: SupplierAttachment;
+  lang: DocLang;
+  onChineseDetected?: (has: boolean) => void;
+  translator?: ReturnType<typeof useTranslator>;
+}) {
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [html, setHtml] = useState<string>("");
+  // Texto bruto extraído (para detecção de idioma e tradução).
+  const runTextsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    setHtml("");
+    runTextsRef.current = [];
+
+    const load = async () => {
+      try {
+        const bytes = await attachmentBytes(att);
+        if (!bytes || cancelled) {
+          if (!cancelled) setStatus("error");
+          return;
+        }
+        // Preview HTML via mammoth (preserva parágrafos, listas, tabelas, negrito).
+        const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer as ArrayBuffer });
+        if (cancelled) return;
+        setHtml(result.value || "");
+        // Coleta textos para detecção/tradução a partir do document.xml original.
+        try {
+          const zip = await JSZip.loadAsync(bytes);
+          const docFile = zip.file("word/document.xml");
+          if (docFile) {
+            const xml = await docFile.async("string");
+            runTextsRef.current = collectWordRunTexts(xml);
+          }
+        } catch {
+          // Se falhar a leitura do XML, ainda mostramos o preview HTML.
+        }
+        setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [att]);
+
+  // Detecção de idioma estrangeiro.
+  useEffect(() => {
+    if (status !== "ready") return;
+    onChineseDetected?.(runTextsRef.current.some((t) => isTranslatableText(t)));
+  }, [status, onChineseDetected]);
+
+  // Tradução do HTML de preview quando entra no modo PT.
+  const [, setTick] = useState(0);
+  const translateMany = translator?.translateMany;
+  useEffect(() => {
+    if (lang !== "pt" || !translateMany) return;
+    const texts = runTextsRef.current.filter((t) => isTranslatableText(t));
+    if (texts.length > 0) {
+      void translateMany(texts).then(() => setTick((n) => n + 1));
+    }
+  }, [lang, status, translateMany]);
+
+  const showPt = lang === "pt" && !!translator;
+  void translator?.version;
+
+  // Para o preview PT, traduzimos os nós de texto do HTML usando o cache.
+  const displayHtml = useMemo(() => {
+    if (!showPt || !translator) return html;
+    if (!html) return html;
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      let n = walker.nextNode();
+      while (n) {
+        nodes.push(n as Text);
+        n = walker.nextNode();
+      }
+      for (const node of nodes) {
+        const raw = node.nodeValue ?? "";
+        if (isTranslatableText(raw)) {
+          const pt = translator.lookup(raw.trim());
+          if (pt) node.nodeValue = raw.replace(raw.trim(), pt);
+        }
+      }
+      return doc.body.innerHTML;
+    } catch {
+      return html;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPt, html, translator?.version]);
+
+  if (status === "loading") {
+    return (
+      <div className="h-full flex items-center justify-center text-sm text-zinc-500 gap-2">
+        <Loader2 size={16} className="animate-spin" /> Carregando documento…
+      </div>
+    );
+  }
+  if (status === "error") {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+        <FileText size={40} style={{ color: "#a1a1aa" }} />
+        <p className="text-sm text-zinc-600">Não foi possível abrir este documento Word. Use o botão Baixar.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full flex flex-col bg-zinc-50">
+      {showPt && translator?.isTranslating && (
+        <div className="flex items-center gap-1 px-3 py-2 border-b bg-white shrink-0" style={{ borderColor: "#e4e4e7" }}>
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+            <Loader2 size={13} className="animate-spin" /> Traduzindo…
+          </span>
+        </div>
+      )}
+      <div className="flex-1 overflow-auto flex justify-center py-6 px-4">
+        <div
+          className="docx-preview bg-white shadow-sm rounded-md px-10 py-10 text-zinc-800"
+          style={{ maxWidth: 820, width: "100%", lineHeight: 1.6, fontSize: 14 }}
+          dangerouslySetInnerHTML={{ __html: displayHtml || "<p style='color:#a1a1aa'>Documento sem conteúdo de texto.</p>" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Gera e baixa um .docx com o texto chinês substituído pela tradução PT,
+ * PRESERVANDO toda a formatação (estilos, tabelas, imagens). Reescreve apenas o
+ * conteúdo dos nós <w:t> dentro de word/document.xml.
+ */
+async function downloadWordTranslated(
+  att: SupplierAttachment,
+  translator: ReturnType<typeof useTranslator>,
+): Promise<void> {
+  const bytes = await attachmentBytes(att);
+  if (!bytes) {
+    await downloadAttachment(att);
+    return;
+  }
+  const zip = await JSZip.loadAsync(bytes);
+  const docFile = zip.file("word/document.xml");
+  if (!docFile) {
+    await downloadAttachment(att);
+    return;
+  }
+  const xml = await docFile.async("string");
+  const texts = collectWordRunTexts(xml).filter((t) => isTranslatableText(t));
+  await translator.translateMany(texts);
+  const newXml = applyWordTranslation(xml, translator.lookup);
+  zip.file("word/document.xml", newXml);
+
+  // Também traduz cabeçalhos/rodapés, se existirem.
+  const headerFooterNames = Object.keys(zip.files).filter((n) =>
+    /^word\/(header|footer)\d*\.xml$/.test(n),
+  );
+  for (const name of headerFooterNames) {
+    const f = zip.file(name);
+    if (!f) continue;
+    const hx = await f.async("string");
+    const hTexts = collectWordRunTexts(hx).filter((t) => isTranslatableText(t));
+    if (hTexts.length > 0) await translator.translateMany(hTexts);
+    zip.file(name, applyWordTranslation(hx, translator.lookup));
+  }
+
+  const out = await zip.generateAsync({
+    type: "blob",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+  triggerBlobDownload(out, withSuffix(att.name.replace(/\.docx?$/i, ".docx"), "-PT"));
+}
+
 /** Gera e baixa um .xlsx com as células chinesas substituídas pela tradução PT. */
 async function downloadSheetTranslated(
   att: SupplierAttachment,
@@ -1148,16 +1329,16 @@ export function AttachmentLightbox({
   const vid = isVideoAtt(att);
   const pdf = isPdfAtt(att);
   const sheet = isSheetAtt(att);
-  // Imagens são sempre "traduzíveis" (texto embutido lido por OCR).
-  // PDF/planilha: o toggle aparece SEMPRE — qualquer documento pode conter
-  // conteúdo em idioma estrangeiro, e a detecção automática de idioma é frágil
-  // (falsos negativos). Deixamos o usuário decidir traduzir; quando não há nada
-  // traduzível, a tradução simplesmente repete o texto original.
-  // (hasCn permanece para futura telemetria, mas não condiciona o toggle.)
+  const word = isWordAtt(att);
+  // REGRA (Fernando): tradução automática apenas para Word (.docx) e planilhas
+  // (Excel/CSV/ODS) — formatos em que reescrevemos o conteúdo preservando o
+  // layout. PDF e imagem continuam visíveis, porém SEM toggle de idioma e com
+  // download simples (traduzir PDF é lento e desconfigura).
   void hasCn;
-  const translatable = img || pdf || sheet;
+  void pdfTextful;
+  const translatable = isTranslatableAtt(att);
   // Rótulo do formato de download traduzido.
-  const ptFormat = sheet ? "(.xlsx)" : "(.txt)";
+  const ptFormat = sheet ? "(.xlsx)" : word ? "(.docx)" : "";
 
   const handleDownloadOriginal = () => {
     setDownloadOpen(false);
@@ -1166,15 +1347,7 @@ export function AttachmentLightbox({
   const handleDownloadPt = () => {
     setDownloadOpen(false);
     if (sheet) void downloadSheetTranslated(att, translator);
-    else if (pdf) void downloadTextTranslated(att, translator, pdfTextRef.current);
-    else if (img) {
-      // Garante que o OCR rodou antes de gerar o .txt.
-      if (imageOcr.state.status === "ready" || imageOcr.state.status === "empty") {
-        downloadImageOcrText(att, imageOcr.state);
-      } else {
-        void imageOcr.run(att).then(() => downloadImageOcrText(att, imageOcr.state));
-      }
-    }
+    else if (word) void downloadWordTranslated(att, translator);
   };
 
   return createPortal(
@@ -1288,16 +1461,17 @@ export function AttachmentLightbox({
         {/* Conteúdo */}
         <div className="flex-1 min-h-0 bg-zinc-100">
           {img ? (
-            <ImageCanvas att={att} lang={lang} ocr={imageOcr} />
+            // Imagem: apenas visualização (sem tradução). Mantém lang="zh" fixo.
+            <ImageCanvas att={att} lang="zh" ocr={imageOcr} />
           ) : vid ? (
             <div className="h-full w-full flex items-center justify-center p-4 bg-black">
               <video src={attachmentSrc(att)} controls className="max-w-full max-h-full" />
             </div>
           ) : pdf ? (
+            // PDF: apenas visualização (sem tradução). lang="zh" fixo desativa o painel PT.
             <PdfCanvas
               src={attachmentStreamSrc(att)}
-              lang={lang}
-              translator={translator}
+              lang="zh"
               onChineseDetected={setHasCn}
               onTextfulDetected={setPdfTextful}
               onTextExtracted={(pages) => {
@@ -1306,6 +1480,8 @@ export function AttachmentLightbox({
             />
           ) : sheet ? (
             <SheetCanvas att={att} lang={lang} translator={translator} onChineseDetected={setHasCn} />
+          ) : word ? (
+            <WordCanvas att={att} lang={lang} translator={translator} onChineseDetected={setHasCn} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
               <FileIcon size={42} className="text-zinc-400" />
