@@ -660,3 +660,16 @@ Permitir que o usuário escolha a cor de cada card. Subgrupos e grupos promovido
 - [x] Overlay para fechar o popover ao clicar fora
 - [x] Testes atualizados (server/cardColors.test.ts: paleta >= 40, rótulos, deriveAccent para toda a paleta) — 260 testes verdes
 - [x] Validado no preview: botões no canto direito sem sobrepor texto; Yiwu trocado para índigo e restaurado para laranja
+
+
+## Feature 17 — Gerenciar parceiros chineses do filtro (cadastrar/excluir)
+Parceiros do filtro deixam de ser apenas derivados de fornecedores. Agora há parceiros avulsos persistidos em app_settings (chave managedPartners), unidos aos derivados.
+
+- [x] Hook useManagedPartners (parceiros avulsos persistidos em app_settings, chave managedPartners)
+- [x] parseManagedPartners robusto (JSON array, dedup por forma normalizada, descarta vazios/corrompidos)
+- [x] União das sugestões: derivados de fornecedores + avulsos (sem duplicar, ordem alfabética pt-BR)
+- [x] Cadastrar parceiro: Enter no campo ou botão "Cadastrar 'X'" no dropdown -> aparece como chip na hora
+- [x] Excluir parceiro: botão "x" no chip; bloqueado (com aviso) quando há fornecedores/macros vinculados; avulso sem vínculo some
+- [x] Chips diferenciam visualmente vinculados (roxo) vs avulsos sem vínculo (cinza)
+- [x] Testes de unidade (server/managedPartners.test.ts — 13 testes: parse, união, regra de exclusão, dedup)
+- [x] Validado no preview: cadastrei "Carol" (chip Betty·Carol·Lilly), excluí Carol (voltou a Betty·Lilly). Suíte: 273 testes verdes. TypeScript sem erros.

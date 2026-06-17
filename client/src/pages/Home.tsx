@@ -549,12 +549,6 @@ export default function Home() {
       <section className="relative z-10 container pb-24">
         <div className="flex items-end justify-between mb-8 gap-4">
           <div>
-            <div
-              className="text-xs uppercase tracking-[0.2em] font-semibold mb-2"
-              style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}
-            >
-              Classificação geral de grupos macro
-            </div>
             <h2
               style={{
                 fontFamily: "'Fraunces', serif",
@@ -565,8 +559,14 @@ export default function Home() {
                 lineHeight: 1.1,
               }}
             >
-              Acesso direto à inteligência
+              Classificação geral de grupos macro
             </h2>
+            <div
+              className="text-xs uppercase tracking-[0.2em] font-semibold mt-2"
+              style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+            >
+              Acesso direto à inteligência
+            </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <div
