@@ -13,6 +13,7 @@ import {
 import {
   aggregateByPartner,
   collectPartnerNames,
+  relatedPartnersOf,
   type AggNote,
   type AggSupplier,
   type AggExtraSupplier,
@@ -134,6 +135,53 @@ describe("aggregateByPartner", () => {
     expect(ana.macros[0].subgroups[0].suppliers[0].coPartners).toEqual(["Betty"]);
   });
 
+  it("resolve fornecedor de aquário por subtipo promovido a card (subgroup:aquario:terrario)", () => {
+    const petMacro: AggMacro[] = [
+      {
+        id: "m-pet",
+        number: 1,
+        name: "PET",
+        color: "#10b981",
+        items: [
+          {
+            key: "subgroup:aquario:terrario",
+            refId: "aquario",
+            label: "Terrário",
+            href: "/aquario?subtipo=terrario",
+          },
+        ],
+      },
+    ];
+    const terrSupplier: AggSupplier[] = [{ id: "sup-terr", scope: "aquario", name: "Terra Co" }];
+    const notes: AggNote[] = [
+      {
+        scope: "aquario",
+        supplierId: "sup-terr",
+        fields: {
+          subgroupId: "",
+          subtipoAquario: "terrario",
+          [PARTNERS_FIELD_KEY]: JSON.stringify(["Betty", "Lilly"]),
+        },
+        attachments: [],
+      },
+    ];
+    const res = aggregateByPartner({
+      notes,
+      customSuppliers: terrSupplier,
+      extraSuppliers: [],
+      subgroups: [],
+      macros: petMacro,
+    });
+    const betty = res.find((r) => r.key === "betty")!;
+    expect(betty.macros[0].macroName).toBe("PET");
+    expect(betty.macros[0].subgroups[0].label).toBe("Terrário");
+    expect(betty.macros[0].subgroups[0].suppliers[0].supplierName).toBe("Terra Co");
+    // E a relação de co-parceiro se forma a partir desse fornecedor.
+    expect(relatedPartnersOf(betty)).toEqual(["Lilly"]);
+    const lilly = res.find((r) => r.key === "lilly")!;
+    expect(relatedPartnersOf(lilly)).toEqual(["Betty"]);
+  });
+
   it("resolve fornecedor extra via grupo promovido (sem subgrupo)", () => {
     const notes: AggNote[] = [
       {
@@ -168,5 +216,37 @@ describe("aggregateByPartner", () => {
   it("collectPartnerNames retorna nomes distintos ordenados", () => {
     const notes = [noteWith(["Betty", "Ana"]), noteWith(["betty", "Carlos"])];
     expect(collectPartnerNames(notes)).toEqual(["Ana", "Betty", "Carlos"]);
+  });
+});
+
+// ----- relatedPartnersOf -------------------------------------------------------
+
+describe("relatedPartnersOf", () => {
+  it("retorna [] para resultado nulo/indefinido", () => {
+    expect(relatedPartnersOf(null)).toEqual([]);
+    expect(relatedPartnersOf(undefined)).toEqual([]);
+  });
+
+  it("Betty e Lilly se relacionam quando dividem o mesmo fornecedor", () => {
+    const notes = [noteWith(["Betty", "Lilly"])];
+    const res = aggregateByPartner({ notes, customSuppliers, extraSuppliers, subgroups, macros });
+    const betty = res.find((r) => r.key === "betty")!;
+    const lilly = res.find((r) => r.key === "lilly")!;
+    expect(relatedPartnersOf(betty)).toEqual(["Lilly"]);
+    expect(relatedPartnersOf(lilly)).toEqual(["Betty"]);
+  });
+
+  it("não inclui o próprio parceiro e remove duplicados (ordem A→Z)", () => {
+    const notes = [noteWith(["Betty", "Lilly", "Ana"])];
+    const res = aggregateByPartner({ notes, customSuppliers, extraSuppliers, subgroups, macros });
+    const betty = res.find((r) => r.key === "betty")!;
+    expect(relatedPartnersOf(betty)).toEqual(["Ana", "Lilly"]);
+  });
+
+  it("retorna [] quando o parceiro não divide fornecedor com ninguém", () => {
+    const notes = [noteWith(["Betty"])];
+    const res = aggregateByPartner({ notes, customSuppliers, extraSuppliers, subgroups, macros });
+    const betty = res.find((r) => r.key === "betty")!;
+    expect(relatedPartnersOf(betty)).toEqual([]);
   });
 });

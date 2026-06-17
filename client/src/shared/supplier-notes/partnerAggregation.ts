@@ -157,10 +157,17 @@ function resolveMacro(
   scope: string,
   supplierId: string,
   subgroup: AggSubgroup | null,
+  subtipo?: string | null,
 ): AggMacro | null {
   if (subgroup) {
     const m = ctx.macros.find((mm) => mm.number === subgroup.macroNumber);
     if (m) return m;
+  }
+  // Subtipo do Aquário (terrario/aquario) promovido a card de macro:
+  // item com chave subgroup:<scope>:<subtipo> (ex.: subgroup:aquario:terrario).
+  if (subtipo) {
+    const bySubtipo = ctx.macroByItemKey.get(`subgroup:${scope}:${subtipo}`);
+    if (bySubtipo) return bySubtipo;
   }
   // Dashboard fixo (aquario/tapete/yiwu) — casa por item dashboard:<scope>.
   const byDash = ctx.macroByItemKey.get(`dashboard:${scope}`);
@@ -221,7 +228,8 @@ export function aggregateByPartner(input: {
 
     const subgroupId = note.fields?.subgroupId ?? null;
     const subgroup = subgroupId ? ctx.subgroupById.get(subgroupId) ?? null : null;
-    const macro = resolveMacro(ctx, note.scope, note.supplierId, subgroup);
+    const subtipo = note.fields?.subtipoAquario ?? null;
+    const macro = resolveMacro(ctx, note.scope, note.supplierId, subgroup, subtipo);
     if (!macro) continue; // sem macro identificável, não há onde organizar
 
     const supplierName = resolveSupplierName(ctx, note.scope, note.supplierId);
@@ -234,6 +242,9 @@ export function aggregateByPartner(input: {
         (it) => it.key === `subgroup:${note.scope}:${subgroup.name.toLowerCase()}`,
       );
       href = item?.href ?? `/${note.scope}`;
+    } else if (subtipo) {
+      const item = macro.items.find((it) => it.key === `subgroup:${note.scope}:${subtipo}`);
+      href = item?.href ?? `/${note.scope}?subtipo=${subtipo}`;
     } else {
       const item =
         macro.items.find((it) => it.key === `dashboard:${note.scope}`) ??
@@ -273,13 +284,20 @@ export function aggregateByPartner(input: {
         a.macros.set(macro.id, mEntry);
       }
 
-      // Garante o nó do subgrupo (ou "sem subgrupo").
-      const subKey = subgroup ? subgroup.id : "__none__";
+      // Garante o nó do subgrupo (ou agrupamento por subtipo / "sem subgrupo").
+      // Para subtipo, preferimos o rótulo acentuado do próprio item do macro.
+      const subtipoItem = subtipo
+        ? macro.items.find((it) => it.key === `subgroup:${note.scope}:${subtipo}`)
+        : null;
+      const subtipoLabel = subtipo
+        ? subtipoItem?.label || subtipo.charAt(0).toUpperCase() + subtipo.slice(1)
+        : null;
+      const subKey = subgroup ? subgroup.id : subtipo ? `subtipo:${subtipo}` : "__none__";
       let sNode = mEntry.subByKey.get(subKey);
       if (!sNode) {
         sNode = {
           subgroupId: subgroup ? subgroup.id : null,
-          label: subgroup ? subgroupLabel(subgroup) : "Sem subgrupo",
+          label: subgroup ? subgroupLabel(subgroup) : (subtipoLabel ?? "Sem subgrupo"),
           color: subgroup ? subgroup.color : macro.color,
           suppliers: [],
         };
@@ -344,6 +362,28 @@ export function collectPartnerNames(notes: AggNote[]): string[] {
     for (const p of parsePartners(note.fields)) {
       const key = normalizePartner(p);
       if (key && !byKey.has(key)) byKey.set(key, p);
+    }
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+/**
+ * Extrai os co-parceiros relacionados a um parceiro a partir do seu PartnerResult.
+ * Dois parceiros são "relacionados" quando dividem ao menos um fornecedor (registrados
+ * juntos no mesmo fornecedor). Retorna os nomes distintos (exceto o próprio), A→Z.
+ */
+export function relatedPartnersOf(result: PartnerResult | null | undefined): string[] {
+  if (!result) return [];
+  const selfKey = normalizePartner(result.displayName);
+  const byKey = new Map<string, string>();
+  for (const m of result.macros) {
+    for (const sg of m.subgroups) {
+      for (const s of sg.suppliers) {
+        for (const cp of s.coPartners) {
+          const k = normalizePartner(cp);
+          if (k && k !== selfKey && !byKey.has(k)) byKey.set(k, cp);
+        }
+      }
     }
   }
   return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));

@@ -22,12 +22,11 @@ import {
   UserCheck,
   Eye,
   Download,
-  Plus,
-  Trash2,
+  Link2,
 } from "lucide-react";
 import { usePartnerFilter } from "./usePartnerFilter";
-import { useManagedPartners } from "./useManagedPartners";
 import { normalizePartner } from "./partners";
+import { relatedPartnersOf } from "./partnerAggregation";
 import type { PartnerResult, AggNoteAttachment } from "./partnerAggregation";
 import type { SupplierAttachment } from "./useSupplierNotes";
 import {
@@ -53,30 +52,22 @@ function toSupplierAttachment(att: AggNoteAttachment): SupplierAttachment {
 
 export function PartnerFilterPanel() {
   const { results, suggestions, loading, byPartner } = usePartnerFilter();
-  const { managed, addPartner, removePartner } = useManagedPartners();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const queryKey = normalizePartner(query);
 
-  // Lista unificada: parceiros derivados de fornecedores + avulsos cadastrados.
-  // Preserva a grafia da primeira ocorrência; ordena alfabeticamente (pt-BR).
+  // Parceiros derivados dos fornecedores (preserva grafia; ordena pt-BR).
   const allPartners = useMemo<string[]>(() => {
     const byKey = new Map<string, string>();
     for (const s of suggestions) {
       const k = normalizePartner(s);
       if (k && !byKey.has(k)) byKey.set(k, s);
     }
-    for (const m of managed) {
-      const k = normalizePartner(m);
-      if (k && !byKey.has(k)) byKey.set(k, m);
-    }
     return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [suggestions, managed]);
+  }, [suggestions]);
 
   // Sugestões filtradas pelo texto digitado (ou todas, se vazio).
   const filteredSuggestions = useMemo(() => {
@@ -84,19 +75,11 @@ export function PartnerFilterPanel() {
     return allPartners.filter((s) => normalizePartner(s).includes(queryKey));
   }, [allPartners, queryKey]);
 
-  // Existe alguém exatamente igual ao texto digitado? (para oferecer cadastro)
-  const exactExists = useMemo(
-    () => allPartners.some((s) => normalizePartner(s) === queryKey),
-    [allPartners, queryKey],
-  );
-
   const result: PartnerResult | null = selected ? byPartner(selected) : null;
 
-  // Um parceiro tem vínculo quando há fornecedores/macros associados a ele.
-  const hasLinks = (name: string): boolean => {
-    const r = byPartner(name);
-    return !!r && (r.supplierCount > 0 || r.macros.length > 0);
-  };
+  // Co-parceiros relacionados: todos os outros nomes que dividem ao menos um
+  // fornecedor com o parceiro selecionado (relação derivada do mesmo fornecedor).
+  const relatedPartners = useMemo<string[]>(() => relatedPartnersOf(result), [result]);
 
   // Anexo aberto no visualizador (lightbox) — direto da Home.
   const [viewing, setViewing] = useState<SupplierAttachment | null>(null);
@@ -105,7 +88,6 @@ export function PartnerFilterPanel() {
     setSelected(name);
     setQuery(name);
     setOpen(false);
-    setBlockedMsg(null);
     inputRef.current?.blur();
   };
 
@@ -113,39 +95,6 @@ export function PartnerFilterPanel() {
     setSelected(null);
     setQuery("");
     setOpen(false);
-    setBlockedMsg(null);
-  };
-
-  // Cadastra o parceiro digitado e já o seleciona.
-  const handleAdd = async (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed || busy) return;
-    setBusy(true);
-    try {
-      await addPartner(trimmed);
-      choose(trimmed);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Exclui um parceiro: só permitido se for avulso SEM vínculo a fornecedores.
-  const handleRemove = async (name: string) => {
-    if (busy) return;
-    if (hasLinks(name)) {
-      setBlockedMsg(
-        `\u201c${name}\u201d tem fornecedores/documentos vinculados e por isso n\u00e3o pode ser exclu\u00eddo. Remova o parceiro dos fornecedores primeiro.`,
-      );
-      return;
-    }
-    setBusy(true);
-    try {
-      await removePartner(name);
-      if (selected && normalizePartner(selected) === normalizePartner(name)) clear();
-      setBlockedMsg(null);
-    } finally {
-      setBusy(false);
-    }
   };
 
   return (
@@ -207,37 +156,19 @@ export function PartnerFilterPanel() {
               onChange={(e) => {
                 setQuery(e.target.value);
                 setOpen(true);
-                setBlockedMsg(null);
                 if (selected) setSelected(null);
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && query.trim()) {
+                if (e.key === "Enter" && query.trim() && filteredSuggestions.length > 0) {
                   e.preventDefault();
-                  if (exactExists) choose(query.trim());
-                  else void handleAdd(query);
+                  choose(filteredSuggestions[0]);
                 }
               }}
               placeholder="Digite ou escolha um parceiro (ex.: Betty)"
               className="flex-1 bg-transparent text-sm font-medium focus:outline-none"
               style={{ color: "oklch(0.95 0.01 80)" }}
             />
-            {query.trim() && !exactExists && (
-              <button
-                type="button"
-                onClick={() => void handleAdd(query)}
-                disabled={busy}
-                title={`Cadastrar parceiro \u201c${query.trim()}\u201d`}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-transform active:scale-[0.95] disabled:opacity-60"
-                style={{
-                  background: "oklch(0.78 0.16 300 / 0.18)",
-                  border: "1px solid oklch(0.78 0.16 300 / 0.5)",
-                  color: "oklch(0.85 0.12 300)",
-                }}
-              >
-                <Plus className="w-3 h-3" /> Cadastrar
-              </button>
-            )}
             {query && (
               <button
                 type="button"
@@ -288,21 +219,6 @@ export function PartnerFilterPanel() {
                 boxShadow: "0 12px 32px oklch(0 0 0 / 0.4)",
               }}
             >
-              {query.trim() && !exactExists && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    void handleAdd(query);
-                  }}
-                  disabled={busy}
-                  className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-sm transition-colors hover:brightness-125 disabled:opacity-60"
-                  style={{ color: "oklch(0.85 0.12 300)" }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Cadastrar parceiro “{query.trim()}”
-                </button>
-              )}
               <div
                 className="px-3.5 py-3 text-sm"
                 style={{ color: "oklch(0.6 0.02 80)" }}
@@ -310,72 +226,60 @@ export function PartnerFilterPanel() {
                 {loading
                   ? "Carregando parceiros…"
                   : allPartners.length === 0
-                    ? "Nenhum parceiro ainda. Digite um nome e clique em Cadastrar."
+                    ? "Nenhum parceiro cadastrado nos fornecedores ainda."
                     : "Nenhum parceiro corresponde à busca."}
               </div>
             </div>
           )}
         </div>
 
-        {/* Chips de acesso rápido + gestão (cadastrar/excluir) */}
+        {/* Chips de acesso rápido (apenas selecionam o parceiro) */}
         {!selected && allPartners.length > 0 && allPartners.length <= 24 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {allPartners.map((s) => {
-              const linked = hasLinks(s);
-              return (
-                <span
-                  key={s}
-                  className="group inline-flex items-center gap-1 rounded-full pl-3 pr-1.5 py-1 text-xs font-medium border transition-colors"
-                  style={{
-                    borderColor: linked
-                      ? "oklch(0.78 0.16 300 / 0.4)"
-                      : "oklch(0.6 0.02 80 / 0.4)",
-                    background: linked
-                      ? "oklch(0.78 0.16 300 / 0.08)"
-                      : "oklch(0.6 0.02 80 / 0.06)",
-                    color: linked ? "oklch(0.85 0.12 300)" : "oklch(0.78 0.02 80)",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => choose(s)}
-                    className="transition-transform hover:brightness-125 active:scale-[0.97]"
-                  >
-                    {s}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleRemove(s)}
-                    disabled={busy}
-                    title={
-                      linked
-                        ? "Tem fornecedores vinculados — não pode ser excluído"
-                        : `Excluir parceiro \u201c${s}\u201d`
-                    }
-                    aria-label={`Excluir parceiro ${s}`}
-                    className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-colors hover:bg-[oklch(0.6_0.2_25_/_0.25)] active:scale-[0.9] disabled:opacity-50"
-                    style={{ color: linked ? "oklch(0.55 0.02 80)" : "oklch(0.7 0.18 25)" }}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              );
-            })}
+            {allPartners.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => choose(s)}
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-transform hover:brightness-125 active:scale-[0.97]"
+                style={{
+                  borderColor: "oklch(0.78 0.16 300 / 0.4)",
+                  background: "oklch(0.78 0.16 300 / 0.08)",
+                  color: "oklch(0.85 0.12 300)",
+                }}
+              >
+                {s}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Aviso quando a exclusão é bloqueada por haver vínculos */}
-        {blockedMsg && (
-          <div
-            className="flex items-start gap-2 mt-3 rounded-lg border px-3 py-2 text-xs"
-            style={{
-              borderColor: "oklch(0.6 0.18 25 / 0.4)",
-              background: "oklch(0.6 0.18 25 / 0.08)",
-              color: "oklch(0.82 0.12 35)",
-            }}
-          >
-            <Trash2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-            <span>{blockedMsg}</span>
+        {/* Parceiros relacionados (dividem o mesmo fornecedor) */}
+        {selected && relatedPartners.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-4">
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide mr-1"
+              style={{ color: "oklch(0.6 0.02 80)" }}
+            >
+              <Link2 className="w-3.5 h-3.5" style={{ color: "oklch(0.82 0.14 300)" }} />
+              Relacionados:
+            </span>
+            {relatedPartners.map((cp) => (
+              <button
+                key={cp}
+                type="button"
+                onClick={() => choose(cp)}
+                title={`${cp} divide fornecedor com ${selected}`}
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-transform hover:brightness-125 active:scale-[0.97]"
+                style={{
+                  borderColor: "oklch(0.82 0.14 300 / 0.5)",
+                  background: "oklch(0.82 0.14 300 / 0.12)",
+                  color: "oklch(0.88 0.12 300)",
+                }}
+              >
+                {cp}
+              </button>
+            ))}
           </div>
         )}
 

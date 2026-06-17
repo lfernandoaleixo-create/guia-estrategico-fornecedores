@@ -613,11 +613,11 @@ Problema: ao cadastrar um fornecedor num subgrupo NOVO dentro de um macro (ex.: 
 
 ## Feature 13 — Excluir subgrupo pelo card (Home)
 
-- [ ] Adicionar botão de excluir no card de subgrupo da Home (com confirmação via AlertDialog)
-- [ ] Ao excluir, desvincular os fornecedores (limpar fields.subgroupId das notas do scope aquario)
-- [ ] Atualizar a contagem/lista após exclusão (reload)
-- [ ] Validar no preview removendo 1.1 Terrário e 1.2 Aquário (subgrupos de teste)
-- [ ] Teste vitest do helper de desvínculo + checkpoint
+- [x] Adicionar botão de excluir no card de subgrupo da Home (com confirmação via AlertDialog)
+- [x] Ao excluir, desvincular os fornecedores (limpar fields.subgroupId das notas do scope aquario)
+- [x] Atualizar a contagem/lista após exclusão (reload)
+- [x] Validar no preview removendo 1.1 Terrário e 1.2 Aquário (subgrupos de teste)
+- [x] Teste vitest do helper de desvínculo + checkpoint
 
 ## Feature 13 — Excluir subgrupo pelo card (Home)
 - [x] DashboardCard: prop opcional `onDelete` + botão de lixeira (Trash2) no hover (canto superior esquerdo)
@@ -626,9 +626,9 @@ Problema: ao cadastrar um fornecedor num subgrupo NOVO dentro de um macro (ex.: 
 - [x] Home: handler `handleDeleteSubgroup` (desvincula fornecedores e depois deleteSubgroup)
 - [x] Home: passar `onDelete`/`deleteTitle` aos cards de subgrupo
 - [x] Home: AlertDialog de confirmação (não window.confirm)
-- [ ] Type-check + testes verdes
-- [ ] Validar no preview excluindo subgrupos 1.1 e 1.2 de teste (PET)
-- [ ] Checkpoint
+- [x] Type-check + testes verdes
+- [x] Validar no preview excluindo subgrupos 1.1 e 1.2 de teste (PET)
+- [x] Checkpoint
 
 ## Feature 14 — Excluir cards de acesso fixos e macros inteiros (Home)
 Confirmado com o usuário: excluir card de acesso fixo = apenas oculta do portal (Home), sem apagar dados dos fornecedores do dashboard correspondente. Excluir macro = remove a classificação e desvincula (não apaga) os itens.
@@ -673,3 +673,14 @@ Parceiros do filtro deixam de ser apenas derivados de fornecedores. Agora há pa
 - [x] Chips diferenciam visualmente vinculados (roxo) vs avulsos sem vínculo (cinza)
 - [x] Testes de unidade (server/managedPartners.test.ts — 13 testes: parse, união, regra de exclusão, dedup)
 - [x] Validado no preview: cadastrei "Carol" (chip Betty·Carol·Lilly), excluí Carol (voltou a Betty·Lilly). Suíte: 273 testes verdes. TypeScript sem erros.
+
+
+## Feature 18 — Reverter cadastro avulso + relação entre co-parceiros
+Fernando: o cadastro de parceiros acontece DENTRO do fornecedor (campo "Parceiro Chinês Responsável"), não na Home. O filtro da Home só lista parceiros derivados de fornecedores. Novidade: co-parceiros do MESMO fornecedor ficam relacionados — filtrar Betty mostra Betty + Lilly (co-responsáveis) e vice-versa.
+
+- [ ] Reverter PartnerFilterPanel: remover useManagedPartners, botão Cadastrar, opção de cadastro no dropdown e botão de exclusão dos chips
+- [ ] Chips voltam a ser apenas atalho para selecionar o parceiro (sem "x" de excluir)
+- [ ] Ao filtrar um parceiro, exibir chips de co-parceiros relacionados (derivados do mesmo fornecedor) clicáveis (troca o filtro)
+- [ ] Garantir dedup e exclusão do próprio nome da lista de relacionados
+- [ ] Testes de unidade da agregação de co-parceiros
+- [ ] Validar no preview filtrando Betty (mostra Lilly relacionada) + checkpoint
