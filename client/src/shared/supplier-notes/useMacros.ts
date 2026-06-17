@@ -147,11 +147,15 @@ export function useMacros() {
     async (input: { name: string; number?: number; color?: string }) => {
       const trimmed = input.name.trim();
       if (!trimmed) return null;
-      const used = new Set(macros.map((m) => m.number).filter(Boolean));
+      // Inclui o 0 no conjunto de números usados (antes .filter(Boolean) o descartava).
+      const used = new Set(
+        macros.map((m) => m.number).filter((n) => Number.isFinite(n)),
+      );
       let auto = 1;
       while (used.has(auto)) auto += 1;
+      // Número fornecido (inclusive 0) é respeitado; ausente/NaN usa o automático.
       const number =
-        typeof input.number === "number" && input.number > 0
+        typeof input.number === "number" && Number.isFinite(input.number) && input.number >= 0
           ? Math.floor(input.number)
           : auto;
       const color =

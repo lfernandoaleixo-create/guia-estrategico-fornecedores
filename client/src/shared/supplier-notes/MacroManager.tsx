@@ -59,10 +59,12 @@ export function MacroManager({ open, onOpenChange, promotedGroups }: MacroManage
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const num = parseInt(newNumber, 10);
+      const trimmedNumber = newNumber.trim();
+      const num = parseInt(trimmedNumber, 10);
       const created = await createMacro({
         name: newName,
-        number: Number.isFinite(num) && num > 0 ? num : undefined,
+        // Campo vazio = automático; valor digitado (inclusive 0) é respeitado.
+        number: trimmedNumber !== "" && Number.isFinite(num) && num >= 0 ? num : undefined,
         color: newColor,
       });
       setNewName("");
@@ -115,7 +117,7 @@ export function MacroManager({ open, onOpenChange, promotedGroups }: MacroManage
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
               type="number"
-              min={1}
+              min={0}
               placeholder="Nº"
               value={newNumber}
               onChange={(e) => setNewNumber(e.target.value)}
@@ -222,11 +224,11 @@ export function MacroManager({ open, onOpenChange, promotedGroups }: MacroManage
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
                         value={m.number}
                         onChange={(e) => {
                           const n = parseInt(e.target.value, 10);
-                          if (Number.isFinite(n) && n > 0) updateMacro(m.id, { number: n });
+                          if (Number.isFinite(n) && n >= 0) updateMacro(m.id, { number: n });
                         }}
                         className="sm:w-20"
                         style={{ background: "oklch(0.12 0.02 250)", borderColor: "oklch(0.26 0.03 250)", color: "oklch(0.95 0.01 80)" }}

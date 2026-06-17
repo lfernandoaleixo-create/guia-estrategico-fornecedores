@@ -732,3 +732,12 @@ Fernando criou o Macro "Documentos" e ele não apareceu. Causa: Home.tsx linha ~
 - [x] Reordenar/excluir continuam funcionando para macro vazio (botões no cabeçalho)
 - [x] Validado no preview: macro "4 · Documentos · 0 acessos" agora aparece na lista
 - [x] Teste macroEmptyVisible.test.ts + suíte 325 verde + TypeScript limpo
+
+## Feature 25 — Permitir número 0 no macro
+Fernando quer poder definir o número do macro como 0 (ex.: "0 · Documentos"). Hoje há guardas `> 0` no cliente que bloqueiam o 0.
+
+- [x] useMacros.createMacro: aceita número fornecido >= 0 (0 explícito respeitado); undefined/NaN = automático; Set de usados corrigido para não descartar 0
+- [x] MacroManager.handleCreate: envia number quando campo preenchido (inclusive 0), undefined quando vazio
+- [x] MacroManager edição inline: permite n >= 0 e min={0} nos inputs
+- [x] Servidor já aceita z.number().int() (0 ok) — sem mudança
+- [x] Teste macroNumberZero.test.ts + suíte 331 verde + TypeScript limpo + validado no preview (criado "0 · Central Zero" e removido)
