@@ -723,3 +723,12 @@ Fernando: ao criar subgrupos (ex.: 1.4 Coleiras pra cachorro), o dashboard do su
 - [x] SubgroupDashboard agora exibe o "Relatório de Atividades" (ReportPanel) com entries/allSupplierIds só do subgrupo + resolveSupplierName + Exportar PDF
 - [x] Seção só aparece quando o subgrupo tem fornecedores (estado vazio coberto)
 - [x] Teste subgroupMetrics.test.ts (contagem por supplierIds) + suíte 322 verde + TypeScript limpo + validado no preview (subgrupo 1.4)
+
+## Feature 24 — Macro recém-criado (vazio) não aparece na Home
+Fernando criou o Macro "Documentos" e ele não apareceu. Causa: Home.tsx linha ~601 faz `if (totalAcessos === 0) return null;`, ocultando macros sem itens/subgrupos.
+
+- [x] Renderiza macros mesmo quando vazios (removido o `return null` por totalAcessos===0)
+- [x] Estado vazio do macro: card pontilhado com mensagem + botão "Adicionar fornecedor" já existente funciona
+- [x] Reordenar/excluir continuam funcionando para macro vazio (botões no cabeçalho)
+- [x] Validado no preview: macro "4 · Documentos · 0 acessos" agora aparece na lista
+- [x] Teste macroEmptyVisible.test.ts + suíte 325 verde + TypeScript limpo

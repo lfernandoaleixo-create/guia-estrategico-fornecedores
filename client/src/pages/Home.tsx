@@ -598,7 +598,10 @@ export default function Home() {
           const items = m.items.filter((it) => allCards[it.key]);
           const subgroupCards = subgroupCardsByMacro[m.number] ?? [];
           const totalAcessos = items.length + subgroupCards.length;
-          if (totalAcessos === 0) return null;
+          // Macros recém-criados (sem itens/subgrupos) DEVEM aparecer na lista,
+          // com um estado vazio e atalho para adicionar conteúdo. Antes eles
+          // ficavam ocultos (return null) e pareciam "não ter sido criados".
+          const isEmptyMacro = totalAcessos === 0;
           const collapsed = collapsedMacros.has(m.id);
           const isFirst = macroIdx === 0;
           const isLast = macroIdx === macros.length - 1;
@@ -729,6 +732,21 @@ export default function Home() {
 
               {!collapsed && (
                 <>
+                  {isEmptyMacro && (
+                    <div
+                      className="rounded-2xl border border-dashed p-6 mb-4 text-center"
+                      style={{ borderColor: `${m.color}55`, background: `${m.color}0d` }}
+                    >
+                      <div
+                        className="text-sm"
+                        style={{ color: "oklch(0.72 0.02 80)" }}
+                      >
+                        Esta classificação ainda não tem acessos. Adicione um
+                        fornecedor abaixo ou organize dashboards/subgrupos em
+                        <strong> Criar novo Macro</strong>.
+                      </div>
+                    </div>
+                  )}
                   <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
                     {items.map((it, idx) => {
                       const base = allCards[it.key];
