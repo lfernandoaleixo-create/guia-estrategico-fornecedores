@@ -695,3 +695,13 @@ Fernando: PDF não compensa traduzir (lento e desconfigura). Manter tradução a
 - [x] Exibir chips de "Parceiro Chinês" no card recolhido do fornecedor (junto de status/anexos/grupo)
 - [x] Garantir que o card recolhido fique legível com 1+ parceiros (truncar/limitar com "+N")
 - [x] Testes/validação no preview (Word PT validado: preview + download .docx-PT preservando tabela/estilos; chip Betty no card recolhido)
+
+## Feature 21 — Card de subgrupo: eyebrow com nome + subtítulo editável
+Fernando: o rótulo do topo do card de subgrupo deve mostrar o nome do dashboard (igual aos outros), e o texto colorido do meio ("Subgrupo do macro") deve ser editável para escrever o que quiser.
+
+- [x] Adicionar coluna `subtitle` (texto livre, opcional) na tabela subgroups + migração (pnpm db:push)
+- [x] Eyebrow do card de subgrupo passa a exibir o nome do dashboard (card da Home + topo do dashboard); numeração mantida no badge lateral
+- [x] Subtítulo do card de subgrupo passa a usar `subtitle` (fallback "Subgrupo do macro" quando vazio)
+- [x] UI para editar o subtítulo do subgrupo (edição inline com lápis no topo do dashboard do subgrupo)
+- [x] Procedure/db helper para salvar subtitle do subgrupo (coluna subtitle + subgroupInput + upsertSubgroup)
+- [x] Testes (subgroupSubtitle.test.ts) + validado no preview (editar/persistir/fallback) — 303 testes passando

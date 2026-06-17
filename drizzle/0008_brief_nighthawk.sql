@@ -1,0 +1,1 @@
+ALTER TABLE `subgroups` ADD `subtitle` varchar(255) DEFAULT '' NOT NULL;

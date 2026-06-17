@@ -162,6 +162,7 @@ const subgroupInput = z.object({
   macroNumber: z.number().int(),
   sub: z.number().int(),
   name: z.string(),
+  subtitle: z.string().default(""),
   color: z.string().default("#10b981"),
   createdAt: z.string(),
   updatedAt: z.string(),

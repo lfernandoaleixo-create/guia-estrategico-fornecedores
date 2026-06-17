@@ -366,9 +366,9 @@ export default function Home() {
       const hier = formatSubgroupNumber(sg.macroNumber, sg.sub);
       const card: DashboardCardData = {
         href: `/subgrupo/${sg.id}`,
-        eyebrow: `SUBGRUPO ${hier}`,
+        eyebrow: sg.name,
         title: sg.name,
-        subtitle: "Subgrupo do macro",
+        subtitle: sg.subtitle?.trim() || "Subgrupo do macro",
         description: `Dashboard dedicado do subgrupo ${hier} · ${sg.name}. Lista os fornecedores deste ramo com status, contatos, anexos (com tradução PT) e cotações.`,
         accent: sg.color,
         accentSoft: sg.color,

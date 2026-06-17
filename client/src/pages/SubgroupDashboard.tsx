@@ -12,7 +12,7 @@
 // =============================================================================
 import { useMemo, useState } from "react";
 import { Link, useParams } from "wouter";
-import { ArrowLeft, Plus, Building2, Search, X, Layers } from "lucide-react";
+import { ArrowLeft, Plus, Building2, Search, X, Layers, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
 import { useMacros } from "@/shared/supplier-notes/useMacros";
@@ -37,7 +37,7 @@ export default function SubgroupDashboard() {
   const params = useParams();
   const subgroupId = params.id ?? "";
 
-  const { byId: subgroupById, loading: loadingSub } = useSubgroups();
+  const { byId: subgroupById, loading: loadingSub, updateSubgroup } = useSubgroups();
   const { macros } = useMacros();
   const subgroup = subgroupId ? subgroupById.get(subgroupId) : undefined;
 
@@ -48,6 +48,28 @@ export default function SubgroupDashboard() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<CustomSupplier | null>(null);
+  // Edição inline do subtítulo livre do subgrupo (texto colorido do card/topo).
+  const [editingSubtitle, setEditingSubtitle] = useState(false);
+  const [subtitleDraft, setSubtitleDraft] = useState("");
+  const [savingSubtitle, setSavingSubtitle] = useState(false);
+
+  const openSubtitleEditor = () => {
+    setSubtitleDraft(subgroup?.subtitle ?? "");
+    setEditingSubtitle(true);
+  };
+  const saveSubtitle = async () => {
+    if (!subgroup) return;
+    setSavingSubtitle(true);
+    try {
+      await updateSubgroup(subgroup.id, { subtitle: subtitleDraft.trim() });
+      toast.success("Subtítulo atualizado.");
+      setEditingSubtitle(false);
+    } catch {
+      toast.error("Não foi possível salvar o subtítulo.");
+    } finally {
+      setSavingSubtitle(false);
+    }
+  };
 
   const accent = subgroup?.color ?? "#10b981";
   const macro = subgroup ? macros.find((m) => m.number === subgroup.macroNumber) : undefined;
@@ -165,7 +187,7 @@ export default function SubgroupDashboard() {
               className="text-[11px] uppercase tracking-[0.22em] font-semibold mb-1"
               style={{ color: accent, fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {loading ? "Carregando…" : `Subgrupo ${hierLabel}`}
+              {loading ? "Carregando…" : subgroup?.name}
               {macro && ` · ${macro.name}`}
             </div>
             <h1
@@ -180,6 +202,58 @@ export default function SubgroupDashboard() {
             >
               {subgroup?.name ?? "…"}
             </h1>
+
+            {/* Subtítulo livre/editável (texto colorido). Clique no lápis para editar. */}
+            {editingSubtitle ? (
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={subtitleDraft}
+                  onChange={(e) => setSubtitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveSubtitle();
+                    if (e.key === "Escape") setEditingSubtitle(false);
+                  }}
+                  maxLength={255}
+                  placeholder="Escreva um subtítulo livre (ex.: Foco em exportação)"
+                  className="flex-1 max-w-md bg-transparent border rounded-lg px-3 py-1.5 text-sm italic font-semibold outline-none"
+                  style={{ borderColor: `${accent}88`, color: accent }}
+                />
+                <button
+                  onClick={saveSubtitle}
+                  disabled={savingSubtitle}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-transform active:scale-[0.97] disabled:opacity-60"
+                  style={{ background: accent, color: "oklch(0.10 0.02 250)" }}
+                >
+                  <Check className="w-3.5 h-3.5" /> Salvar
+                </button>
+                <button
+                  onClick={() => setEditingSubtitle(false)}
+                  className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs"
+                  style={{ color: TEXT_MUTED }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={openSubtitleEditor}
+                title="Editar subtítulo"
+                className="group mt-1.5 inline-flex items-center gap-2 text-left transition-transform active:scale-[0.99]"
+              >
+                <span
+                  className="text-base italic font-semibold"
+                  style={{ color: accent, fontFamily: "'Fraunces', serif" }}
+                >
+                  {subgroup?.subtitle?.trim() || "Subgrupo do macro"}
+                </span>
+                <Pencil
+                  className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity"
+                  style={{ color: TEXT_MUTED }}
+                />
+              </button>
+            )}
+
             <p className="mt-1.5 text-sm" style={{ color: TEXT_MUTED }}>
               {suppliersInSubgroup.length} fornecedor
               {suppliersInSubgroup.length === 1 ? "" : "es"} neste subgrupo. Cada um abre o painel

@@ -23,6 +23,8 @@ export interface Subgroup {
   /** Sufixo livre dentro do macro (o "x" em macro.x). */
   sub: number;
   name: string;
+  /** Subtítulo livre exibido no card (texto colorido). Vazio = fallback. */
+  subtitle: string;
   color: string;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +54,7 @@ function normalize(row: {
   macroNumber: number;
   sub: number;
   name: string;
+  subtitle?: string;
   color: string;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +64,7 @@ function normalize(row: {
     macroNumber: Number(row.macroNumber),
     sub: Number(row.sub),
     name: row.name,
+    subtitle: row.subtitle ?? "",
     color: row.color ?? "#10b981",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -125,6 +129,7 @@ export function useSubgroups() {
         macroNumber: Math.floor(input.macroNumber),
         sub: Math.floor(input.sub),
         name: trimmed,
+        subtitle: "",
         color,
         createdAt: nowISO(),
         updatedAt: nowISO(),
@@ -139,7 +144,9 @@ export function useSubgroups() {
   const updateSubgroup = useCallback(
     async (
       id: string,
-      patch: Partial<Pick<Subgroup, "macroNumber" | "sub" | "name" | "color">>,
+      patch: Partial<
+        Pick<Subgroup, "macroNumber" | "sub" | "name" | "subtitle" | "color">
+      >,
     ) => {
       const current = byId.get(id);
       if (!current) return;

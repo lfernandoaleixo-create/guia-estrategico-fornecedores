@@ -254,6 +254,8 @@ export const subgroups = mysqlTable("subgroups", {
   sub: int("sub").notNull(),
   /** Nome livre do subgrupo (ex.: "Terrário", "Coleira de Cachorro"). */
   name: varchar("name", { length: 255 }).notNull(),
+  /** Subtítulo livre exibido no card (texto colorido). Vazio = usa fallback. */
+  subtitle: varchar("subtitle", { length: 255 }).notNull().default(""),
   /** Cor de destaque (hex). */
   color: varchar("color", { length: 32 }).notNull().default("#10b981"),
   createdAt: varchar("createdAt", { length: 40 }).notNull(),
