@@ -678,9 +678,10 @@ Parceiros do filtro deixam de ser apenas derivados de fornecedores. Agora há pa
 ## Feature 18 — Reverter cadastro avulso + relação entre co-parceiros
 Fernando: o cadastro de parceiros acontece DENTRO do fornecedor (campo "Parceiro Chinês Responsável"), não na Home. O filtro da Home só lista parceiros derivados de fornecedores. Novidade: co-parceiros do MESMO fornecedor ficam relacionados — filtrar Betty mostra Betty + Lilly (co-responsáveis) e vice-versa.
 
-- [ ] Reverter PartnerFilterPanel: remover useManagedPartners, botão Cadastrar, opção de cadastro no dropdown e botão de exclusão dos chips
-- [ ] Chips voltam a ser apenas atalho para selecionar o parceiro (sem "x" de excluir)
-- [ ] Ao filtrar um parceiro, exibir chips de co-parceiros relacionados (derivados do mesmo fornecedor) clicáveis (troca o filtro)
-- [ ] Garantir dedup e exclusão do próprio nome da lista de relacionados
-- [ ] Testes de unidade da agregação de co-parceiros
-- [ ] Validar no preview filtrando Betty (mostra Lilly relacionada) + checkpoint
+- [x] Reverter PartnerFilterPanel: remover useManagedPartners, botão Cadastrar, opção de cadastro no dropdown e botão de exclusão dos chips
+- [x] Chips voltam a ser apenas atalho para selecionar o parceiro (sem "x" de excluir)
+- [x] Ao filtrar um parceiro, exibir chips de co-parceiros relacionados (derivados do mesmo fornecedor) clicáveis (troca o filtro)
+- [x] Garantir dedup e exclusão do próprio nome da lista de relacionados
+- [x] Testes de unidade da agregação de co-parceiros
+- [x] Validar no preview filtrando Betty (mostra Lilly relacionada) + checkpoint
+- [x] Corrigir agregação: fornecedores de Aquário por subtipo (Terrário/Aquário) com subgroupId vazio passam a ser associados ao macro (item subgroup:scope:subtipo)
