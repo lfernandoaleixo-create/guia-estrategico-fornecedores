@@ -24,6 +24,7 @@ import { parsePartners, serializePartners, PARTNERS_FIELD_KEY } from "./partners
 import { useSubtipoHierLabel } from "./useSubtipoHierLabel";
 import ViabilitySheetDialog from "./ViabilitySheetDialog";
 import { AttachmentLightbox } from "./attachmentViewer";
+import { shouldHydrate } from "./hydrationPolicy";
 import {
   STATUS_CONFIG,
   STATUS_ORDER,
@@ -574,6 +575,21 @@ export default function SupplierNotesPanel({
     Partial<Record<AttachmentCategory, { name: string; percent: number; index: number; total: number }>>
   >({});
   const [savedHint, setSavedHint] = useState(false);
+  // Marca que o operador editou algo neste painel desde a última hidratação.
+  // Enquanto "sujo", IGNORAMOS qualquer reidratação vinda do servidor (polling/
+  // refetch) para NUNCA descartar o que está sendo digitado. A fonte da verdade
+  // enquanto o painel está aberto e em edição é o estado local.
+  const dirtyRef = useRef(false);
+  const markDirty = () => {
+    dirtyRef.current = true;
+  };
+  // Guarda qual supplier já foi hidratado, para reidratar SOMENTE ao trocar de
+  // fornecedor (e não a cada mudança de referência de `entry`).
+  const hydratedForRef = useRef<string | null>(null);
+  // Indica se o estado local já foi populado com um `entry` real (não-nulo) para
+  // o supplier atual. Permite preencher os campos quando o dado chega async, mas
+  // apenas enquanto o operador ainda não digitou nada (painel "limpo").
+  const hydratedFromEntryRef = useRef(false);
   const [preview, setPreview] = useState<SupplierAttachment | null>(null);
   // Abre o modal da planilha de análise de viabilidade (calculadora).
   const [calcOpen, setCalcOpen] = useState(false);
@@ -584,15 +600,43 @@ export default function SupplierNotesPanel({
   const cotacoesRef = useRef<HTMLInputElement>(null);
   const outrosRef = useRef<HTMLInputElement>(null);
 
-  // Sync quando entry chega async do IndexedDB ou troca o supplier
+  // Hidratação do estado local a partir do servidor.
+  //
+  // REGRA CRÍTICA (nunca perder dados digitados):
+  //   - Só hidratamos quando MUDA o fornecedor (supplierId) OU na 1ª vez que o
+  //     `entry` chega async para este fornecedor e o painel ainda está "limpo".
+  //   - Se o operador já editou algo (dirtyRef), NUNCA sobrescrevemos o estado
+  //     local com dados do servidor — assim um refetch/polling não apaga o que
+  //     foi digitado.
   useEffect(() => {
-    setStatus(entry?.status ?? "nao-visitado");
-    setObservacoes(entry?.observacoes ?? "");
-    setResumoNegociacao(entry?.fields?.resumoNegociacao ?? "");
-    setStatusLivre(entry?.fields?.statusLivre ?? "");
-    setFields(entry?.fields ?? {});
-    setQuoteRows(entry?.quoteRows ?? []);
-  }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
+    const changedSupplier = hydratedForRef.current !== supplierId;
+    const doHydrate = shouldHydrate({
+      currentSupplierId: supplierId,
+      hydratedFor: hydratedForRef.current,
+      dirty: dirtyRef.current,
+      hydratedFromEntry: hydratedFromEntryRef.current,
+      hasEntry: entry != null,
+    });
+
+    if (doHydrate) {
+      setStatus(entry?.status ?? "nao-visitado");
+      setObservacoes(entry?.observacoes ?? "");
+      setResumoNegociacao(entry?.fields?.resumoNegociacao ?? "");
+      setStatusLivre(entry?.fields?.statusLivre ?? "");
+      setFields(entry?.fields ?? {});
+      setQuoteRows(entry?.quoteRows ?? []);
+      hydratedForRef.current = supplierId;
+      hydratedFromEntryRef.current = entry != null;
+      // Trocar de fornecedor zera o estado de edição.
+      if (changedSupplier) {
+        dirtyRef.current = false;
+        if (entry == null) hydratedFromEntryRef.current = false;
+      }
+    }
+    // Dependemos apenas de supplierId e da existência de entry (não do conteúdo),
+    // para evitar reidratar a cada mudança de referência vinda do polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplierId, entry != null]);
 
   const attachments = entry?.attachments ?? [];
 
@@ -635,6 +679,7 @@ export default function SupplierNotesPanel({
   const potencial = (fields.potencial as Potencial | undefined) ?? undefined;
 
   const handlePotencialClick = (p: Potencial) => {
+    markDirty();
     // Alterna e é mutuamente exclusivo: clicar no mesmo desmarca; clicar no outro troca.
     const nextFields = { ...fields };
     if (nextFields.potencial === p) {
@@ -643,11 +688,12 @@ export default function SupplierNotesPanel({
       nextFields.potencial = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
     flashSaved();
   };
 
   const handleTipoClick = (t: TipoFornecedor) => {
+    markDirty();
     // Alterna e é mutuamente exclusivo: clicar no mesmo desmarca; clicar no outro troca.
     const nextFields = { ...fields };
     if (nextFields.tipoFornecedor === t) {
@@ -656,27 +702,32 @@ export default function SupplierNotesPanel({
       nextFields.tipoFornecedor = t;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
     flashSaved();
   };
 
   const handleStatusClick = (s: SupplierStatus) => {
+    markDirty();
     setStatus(s);
     // A classificação de preço é independente do status (sempre visível/editável).
-    upsertEntry(supplierId, { status: s, observacoes });
+    // Persistimos também os campos atuais (incluindo resumo/status livre digitados)
+    // para nunca descartar o que o operador já preencheu antes de salvar.
+    upsertEntry(supplierId, { status: s, observacoes, fields: { ...fields, resumoNegociacao, statusLivre } });
     flashSaved();
   };
 
   // Persiste a lista de Parceiro(s) Chinês(es) Responsável(eis) em
   // fields.parceirosChineses (JSON). Salvamos imediatamente ao adicionar/remover.
   const handlePartnersChange = (next: string[]) => {
+    markDirty();
     const nextFields = { ...fields, [PARTNERS_FIELD_KEY]: serializePartners(next) };
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
     flashSaved();
   };
 
   const handlePrecoClick = (p: PrecoClassificacao) => {
+    markDirty();
     // Alterna: clicar na mesma opção remove a classificação. Independente do status.
     const nextFields = { ...fields };
     if (nextFields.precoClassificacao === p) {
@@ -685,7 +736,7 @@ export default function SupplierNotesPanel({
       nextFields.precoClassificacao = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
     flashSaved();
   };
 
@@ -696,6 +747,10 @@ export default function SupplierNotesPanel({
     setFields(fieldsToSave);
     upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave });
     upsertQuoteRows(supplierId, quoteRows);
+    // O conteúdo salvo é agora a base confirmada: liberamos a reidratação do
+    // servidor (que virá com exatamente o que acabamos de gravar).
+    dirtyRef.current = false;
+    hydratedFromEntryRef.current = true;
     flashSaved();
     if (onSaved) {
       // Estratégia: ancorar visualmente o card pai (cabeçalho colapsável)
@@ -745,12 +800,14 @@ export default function SupplierNotesPanel({
   });
 
   const handleQuoteAdd = () => {
+    markDirty();
     const next = [...quoteRows, newQuoteRow()];
     setQuoteRows(next);
     upsertQuoteRows(supplierId, next);
   };
 
   const handleQuoteChange = (id: string, key: keyof QuoteRow, value: string) => {
+    markDirty();
     setQuoteRows((prev) => prev.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
   };
 
@@ -759,12 +816,14 @@ export default function SupplierNotesPanel({
   };
 
   const handleQuoteRemove = (id: string) => {
+    markDirty();
     const next = quoteRows.filter((r) => r.id !== id);
     setQuoteRows(next);
     upsertQuoteRows(supplierId, next);
   };
 
   const handleFieldChange = (key: string, value: string) => {
+    markDirty();
     setFields((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -835,6 +894,12 @@ export default function SupplierNotesPanel({
     setStatus("nao-visitado");
     setObservacoes("");
     setResumoNegociacao("");
+    setStatusLivre("");
+    setFields({});
+    setQuoteRows([]);
+    // Reset total do estado de edição após apagar.
+    dirtyRef.current = false;
+    hydratedFromEntryRef.current = false;
   };
 
   const hasContent =
@@ -1203,7 +1268,7 @@ export default function SupplierNotesPanel({
         </label>
         <textarea
           value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
+          onChange={(e) => { markDirty(); setObservacoes(e.target.value); }}
           placeholder="Anote aqui detalhes da negociação, contatos, prazos, condições…"
           rows={5}
           className="w-full px-3.5 py-3 rounded-lg resize-y text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
@@ -1227,7 +1292,7 @@ export default function SupplierNotesPanel({
         </label>
         <textarea
           value={resumoNegociacao}
-          onChange={(e) => setResumoNegociacao(e.target.value)}
+          onChange={(e) => { markDirty(); setResumoNegociacao(e.target.value); }}
           placeholder="Resuma o andamento: valores acordados, condições, próximos passos, histórico de conversas…"
           rows={5}
           className="w-full px-3.5 py-3 rounded-lg resize-y text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
@@ -1250,7 +1315,7 @@ export default function SupplierNotesPanel({
         <input
           type="text"
           value={statusLivre}
-          onChange={(e) => setStatusLivre(e.target.value)}
+          onChange={(e) => { markDirty(); setStatusLivre(e.target.value); }}
           placeholder="Escreva aqui o status que quiser (ex.: Aguardando contrato, Em validação, Prioridade…)"
           className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
           style={{

@@ -782,3 +782,10 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Filtros combináveis (potencial + preço + status), múltiplos ao mesmo tempo
 - [x] Testes de unidade (seleção/filtragem) verdes
 - [x] Validar no preview e salvar checkpoint
+
+## Feature 30 — Nada pode sumir ao salvar (blindar persistência de observações/campos)
+- [x] Reproduzir a perda de observações ao salvar e identificar a causa raiz (cliente → servidor → banco)
+- [x] Garantir merge não-destrutivo de fields/observações/anexos no save (nunca sobrescrever com vazio)
+- [x] Corrigir resets indevidos de estado (useEffect) que apagam o que foi digitado
+- [x] Testes de regressão cobrindo save parcial sem perder campos existentes
+- [x] Validar no preview (observações + status + preço + resumo persistem) e checkpoint
