@@ -858,3 +858,9 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] SupplierMapDialog: RouteModeKey troca TRANSIT→FLIGHT; chip "Transporte"→"Avião"
 - [x] Modo Avião abre busca de voos no Google Maps (travelmode=flight) em nova aba + aviso no modal (Directions não desenha rota aérea)
 - [x] Mensagem de erro ferroviário passa a sugerir "Avião"/"Carro"; sem refs órfãs a TRANSIT; 398 testes verdes, TS limpo
+
+## Feature 38 — Pastas: expandir/recolher + métrica "Pastas anexadas" + Resumo
+- [x] FolderCard: cabeçalho clicável para expandir/recolher os documentos (default recolhido), com chevron animado
+- [x] Métrica "Pastas anexadas" em cada dashboard (card no ReportPanel + PDF; usa countFolders sobre filteredEntries)
+- [x] Refletir contagem de pastas no Resumo das Negociações (indicador "N pastas" no cabeçalho de Anexos; pastas já listadas com arquivos)
+- [x] Função pura countFolders + 4 testes; 402 testes verdes; TS limpo

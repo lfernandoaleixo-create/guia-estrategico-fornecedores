@@ -84,6 +84,27 @@ export function resolveNextFields(
   return replaceFields ? patchFields : { ...base, ...patchFields };
 }
 
+/**
+ * Conta quantas PASTAS distintas (campo `folder` do anexo) existem entre as
+ * entradas fornecidas, considerando apenas pastas que possuem ao menos um
+ * anexo. Nomes de pasta são comparados com trim. Usado na métrica
+ * "Pastas anexadas" dos dashboards e no Resumo das Negociações.
+ *
+ * Função pura para permitir teste de regressão.
+ */
+export function countFolders(
+  entries: Array<{ attachments?: { folder?: string }[] | null }>,
+): number {
+  const names = new Set<string>();
+  for (const e of entries) {
+    for (const a of e.attachments ?? []) {
+      const f = a.folder?.trim();
+      if (f) names.add(f);
+    }
+  }
+  return names.size;
+}
+
 export interface SupplierNoteEntry {
   supplierId: string;
   status: SupplierStatus;

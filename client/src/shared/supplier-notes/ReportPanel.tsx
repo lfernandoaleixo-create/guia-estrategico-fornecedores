@@ -15,8 +15,9 @@ import {
   TIPO_ORDER,
   TipoFornecedor,
   filterEntriesByTipo,
+  countFolders,
 } from "./useSupplierNotes";
-import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown, Factory } from "lucide-react";
+import { FileText, Download, Filter, BarChart3, Calendar, Trash2, Search, X, ChevronDown, Factory, FolderClosed } from "lucide-react";
 import {
   SpecialtyFilter,
   filterEntriesBySpecialty,
@@ -275,7 +276,8 @@ export default function ReportPanel({
         else outros++;
       });
     });
-    return { catalogos, fotos, cotacoes, outros };
+    const folders = countFolders(filteredEntries);
+    return { catalogos, fotos, cotacoes, outros, folders };
   }, [filteredEntries]);
 
   // Generate PDF
@@ -416,16 +418,17 @@ export default function ReportPanel({
       doc.setTextColor(0, 0, 0);
 
       const attData = [
-        { label: "Cat\u00e1logos", value: attachmentCounts.catalogos, color: [234, 88, 12] },
+        { label: "Catálogos", value: attachmentCounts.catalogos, color: [234, 88, 12] },
         { label: "Fotos", value: attachmentCounts.fotos, color: [124, 58, 237] },
-        { label: "Cota\u00e7\u00f5es", value: attachmentCounts.cotacoes, color: [5, 150, 105] },
+        { label: "Cotações", value: attachmentCounts.cotacoes, color: [5, 150, 105] },
         { label: "Outros", value: attachmentCounts.outros, color: [107, 114, 128] },
+        { label: "Pastas anexadas", value: attachmentCounts.folders, color: [124, 58, 237] },
       ];
 
       const cardW = 45;
       const cardH = 20;
       const cardGap = 8;
-      const cardsStartX = (pageWidth - (cardW * 4 + cardGap * 3)) / 2;
+      const cardsStartX = (pageWidth - (cardW * attData.length + cardGap * (attData.length - 1))) / 2;
       const cardsY = attY + 10;
 
       attData.forEach((item, i) => {
@@ -803,21 +806,26 @@ export default function ReportPanel({
       </div>
 
       {/* Attachment summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {[
           { label: "Catálogos", count: attachmentCounts.catalogos, color: "#f59e0b" },
           { label: "Fotos", count: attachmentCounts.fotos, color: "#8b5cf6" },
           { label: "Cotações", count: attachmentCounts.cotacoes, color: "#10b981" },
           { label: "Outros", count: attachmentCounts.outros, color: "#6b7280" },
+          { label: "Pastas anexadas", count: attachmentCounts.folders, color: "#7c3aed" },
         ].map((item) => (
           <div
             key={item.label}
             className={`p-3 rounded-lg border flex items-center gap-3 ${dark ? 'border-zinc-700/40 bg-zinc-900/40' : 'border-zinc-200 bg-white'}`}
           >
-            <div
-              className="w-2 h-8 rounded-full"
-              style={{ background: item.color }}
-            />
+            {item.label === "Pastas anexadas" ? (
+              <FolderClosed size={18} style={{ color: item.color }} className="flex-shrink-0" />
+            ) : (
+              <div
+                className="w-2 h-8 rounded-full"
+                style={{ background: item.color }}
+              />
+            )}
             <div>
               <div className={`text-sm font-bold ${dark ? 'text-zinc-100' : 'text-zinc-800'}`}>{item.count}</div>
               <div className="text-[10px] text-zinc-500">{item.label}</div>

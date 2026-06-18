@@ -67,6 +67,7 @@ import {
   Folder,
   FolderOpen,
   FolderUp,
+  ChevronRight,
   Plus,
   Minus,
   Loader2,
@@ -2037,17 +2038,39 @@ function FolderCard({
   onPreview?: (att: SupplierAttachment) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Pasta inicia RECOLHIDA: o cabeçalho funciona como botão de expandir/recolher.
+  const [expanded, setExpanded] = useState(false);
+  // Enquanto há upload em andamento nesta pasta, mostramos o conteúdo.
+  const isUploading = !!progress;
+  const open = expanded || isUploading;
   return (
     <div className="rounded-lg border bg-violet-50/40 p-3" style={{ borderColor: "#ddd6fe" }}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-violet-900 inline-flex items-center gap-1.5 min-w-0">
-          <Folder size={15} style={{ color: "#7c3aed" }} className="flex-shrink-0" />
-          <span className="truncate">{name}</span>
-          <span className="text-violet-400 font-normal">· {items.length}</span>
-        </span>
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={open}
+          className="text-sm font-semibold text-violet-900 inline-flex items-center gap-1.5 min-w-0 flex-1 text-left rounded-md transition-colors hover:text-violet-700 active:scale-[0.99]"
+        >
+          <ChevronRight
+            size={15}
+            className="flex-shrink-0 transition-transform duration-200"
+            style={{ color: "#7c3aed", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+          />
+          {open ? (
+            <FolderOpen size={15} style={{ color: "#7c3aed" }} className="flex-shrink-0" />
+          ) : (
+            <Folder size={15} style={{ color: "#7c3aed" }} className="flex-shrink-0" />
+          )}
+          <span className="truncate">{name}</span>
+          <span className="text-violet-400 font-normal">· {items.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setExpanded(true);
+            inputRef.current?.click();
+          }}
           className="px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-white active:scale-[0.97] border bg-white/70 flex-shrink-0"
           style={{ borderColor: "#ddd6fe", color: "#6d28d9" }}
         >
@@ -2065,13 +2088,17 @@ function FolderCard({
           className="hidden"
         />
       </div>
-      <UploadProgressBar progress={progress} accent="#7c3aed" />
-      <AttachmentList
-        items={items}
-        onRemove={onRemove}
-        onPreview={onPreview}
-        emptyText="Pasta vazia. Clique em Anexar para adicionar arquivos."
-      />
+      {open && (
+        <div className="mt-2">
+          <UploadProgressBar progress={progress} accent="#7c3aed" />
+          <AttachmentList
+            items={items}
+            onRemove={onRemove}
+            onPreview={onPreview}
+            emptyText="Pasta vazia. Clique em Anexar para adicionar arquivos."
+          />
+        </div>
+      )}
     </div>
   );
 }

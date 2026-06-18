@@ -852,6 +852,19 @@ function SupplierRow({
             >
               Anexos ({totalAnexos})
             </span>
+            {pastas.length > 0 && (
+              <span
+                className="text-[10px] font-semibold inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
+                style={{
+                  color: "oklch(0.8 0.12 300)",
+                  background: "oklch(0.3 0.06 300 / 0.35)",
+                }}
+                title={`${pastas.length} pasta(s) anexada(s)`}
+              >
+                <FolderIcon className="w-3 h-3" />
+                {pastas.length} {pastas.length === 1 ? "pasta" : "pastas"}
+              </span>
+            )}
           </div>
           {anexosComArquivos.map((cat) => (
             <div key={cat} className="flex flex-col gap-1">
