@@ -187,6 +187,54 @@ export const TIPO_CONFIG: Record<
 export const TIPO_ORDER: TipoFornecedor[] = ["direto", "trader"];
 
 // -----------------------------------------------------------------------------
+// Potencial do fornecedor: Alto (verde) / Médio (laranja) / Baixo (vermelho).
+// Marcado manualmente pelo operador no painel. Salvo em fields.potencial.
+// Aparece como selo no card recolhido (PotentialBadge).
+// -----------------------------------------------------------------------------
+export type Potencial = "alto" | "medio" | "baixo";
+
+export const POTENCIAL_CONFIG: Record<
+  Potencial,
+  { label: string; shortLabel: string; emoji: string; color: string; bg: string; border: string }
+> = {
+  alto: {
+    label: "Alto potencial",
+    shortLabel: "Alto",
+    emoji: "\ud83d\udfe2",
+    color: "#166534",
+    bg: "#dcfce7",
+    border: "#86efac",
+  },
+  medio: {
+    label: "M\u00e9dio potencial",
+    shortLabel: "M\u00e9dio",
+    emoji: "\ud83d\udfe0",
+    color: "#9a3412",
+    bg: "#ffedd5",
+    border: "#fdba74",
+  },
+  baixo: {
+    label: "Baixo potencial",
+    shortLabel: "Baixo",
+    emoji: "\ud83d\udd34",
+    color: "#991b1b",
+    bg: "#fee2e2",
+    border: "#fca5a5",
+  },
+};
+
+export const POTENCIAL_ORDER: Potencial[] = ["alto", "medio", "baixo"];
+
+/** Filtra entradas por potencial (null = sem filtro). */
+export function filterEntriesByPotencial<T extends { fields?: Record<string, string> | null }>(
+  entries: T[],
+  potencial: Potencial | null,
+): T[] {
+  if (!potencial) return entries;
+  return entries.filter((e) => (e.fields?.potencial ?? "") === potencial);
+}
+
+// -----------------------------------------------------------------------------
 // Especialidade (subtipo) do fornecedor do grupo Aquários & Terrários.
 // Marcado manualmente pelo operador. Salvo em fields.subtipoAquario.
 // Tem PRIORIDADE sobre a categoria automática (supplier.category) no card.

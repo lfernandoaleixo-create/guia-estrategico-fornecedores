@@ -31,6 +31,8 @@ import {
   PRECO_ORDER,
   TIPO_CONFIG,
   TIPO_ORDER,
+  POTENCIAL_CONFIG,
+  POTENCIAL_ORDER,
   SUBTIPO_CONFIG,
   SUBTIPO_ORDER,
   ATTACHMENT_CATEGORY_LABEL,
@@ -39,6 +41,7 @@ import {
   type AttachmentCategory,
   type PrecoClassificacao,
   type TipoFornecedor,
+  type Potencial,
   type SubtipoAquario,
   type QuoteRow,
   type SupplierAttachment,
@@ -561,6 +564,7 @@ export default function SupplierNotesPanel({
 
   const [status, setStatus] = useState<SupplierStatus>(entry?.status ?? "nao-visitado");
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
+  const [resumoNegociacao, setResumoNegociacao] = useState(entry?.fields?.resumoNegociacao ?? "");
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -583,6 +587,7 @@ export default function SupplierNotesPanel({
   useEffect(() => {
     setStatus(entry?.status ?? "nao-visitado");
     setObservacoes(entry?.observacoes ?? "");
+    setResumoNegociacao(entry?.fields?.resumoNegociacao ?? "");
     setFields(entry?.fields ?? {});
     setQuoteRows(entry?.quoteRows ?? []);
   }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
@@ -623,6 +628,22 @@ export default function SupplierNotesPanel({
 
   // Tipo do fornecedor atual (Fabricante Direto x Trader/Intermediário).
   const tipoFornecedor = (fields.tipoFornecedor as TipoFornecedor | undefined) ?? undefined;
+
+  // Potencial atual (Alto/Médio/Baixo). Salvo em fields.potencial.
+  const potencial = (fields.potencial as Potencial | undefined) ?? undefined;
+
+  const handlePotencialClick = (p: Potencial) => {
+    // Alterna e é mutuamente exclusivo: clicar no mesmo desmarca; clicar no outro troca.
+    const nextFields = { ...fields };
+    if (nextFields.potencial === p) {
+      delete nextFields.potencial;
+    } else {
+      nextFields.potencial = p;
+    }
+    setFields(nextFields);
+    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+    flashSaved();
+  };
 
   const handleTipoClick = (t: TipoFornecedor) => {
     // Alterna e é mutuamente exclusivo: clicar no mesmo desmarca; clicar no outro troca.
@@ -674,7 +695,11 @@ export default function SupplierNotesPanel({
   };
 
   const handleSave = () => {
-    upsertEntry(supplierId, { status, observacoes, fields });
+    // O resumo da negociação é persistido dentro de fields para não exigir
+    // migração de schema (campo genérico key/value).
+    const fieldsToSave = { ...fields, resumoNegociacao };
+    setFields(fieldsToSave);
+    upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave });
     upsertQuoteRows(supplierId, quoteRows);
     flashSaved();
     if (onSaved) {
@@ -814,10 +839,12 @@ export default function SupplierNotesPanel({
     deleteEntry(supplierId);
     setStatus("nao-visitado");
     setObservacoes("");
+    setResumoNegociacao("");
   };
 
   const hasContent =
     observacoes.trim().length > 0 ||
+    resumoNegociacao.trim().length > 0 ||
     attachments.length > 0 ||
     quoteRows.length > 0 ||
     status !== "nao-visitado" ||
@@ -988,6 +1015,56 @@ export default function SupplierNotesPanel({
           )}
         </div>
 
+        {/* POTENCIAL DO FORNECEDOR — Alto (verde) / Médio (laranja) / Baixo (vermelho) */}
+        <div className="mt-3 rounded-lg border p-3" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-slate-600 mb-2">
+            Potencial do fornecedor
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {POTENCIAL_ORDER.map((p) => {
+              const cfg = POTENCIAL_CONFIG[p];
+              const active = potencial === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handlePotencialClick(p)}
+                  className="relative text-left rounded-lg px-3 py-2.5 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-2.5"
+                  style={{
+                    background: active ? cfg.bg : "#ffffff",
+                    borderWidth: active ? "2px" : "1.5px",
+                    borderStyle: "solid",
+                    borderColor: active ? cfg.border : "#e4e4e7",
+                    color: active ? cfg.color : "#3f3f46",
+                    fontWeight: active ? 700 : 500,
+                    boxShadow: active
+                      ? `0 0 0 3px ${cfg.bg}, 0 1px 2px rgba(0,0,0,0.05)`
+                      : "none",
+                  }}
+                  aria-pressed={active}
+                >
+                  <span className="text-lg leading-none">{cfg.emoji}</span>
+                  <span className="flex-1">{cfg.shortLabel}</span>
+                  {active && (
+                    <span
+                      className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full"
+                      style={{ background: cfg.color, color: "#fff" }}
+                      aria-hidden
+                    >
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {!potencial && (
+            <div className="text-[11px] text-slate-500 mt-2">
+              Classifique o potencial deste fornecedor — o selo aparece no card mesmo recolhido.
+            </div>
+          )}
+        </div>
+
         {/* CLASSIFICAÇÃO DE PREÇO — aparece somente quando aprovado */}
         {status === "fornecedor-aprovado" && (
           <div
@@ -1150,6 +1227,28 @@ export default function SupplierNotesPanel({
         />
         <p className="text-xs text-zinc-500 mt-1.5">
           {observacoes.length} {observacoes.length === 1 ? "caractere" : "caracteres"}
+        </p>
+      </div>
+
+      {/* RESUMO DA NEGOCIAÇÃO */}
+      <div className="mb-4">
+        <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
+          Resumo da negociação
+        </label>
+        <textarea
+          value={resumoNegociacao}
+          onChange={(e) => setResumoNegociacao(e.target.value)}
+          placeholder="Resuma o andamento: valores acordados, condições, próximos passos, histórico de conversas…"
+          rows={5}
+          className="w-full px-3.5 py-3 rounded-lg resize-y text-sm leading-relaxed focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
+          style={{
+            borderColor: "#e4e4e7",
+            // @ts-expect-error - custom property for tailwind ring
+            "--tw-ring-color": accent,
+          }}
+        />
+        <p className="text-xs text-zinc-500 mt-1.5">
+          {resumoNegociacao.length} {resumoNegociacao.length === 1 ? "caractere" : "caracteres"} · clique em <strong>Salvar nota</strong> para gravar.
         </p>
       </div>
 

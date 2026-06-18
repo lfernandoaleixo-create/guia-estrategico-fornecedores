@@ -741,3 +741,13 @@ Fernando quer poder definir o número do macro como 0 (ex.: "0 · Documentos"). 
 - [x] MacroManager edição inline: permite n >= 0 e min={0} nos inputs
 - [x] Servidor já aceita z.number().int() (0 ok) — sem mudança
 - [x] Teste macroNumberZero.test.ts + suíte 331 verde + TypeScript limpo + validado no preview (criado "0 · Central Zero" e removido)
+
+## Feature 26 — Potencial do fornecedor + Resumo da negociação
+Fernando quer, dentro de cada fornecedor (todos os dashboards/cards/subgrupos): (a) ticar o POTENCIAL = Alto (verde) / Médio (laranja) / Baixo (vermelho), aparecendo também no card recolhido; (b) um campo de texto livre "Resumo da negociação", similar a Observações.
+
+- [x] useSupplierNotes.ts: tipo Potencial + POTENCIAL_CONFIG (alto/verde, medio/laranja, baixo/vermelho) + POTENCIAL_ORDER; armazenado em fields.potencial e fields.resumoNegociacao (sem migração de schema)
+- [x] SupplierNotesPanel.tsx: bloco "Potencial do fornecedor" (3 botões mutuamente exclusivos, padrão handleTipoClick) — salva no clique
+- [x] SupplierNotesPanel.tsx: campo "Resumo da negociação" (textarea) com estado próprio + sync + persistido no handleSave (merge em fields)
+- [x] PotentialBadge.tsx: novo selo para o card recolhido (padrão TipoBadge)
+- [x] CustomSupplierCard.tsx + GrupoDashboard (cards de catálogo): exibem PotentialBadge no cabeçalho recolhido ao lado dos selos existentes
+- [x] Teste supplierPotential.test.ts (POTENCIAL_CONFIG, badge resolve, resumo persiste) + suíte 339 verde + TypeScript limpo + validado no preview (marcado 🟢 Alto + resumo, persistiu após reload)
