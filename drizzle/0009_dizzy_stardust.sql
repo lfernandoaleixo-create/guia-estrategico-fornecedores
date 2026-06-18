@@ -1,0 +1,1 @@
+ALTER TABLE `supplier_notes` ADD CONSTRAINT `supplier_notes_scope_supplier_uq` UNIQUE(`scope`,`supplierId`);

@@ -23,7 +23,7 @@ interface Props {
  */
 export function PotentialBadge({ fields, potencial }: Props) {
   const value = (potencial ?? (fields?.potencial as Potencial | undefined)) ?? undefined;
-  if (value !== "alto" && value !== "medio" && value !== "baixo") return null;
+  if (!value || !(value in POTENCIAL_CONFIG)) return null;
 
   const cfg = POTENCIAL_CONFIG[value];
   return (

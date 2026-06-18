@@ -763,3 +763,22 @@ Fernando quer um botão no topo da Home (à direita do cabeçalho, perto de "7 A
 - [x] Teste da lógica do painel + suíte verde + TypeScript limpo (negotiationAccesses.test.ts, 345 verdes)
 
 - [x] Painel Resumo: no Nível 2, mostrar TODOS os acessos do macro = união de macro.items (dashboards/subgrupos/grupos, ex.: Terrário, Aquário, Tapete do PET) + subgrupos da tabela `subgroups` (byMacro). Hoje só lia `subgroups`, por isso o PET aparecia vazio.
+
+## Feature 28 — Ticagem de Preço sempre visível + Status livre editável
+Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opções — Ótimo (verde), Bom (azul), Ruim (vermelho) — sempre visível (não só quando aprovado); (b) um campo de status LIVRE editável (texto) onde ele escreve o que quiser.
+
+- [ ] PRECO_CONFIG ajustado: excelente="Preço Ótimo" (verde), bom="Preço Bom" (AZUL), ruim="Preço Ruim" (vermelho)
+- [ ] Ticagem de Preço sempre visível no SupplierNotesPanel (independente do status)
+- [ ] Campo "Status (livre)" editável em fields.statusLivre (textarea/input), persistido no handleSave
+- [ ] Exibir status livre no card recolhido (badge/linha)
+- [ ] Atualizar testes (cores/labels do preço + persistência do status livre), validar no preview e salvar checkpoint
+
+## Feature 29 — Nível 3 do Resumo das Negociações + filtros combináveis
+- [x] Corrigir duplicação em supplier_notes (unique scope+supplierId, upsert atômico, dedup do banco)
+- [x] Mapear associação fornecedor↔subgrupo (fields.subgroupId) e endereços por escopo
+- [x] Nível 3: ao abrir Resumo → Macro → Subgrupo, listar fornecedores que tenham potencial OU preço OU status livre ticado
+- [x] Para cada fornecedor: nome, potencial, preço, status livre (somente esse), resumo (só se houver texto)
+- [x] Endereço clicável → mapa principal + opção satélite (localização na China)
+- [x] Filtros combináveis (potencial + preço + status), múltiplos ao mesmo tempo
+- [x] Testes de unidade (seleção/filtragem) verdes
+- [x] Validar no preview e salvar checkpoint

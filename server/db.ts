@@ -195,12 +195,23 @@ export async function upsertSupplierNote(row: InsertSupplierNoteRow) {
     safeRow = { ...row, attachments: "[]" };
   }
 
-  // Chave composta (scope, supplierId). Como o schema não declara PK composta no
-  // ORM, fazemos delete+insert para garantir idempotência.
+  // Chave única (scope, supplierId) garantida por uniqueIndex no schema.
+  // Upsert ATÔMICO: insere ou atualiza a mesma linha, eliminando a janela de
+  // concorrência do antigo delete+insert (que gerava linhas duplicadas).
   await db
-    .delete(supplierNotes)
-    .where(and(eq(supplierNotes.scope, safeRow.scope), eq(supplierNotes.supplierId, safeRow.supplierId)));
-  await db.insert(supplierNotes).values(safeRow);
+    .insert(supplierNotes)
+    .values(safeRow)
+    .onDuplicateKeyUpdate({
+      set: {
+        status: safeRow.status,
+        observacoes: safeRow.observacoes,
+        fields: safeRow.fields,
+        attachments: safeRow.attachments,
+        quoteRows: safeRow.quoteRows,
+        groupIds: safeRow.groupIds,
+        updatedAt: safeRow.updatedAt,
+      },
+    });
 }
 
 export async function deleteSupplierNote(scope: string, supplierId: string) {
@@ -256,10 +267,21 @@ export async function appendAttachmentToNote(
     updatedAt: nowStr,
   };
 
+  // Upsert atômico (mesma unique key) para não gerar linhas duplicadas.
   await db
-    .delete(supplierNotes)
-    .where(and(eq(supplierNotes.scope, scope), eq(supplierNotes.supplierId, supplierId)));
-  await db.insert(supplierNotes).values(row);
+    .insert(supplierNotes)
+    .values(row)
+    .onDuplicateKeyUpdate({
+      set: {
+        status: row.status,
+        observacoes: row.observacoes,
+        fields: row.fields,
+        attachments: row.attachments,
+        quoteRows: row.quoteRows,
+        groupIds: row.groupIds,
+        updatedAt: row.updatedAt,
+      },
+    });
 }
 
 

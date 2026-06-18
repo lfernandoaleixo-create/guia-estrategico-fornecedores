@@ -1067,10 +1067,9 @@ export default function GrupoDashboard() {
               const isOpen = diaryExpandedId === s.id;
               const entry = getEntry(s.id);
               const st = STATUS_CONFIG[entry?.status ?? "nao-visitado"];
-              const precoKey = entry?.status === "fornecedor-aprovado"
-                ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
-                : undefined;
-              const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
+              const precoKey = entry?.fields?.precoClassificacao as PrecoClassificacao | undefined;
+              const pcfg = precoKey && precoKey in PRECO_CONFIG ? PRECO_CONFIG[precoKey] : null;
+              const statusLivreVal = (entry?.fields?.statusLivre ?? "").trim();
               const attachCount = entry?.attachments?.length ?? 0;
               return (
                 <article
@@ -1127,6 +1126,16 @@ export default function GrupoDashboard() {
                           )}
                           <PotentialBadge fields={entry?.fields} />
                           <TipoBadge fields={entry?.fields} />
+                          {statusLivreVal && (
+                            <span
+                              className="inline-flex items-center gap-1 max-w-[200px] text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: "#eef2ff", color: "#3730a3", border: "1px solid #c7d2fe" }}
+                              title={statusLivreVal}
+                            >
+                              <span>📝</span>
+                              <span className="truncate">{statusLivreVal}</span>
+                            </span>
+                          )}
                           {attachCount > 0 && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full"

@@ -565,6 +565,7 @@ export default function SupplierNotesPanel({
   const [status, setStatus] = useState<SupplierStatus>(entry?.status ?? "nao-visitado");
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
   const [resumoNegociacao, setResumoNegociacao] = useState(entry?.fields?.resumoNegociacao ?? "");
+  const [statusLivre, setStatusLivre] = useState(entry?.fields?.statusLivre ?? "");
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -588,6 +589,7 @@ export default function SupplierNotesPanel({
     setStatus(entry?.status ?? "nao-visitado");
     setObservacoes(entry?.observacoes ?? "");
     setResumoNegociacao(entry?.fields?.resumoNegociacao ?? "");
+    setStatusLivre(entry?.fields?.statusLivre ?? "");
     setFields(entry?.fields ?? {});
     setQuoteRows(entry?.quoteRows ?? []);
   }, [entry?.supplierId, entry?.status, entry?.observacoes, entry?.fields, entry?.quoteRows]);
@@ -623,7 +625,7 @@ export default function SupplierNotesPanel({
         : a.category === cat
     );
 
-  // Classificação de preço atual (somente quando aprovado).
+  // Classificação de preço atual (Ótimo/Bom/Ruim). Sempre disponível, independente do status.
   const precoClass = (fields.precoClassificacao as PrecoClassificacao | undefined) ?? undefined;
 
   // Tipo do fornecedor atual (Fabricante Direto x Trader/Intermediário).
@@ -660,15 +662,8 @@ export default function SupplierNotesPanel({
 
   const handleStatusClick = (s: SupplierStatus) => {
     setStatus(s);
-    // Se deixar de ser aprovado, remove a classificação de preço.
-    if (s !== "fornecedor-aprovado" && fields.precoClassificacao) {
-      const nextFields = { ...fields };
-      delete nextFields.precoClassificacao;
-      setFields(nextFields);
-      upsertEntry(supplierId, { status: s, observacoes, fields: nextFields });
-    } else {
-      upsertEntry(supplierId, { status: s, observacoes });
-    }
+    // A classificação de preço é independente do status (sempre visível/editável).
+    upsertEntry(supplierId, { status: s, observacoes });
     flashSaved();
   };
 
@@ -682,7 +677,7 @@ export default function SupplierNotesPanel({
   };
 
   const handlePrecoClick = (p: PrecoClassificacao) => {
-    // Alterna: clicar na mesma opção remove a classificação.
+    // Alterna: clicar na mesma opção remove a classificação. Independente do status.
     const nextFields = { ...fields };
     if (nextFields.precoClassificacao === p) {
       delete nextFields.precoClassificacao;
@@ -690,14 +685,14 @@ export default function SupplierNotesPanel({
       nextFields.precoClassificacao = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status: "fornecedor-aprovado", observacoes, fields: nextFields });
+    upsertEntry(supplierId, { status, observacoes, fields: nextFields });
     flashSaved();
   };
 
   const handleSave = () => {
     // O resumo da negociação é persistido dentro de fields para não exigir
     // migração de schema (campo genérico key/value).
-    const fieldsToSave = { ...fields, resumoNegociacao };
+    const fieldsToSave = { ...fields, resumoNegociacao, statusLivre };
     setFields(fieldsToSave);
     upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave });
     upsertQuoteRows(supplierId, quoteRows);
@@ -1065,13 +1060,9 @@ export default function SupplierNotesPanel({
           )}
         </div>
 
-        {/* CLASSIFICAÇÃO DE PREÇO — aparece somente quando aprovado */}
-        {status === "fornecedor-aprovado" && (
-          <div
-            className="mt-3 rounded-lg border p-3"
-            style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}
-          >
-            <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-green-800 mb-2">
+        {/* CLASSIFICAÇÃO DE PREÇO — sempre visível: Ótimo (verde) / Bom (azul) / Ruim (vermelho) */}
+        <div className="mt-3 rounded-lg border p-3" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+            <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-slate-600 mb-2">
               Classificação do preço
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1113,12 +1104,11 @@ export default function SupplierNotesPanel({
               })}
             </div>
             {!precoClass && (
-              <div className="text-[11px] text-green-700/80 mt-2">
-                Selecione como foi o preço analisado para registrar no card deste fornecedor.
+              <div className="text-[11px] text-slate-500 mt-2">
+                Classifique o preço deste fornecedor — Ótimo (verde), Bom (azul) ou Ruim (vermelho). Aparece no card mesmo recolhido.
               </div>
             )}
           </div>
-        )}
       </div>
 
       {/* DADOS DO FORNECEDOR (auto-preenchidos) */}
@@ -1249,6 +1239,28 @@ export default function SupplierNotesPanel({
         />
         <p className="text-xs text-zinc-500 mt-1.5">
           {resumoNegociacao.length} {resumoNegociacao.length === 1 ? "caractere" : "caracteres"} · clique em <strong>Salvar nota</strong> para gravar.
+        </p>
+      </div>
+
+      {/* STATUS (LIVRE) — texto editável que o operador escreve livremente */}
+      <div className="mb-4">
+        <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 block mb-2">
+          Status (livre)
+        </label>
+        <input
+          type="text"
+          value={statusLivre}
+          onChange={(e) => setStatusLivre(e.target.value)}
+          placeholder="Escreva aqui o status que quiser (ex.: Aguardando contrato, Em validação, Prioridade…)"
+          className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 transition-all border bg-zinc-50"
+          style={{
+            borderColor: "#e4e4e7",
+            // @ts-expect-error - custom property for tailwind ring
+            "--tw-ring-color": accent,
+          }}
+        />
+        <p className="text-xs text-zinc-500 mt-1.5">
+          Campo livre · aparece no card mesmo recolhido · clique em <strong>Salvar nota</strong> para gravar.
         </p>
       </div>
 

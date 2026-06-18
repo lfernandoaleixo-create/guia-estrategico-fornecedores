@@ -1,16 +1,16 @@
 // =============================================================================
 // NegotiationSummaryPanel — painel amplo (overlay) de VISÃO EXECUTIVA, só leitura.
 //
-// Pensado para gestores "baterem o olho": NÃO cadastra, NÃO edita, NÃO mostra
-// diário/anotações operacionais. É uma camada puramente ADITIVA que lê os macros
-// (useMacros) e os subgrupos (useSubgroups) já existentes.
+// Pensado para gestores "baterem o olho": NÃO cadastra, NÃO edita anotações
+// operacionais. É uma camada puramente ADITIVA que lê macros (useMacros),
+// subgrupos (useSubgroups), fornecedores e notas já existentes.
 //
 // Navegação em níveis dentro do MESMO painel:
 //   - Nível 1: lista compacta de MACROS (número · nome).
-//   - Nível 2: ao clicar num macro, mostra os ACESSOS dele (dashboards/
-//      subgrupos/grupos de macro.items + subgrupos numerados da tabela).
-//   - (Níveis seguintes — fornecedores/resumo — serão adicionados conforme
-//      instruções do Fernando.)
+//   - Nível 2: ACESSOS do macro (dashboards/subgrupos/grupos + subgrupos numerados).
+//   - Nível 3: FORNECEDORES "ticados" do acesso (com potencial, preço OU status
+//      livre). Mostra nome, potencial, preço, status livre, resumo (se houver) e
+//      endereço clicável (abre mapa principal + satélite). Filtros combináveis.
 // =============================================================================
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -21,10 +21,30 @@ import {
   FolderOpen,
   Boxes,
   X,
+  MapPin,
+  FileText,
+  SlidersHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
 import { buildAccesses, type MacroAccess } from "./negotiationAccesses";
+import {
+  applyNegotiationFilter,
+  EMPTY_FILTER,
+  type NegotiationFilter,
+  type NegotiationSupplier,
+} from "./negotiationAccesses";
+import { useNegotiationLevel3 } from "./useNegotiationLevel3";
+import {
+  POTENCIAL_CONFIG,
+  POTENCIAL_ORDER,
+  PRECO_CONFIG,
+  PRECO_ORDER,
+  type Potencial,
+  type PrecoClassificacao,
+} from "./useSupplierNotes";
+import SupplierMapDialog from "./SupplierMapDialog";
 
 function AccessKindIcon({
   kind,
@@ -53,15 +73,20 @@ export default function NegotiationSummaryPanel({
   const { macros, loading: macrosLoading } = useMacros();
   const { byMacro, loading: subgroupsLoading } = useSubgroups();
 
-  // Macro selecionado (nível 2). null = nível 1 (lista de macros).
+  // Macro selecionado (nível 2). null = nível 1.
   const [selectedMacroId, setSelectedMacroId] = useState<string | null>(null);
+  // Acesso selecionado (nível 3). null = nível 2.
+  const [selectedAccess, setSelectedAccess] = useState<MacroAccess | null>(
+    null,
+  );
 
-  // Fecha com ESC e trava o scroll do body enquanto aberto.
+  // Fecha com ESC respeitando a hierarquia de níveis; trava o scroll do body.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (selectedMacroId) setSelectedMacroId(null);
+        if (selectedAccess) setSelectedAccess(null);
+        else if (selectedMacroId) setSelectedMacroId(null);
         else onClose();
       }
     };
@@ -72,11 +97,14 @@ export default function NegotiationSummaryPanel({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose, selectedMacroId]);
+  }, [open, onClose, selectedMacroId, selectedAccess]);
 
-  // Ao reabrir o painel, sempre começa no nível 1.
+  // Ao reabrir, sempre começa no nível 1.
   useEffect(() => {
-    if (open) setSelectedMacroId(null);
+    if (open) {
+      setSelectedMacroId(null);
+      setSelectedAccess(null);
+    }
   }, [open]);
 
   const selectedMacro = useMemo<Macro | null>(
@@ -96,6 +124,23 @@ export default function NegotiationSummaryPanel({
 
   const loading = macrosLoading || subgroupsLoading;
 
+  // Título e subtítulo do cabeçalho conforme o nível.
+  let headerTitle = "Resumo das Negociações";
+  let headerSubtitle = "Visão executiva · somente leitura";
+  if (selectedAccess) {
+    headerTitle = selectedAccess.label;
+    headerSubtitle = "Fornecedores avaliados";
+  } else if (selectedMacro) {
+    headerTitle = `${selectedMacro.number} · ${selectedMacro.name}`;
+    headerSubtitle = "Acessos deste macro";
+  }
+
+  const goBack = () => {
+    if (selectedAccess) setSelectedAccess(null);
+    else if (selectedMacroId) setSelectedMacroId(null);
+  };
+  const showBack = Boolean(selectedMacro || selectedAccess);
+
   return (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6"
@@ -103,7 +148,6 @@ export default function NegotiationSummaryPanel({
       aria-modal="true"
       aria-label="Resumo das Negociações"
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0"
         style={{
@@ -113,7 +157,6 @@ export default function NegotiationSummaryPanel({
         onClick={onClose}
       />
 
-      {/* Card amplo */}
       <div
         className="relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-2xl overflow-hidden"
         style={{
@@ -137,16 +180,16 @@ export default function NegotiationSummaryPanel({
           style={{ borderColor: "oklch(0.24 0.03 258)" }}
         >
           <div className="flex items-center gap-3 min-w-0">
-            {selectedMacro ? (
+            {showBack ? (
               <button
-                onClick={() => setSelectedMacroId(null)}
+                onClick={goBack}
                 className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-transform active:scale-95"
                 style={{
                   background: "oklch(0.18 0.02 258)",
                   border: "1px solid oklch(0.3 0.04 260)",
                   color: "oklch(0.85 0.02 80)",
                 }}
-                aria-label="Voltar para a lista de macros"
+                aria-label="Voltar"
                 title="Voltar"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -171,9 +214,7 @@ export default function NegotiationSummaryPanel({
                   color: "oklch(0.97 0.01 80)",
                 }}
               >
-                {selectedMacro
-                  ? `${selectedMacro.number} · ${selectedMacro.name}`
-                  : "Resumo das Negociações"}
+                {headerTitle}
               </h2>
               <p
                 className="text-[11px] tracking-[0.18em] uppercase truncate"
@@ -182,9 +223,7 @@ export default function NegotiationSummaryPanel({
                   color: "oklch(0.6 0.02 80)",
                 }}
               >
-                {selectedMacro
-                  ? "Acessos deste macro"
-                  : "Visão executiva · somente leitura"}
+                {headerSubtitle}
               </p>
             </div>
           </div>
@@ -213,6 +252,8 @@ export default function NegotiationSummaryPanel({
             >
               Carregando…
             </div>
+          ) : selectedAccess ? (
+            <SupplierLevel3 access={selectedAccess} />
           ) : !selectedMacro ? (
             <MacroList
               macros={macros}
@@ -220,7 +261,10 @@ export default function NegotiationSummaryPanel({
               onSelect={setSelectedMacroId}
             />
           ) : (
-            <AccessList accesses={accessesOfSelected} />
+            <AccessList
+              accesses={accessesOfSelected}
+              onSelect={setSelectedAccess}
+            />
           )}
         </div>
       </div>
@@ -307,7 +351,13 @@ function MacroList({
 // -----------------------------------------------------------------------------
 // Nível 2 — acessos do macro selecionado (macro.items + subgrupos numerados)
 // -----------------------------------------------------------------------------
-function AccessList({ accesses }: { accesses: MacroAccess[] }) {
+function AccessList({
+  accesses,
+  onSelect,
+}: {
+  accesses: MacroAccess[];
+  onSelect: (access: MacroAccess) => void;
+}) {
   if (accesses.length === 0) {
     return (
       <div
@@ -322,9 +372,10 @@ function AccessList({ accesses }: { accesses: MacroAccess[] }) {
   return (
     <div className="flex flex-col gap-2.5">
       {accesses.map((ac) => (
-        <div
+        <button
           key={ac.id}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl"
+          onClick={() => onSelect(ac)}
+          className="group flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all active:scale-[0.99]"
           style={{
             background: "oklch(0.16 0.02 258)",
             border: "1px solid oklch(0.26 0.03 260)",
@@ -374,8 +425,356 @@ function AccessList({ accesses }: { accesses: MacroAccess[] }) {
               </span>
             ) : null}
           </span>
-        </div>
+          <ChevronRight
+            className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+            style={{ color: "oklch(0.5 0.02 80)" }}
+          />
+        </button>
       ))}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Nível 3 — fornecedores ticados do acesso, com filtros combináveis
+// -----------------------------------------------------------------------------
+function SupplierLevel3({ access }: { access: MacroAccess }) {
+  const { suppliers, loading } = useNegotiationLevel3(access);
+  const [filter, setFilter] = useState<NegotiationFilter>(EMPTY_FILTER);
+  const [showFilters, setShowFilters] = useState(false);
+  const [mapFor, setMapFor] = useState<NegotiationSupplier | null>(null);
+
+  const filtered = useMemo(
+    () => applyNegotiationFilter(suppliers, filter),
+    [suppliers, filter],
+  );
+
+  const togglePotencial = (p: Potencial) =>
+    setFilter((f) => ({
+      ...f,
+      potencial: f.potencial.includes(p)
+        ? f.potencial.filter((x) => x !== p)
+        : [...f.potencial, p],
+    }));
+  const togglePreco = (p: PrecoClassificacao) =>
+    setFilter((f) => ({
+      ...f,
+      preco: f.preco.includes(p)
+        ? f.preco.filter((x) => x !== p)
+        : [...f.preco, p],
+    }));
+  const toggleStatus = () =>
+    setFilter((f) => ({
+      ...f,
+      statusLivre: f.statusLivre === "com" ? "any" : "com",
+    }));
+  const clearFilters = () => setFilter(EMPTY_FILTER);
+
+  const activeFilterCount =
+    filter.potencial.length +
+    filter.preco.length +
+    (filter.statusLivre === "com" ? 1 : 0);
+
+  if (loading) {
+    return (
+      <div
+        className="text-sm py-12 text-center"
+        style={{ color: "oklch(0.6 0.02 80)" }}
+      >
+        Carregando fornecedores…
+      </div>
+    );
+  }
+
+  if (suppliers.length === 0) {
+    return (
+      <div
+        className="text-sm py-12 text-center"
+        style={{ color: "oklch(0.6 0.02 80)" }}
+      >
+        Nenhum fornecedor avaliado neste acesso ainda.
+        <br />
+        <span className="text-xs">
+          Só aparecem aqui fornecedores com potencial, preço ou status
+          preenchido.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Barra de filtros */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97]"
+          style={{
+            background: showFilters
+              ? "oklch(0.78 0.16 75)"
+              : "oklch(0.18 0.02 258)",
+            border: "1px solid oklch(0.3 0.04 260)",
+            color: showFilters ? "oklch(0.12 0.02 250)" : "oklch(0.85 0.02 80)",
+          }}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" /> Filtros
+          {activeFilterCount > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] rounded-full text-[10px] font-bold px-1"
+              style={{
+                background: showFilters
+                  ? "oklch(0.12 0.02 250)"
+                  : "oklch(0.78 0.16 75)",
+                color: showFilters ? "oklch(0.92 0.05 80)" : "oklch(0.12 0.02 250)",
+              }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        <span className="text-xs" style={{ color: "oklch(0.58 0.02 80)" }}>
+          {filtered.length} de {suppliers.length}{" "}
+          {suppliers.length === 1 ? "fornecedor" : "fornecedores"}
+        </span>
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="ml-auto text-xs underline"
+            style={{ color: "oklch(0.62 0.02 80)" }}
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      {showFilters && (
+        <div
+          className="rounded-xl p-4 flex flex-col gap-3"
+          style={{
+            background: "oklch(0.10 0.02 255)",
+            border: "1px solid oklch(0.24 0.03 260)",
+          }}
+        >
+          {/* Potencial */}
+          <div className="flex flex-col gap-1.5">
+            <span
+              className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+              style={{ color: "oklch(0.55 0.02 80)" }}
+            >
+              Potencial
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {POTENCIAL_ORDER.map((p) => {
+                const cfg = POTENCIAL_CONFIG[p];
+                const active = filter.potencial.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => togglePotencial(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all active:scale-[0.97]"
+                    style={{
+                      background: active ? cfg.color : "oklch(0.16 0.02 258)",
+                      border: `1px solid ${active ? cfg.color : "oklch(0.3 0.04 260)"}`,
+                      color: active ? "#fff" : "oklch(0.78 0.02 80)",
+                    }}
+                  >
+                    {cfg.emoji} {cfg.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Preço */}
+          <div className="flex flex-col gap-1.5">
+            <span
+              className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+              style={{ color: "oklch(0.55 0.02 80)" }}
+            >
+              Preço
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {PRECO_ORDER.map((p) => {
+                const cfg = PRECO_CONFIG[p];
+                const active = filter.preco.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => togglePreco(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all active:scale-[0.97]"
+                    style={{
+                      background: active ? cfg.color : "oklch(0.16 0.02 258)",
+                      border: `1px solid ${active ? cfg.color : "oklch(0.3 0.04 260)"}`,
+                      color: active ? "#fff" : "oklch(0.78 0.02 80)",
+                    }}
+                  >
+                    {cfg.emoji} {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Status livre */}
+          <div className="flex flex-col gap-1.5">
+            <span
+              className="text-[10px] uppercase tracking-[0.18em] font-semibold"
+              style={{ color: "oklch(0.55 0.02 80)" }}
+            >
+              Status
+            </span>
+            <button
+              onClick={toggleStatus}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold self-start transition-all active:scale-[0.97]"
+              style={{
+                background:
+                  filter.statusLivre === "com"
+                    ? "oklch(0.55 0.16 280)"
+                    : "oklch(0.16 0.02 258)",
+                border: `1px solid ${filter.statusLivre === "com" ? "oklch(0.55 0.16 280)" : "oklch(0.3 0.04 260)"}`,
+                color:
+                  filter.statusLivre === "com" ? "#fff" : "oklch(0.78 0.02 80)",
+              }}
+            >
+              Apenas com status preenchido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de fornecedores */}
+      {filtered.length === 0 ? (
+        <div
+          className="text-sm py-10 text-center"
+          style={{ color: "oklch(0.6 0.02 80)" }}
+        >
+          Nenhum fornecedor corresponde aos filtros selecionados.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map((s) => (
+            <SupplierRow key={s.id} supplier={s} onOpenMap={setMapFor} />
+          ))}
+        </div>
+      )}
+
+      {/* Modal de mapa */}
+      <SupplierMapDialog
+        open={Boolean(mapFor)}
+        onClose={() => setMapFor(null)}
+        name={mapFor?.name ?? ""}
+        address={mapFor?.addressText ?? ""}
+      />
+    </div>
+  );
+}
+
+function SupplierRow({
+  supplier,
+  onOpenMap,
+}: {
+  supplier: NegotiationSupplier;
+  onOpenMap: (s: NegotiationSupplier) => void;
+}) {
+  const potencialCfg = supplier.potencial
+    ? POTENCIAL_CONFIG[supplier.potencial as Potencial]
+    : null;
+  const precoCfg = supplier.preco
+    ? PRECO_CONFIG[supplier.preco as PrecoClassificacao]
+    : null;
+
+  return (
+    <div
+      className="rounded-xl p-4 flex flex-col gap-3"
+      style={{
+        background: "oklch(0.16 0.02 258)",
+        border: "1px solid oklch(0.26 0.03 260)",
+      }}
+    >
+      {/* Nome + selos */}
+      <div className="flex items-start justify-between gap-3">
+        <h4
+          className="text-sm font-semibold leading-snug"
+          style={{ color: "oklch(0.97 0.01 80)" }}
+        >
+          {supplier.name}
+        </h4>
+        <div className="flex flex-wrap items-center gap-1.5 justify-end shrink-0">
+          {potencialCfg && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+              style={{
+                background: potencialCfg.bg,
+                color: potencialCfg.color,
+                border: `1px solid ${potencialCfg.border}`,
+              }}
+            >
+              {potencialCfg.emoji} {potencialCfg.shortLabel}
+            </span>
+          )}
+          {precoCfg && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+              style={{
+                background: precoCfg.bg,
+                color: precoCfg.color,
+                border: `1px solid ${precoCfg.border}`,
+              }}
+            >
+              {precoCfg.emoji} {precoCfg.label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Status livre */}
+      {supplier.statusLivre && (
+        <div
+          className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-lg text-xs font-medium"
+          style={{
+            background: "oklch(0.22 0.06 280 / 0.35)",
+            border: "1px solid oklch(0.4 0.1 280 / 0.5)",
+            color: "oklch(0.85 0.06 290)",
+          }}
+        >
+          {supplier.statusLivre}
+        </div>
+      )}
+
+      {/* Resumo (só quando houver) */}
+      {supplier.resumo && (
+        <div className="flex items-start gap-2">
+          <FileText
+            className="w-3.5 h-3.5 mt-0.5 shrink-0"
+            style={{ color: "oklch(0.55 0.02 80)" }}
+          />
+          <p
+            className="text-xs leading-relaxed whitespace-pre-wrap"
+            style={{ color: "oklch(0.78 0.02 80)" }}
+          >
+            {supplier.resumo}
+          </p>
+        </div>
+      )}
+
+      {/* Endereço clicável → mapa */}
+      {supplier.addressText ? (
+        <button
+          onClick={() => onOpenMap(supplier)}
+          className="inline-flex items-center gap-1.5 self-start text-xs font-medium transition-colors hover:underline"
+          style={{ color: "oklch(0.72 0.13 230)" }}
+          title="Abrir no mapa"
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          {supplier.addressText}
+        </button>
+      ) : (
+        <span className="text-xs" style={{ color: "oklch(0.5 0.02 80)" }}>
+          Endereço não informado
+        </span>
+      )}
     </div>
   );
 }

@@ -124,7 +124,8 @@ export const STATUS_CONFIG: Record<
   },
 };
 
-// Classificação de preço (aplicável quando o fornecedor é aprovado).
+// Classificação de preço do fornecedor: Ótimo (verde) / Bom (azul) / Ruim (vermelho).
+// Marcado manualmente pelo operador. Salvo em fields.precoClass. Sempre visível.
 export type PrecoClassificacao = "excelente" | "bom" | "ruim";
 
 export const PRECO_CONFIG: Record<
@@ -132,7 +133,7 @@ export const PRECO_CONFIG: Record<
   { label: string; emoji: string; color: string; bg: string; border: string }
 > = {
   excelente: {
-    label: "Preço Excelente",
+    label: "Preço Ótimo",
     emoji: "🟢",
     color: "#166534",
     bg: "#dcfce7",
@@ -140,10 +141,10 @@ export const PRECO_CONFIG: Record<
   },
   bom: {
     label: "Preço Bom",
-    emoji: "🟡",
-    color: "#854d0e",
-    bg: "#fef9c3",
-    border: "#fde047",
+    emoji: "🔵",
+    color: "#1e40af",
+    bg: "#dbeafe",
+    border: "#93c5fd",
   },
   ruim: {
     label: "Preço Ruim",

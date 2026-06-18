@@ -16,6 +16,8 @@ import {
 } from "./useSupplierNotes";
 import { TipoBadge } from "./TipoBadge";
 import { PotentialBadge } from "./PotentialBadge";
+import { PrecoBadge } from "./PrecoBadge";
+import { StatusLivreBadge } from "./StatusLivreBadge";
 import { PartnerChips } from "./PartnerChips";
 import { useSubgroups } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
@@ -149,7 +151,9 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               Adicionado em {formatCreatedDateBR(supplier.createdAt)}
             </span>
             <PotentialBadge fields={tipoFields} />
+            <PrecoBadge fields={tipoFields} />
             <TipoBadge fields={tipoFields} />
+            <StatusLivreBadge fields={tipoFields} />
             <PartnerChips fields={tipoFields} accent={isDark ? "#a78bfa" : "#7c3aed"} />
             {subgroup && (
               <span

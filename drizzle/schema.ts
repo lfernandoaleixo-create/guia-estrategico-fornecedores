@@ -1,4 +1,4 @@
-import { boolean, int, json, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, int, json, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -106,7 +106,11 @@ export const supplierNotes = mysqlTable("supplier_notes", {
   groupIds: json("groupIds"),
   createdAt: varchar("createdAt", { length: 40 }).notNull(),
   updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
-});
+}, (table) => ({
+  // Garante uma única linha por (scope, supplierId). Sem isso, saves concorrentes
+  // podiam gerar linhas duplicadas e leitura não-determinística dos campos.
+  scopeSupplierUnique: uniqueIndex("supplier_notes_scope_supplier_uq").on(table.scope, table.supplierId),
+}));
 
 export type SupplierNoteRow = typeof supplierNotes.$inferSelect;
 export type InsertSupplierNoteRow = typeof supplierNotes.$inferInsert;

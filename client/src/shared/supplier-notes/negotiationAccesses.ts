@@ -17,6 +17,20 @@ import type { Macro, MacroItem } from "./useMacros";
 import type { Subgroup } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
 
+/**
+ * Origem dos fornecedores de um acesso. Define QUAL fonte o Nível 3 deve
+ * consultar e COMO filtrar:
+ *  - "aquario-subtipo": scope "aquario", filtrar por fields.subtipoAquario.
+ *  - "aquario-subgroup": scope "aquario", filtrar por fields.subgroupId.
+ *  - "dashboard": scope = refId (tapete/yiwu/aquario), todos os custom suppliers.
+ *  - "group": ExtraSuppliers com groupId === refId, notas no scope "grupo-<refId>".
+ */
+export type AccessSource =
+  | "aquario-subtipo"
+  | "aquario-subgroup"
+  | "dashboard"
+  | "group";
+
 export interface MacroAccess {
   id: string;
   /** Rótulo curto exibido no chip (ex.: "2.1"); null = usar ícone do kind. */
@@ -30,6 +44,16 @@ export interface MacroAccess {
    * Quando presente, tem prioridade sobre `badge` e o ícone do kind.
    */
   iconUrl?: string | null;
+
+  // ── Resolução da fonte de fornecedores (Nível 3) ──────────────────────────
+  /** De onde vêm os fornecedores deste acesso. */
+  source: AccessSource;
+  /** Slug do dashboard/recurso (ex.: "aquario", "tapete", "yiwu", id do grupo). */
+  refId: string;
+  /** Para source "aquario-subtipo": "terrario" | "aquario". */
+  subtipo?: string | null;
+  /** Para source "aquario-subgroup": id do subgrupo numerado na tabela. */
+  subgroupId?: string | null;
 }
 
 // Imagens customizadas por acesso, casadas pelo NOME normalizado do rótulo.
@@ -53,6 +77,23 @@ function iconUrlForLabel(label: string): string | null {
 }
 
 /**
+ * Deriva a fonte de fornecedores a partir de um MacroItem (macro.items).
+ * Usa a `key` (estável) e o `kind`/`subtipo`/`refId` definidos no macroCatalog.
+ */
+function sourceFromItem(it: MacroItem): {
+  source: AccessSource;
+  subtipo?: string | null;
+} {
+  // Aquário dividido por subtipo (Terrário/Aquário) — key "subgroup:aquario:*".
+  if (it.refId === "aquario" && it.subtipo) {
+    return { source: "aquario-subtipo", subtipo: it.subtipo };
+  }
+  if (it.kind === "group") return { source: "group" };
+  // tapete / yiwu / aquario (sem subtipo)
+  return { source: "dashboard" };
+}
+
+/**
  * Constrói a lista ordenada de acessos de um macro unindo macro.items e os
  * subgrupos numerados (tabela `subgroups`).
  *
@@ -72,21 +113,162 @@ export function buildAccesses(
     color: sg.color,
     kind: "subgroup" as const,
     iconUrl: iconUrlForLabel(sg.name),
+    source: "aquario-subgroup" as const,
+    refId: "aquario",
+    subgroupId: sg.id,
   }));
 
   const seen = new Set(fromSubgroups.map((s) => s.label.trim().toLowerCase()));
 
   const fromItems: MacroAccess[] = (macro.items ?? [])
     .filter((it) => !seen.has(it.label.trim().toLowerCase()))
-    .map((it, idx) => ({
-      id: it.key || `item-${idx}`,
-      badge: null,
-      label: it.label,
-      subtitle: null,
-      color: macro.color,
-      kind: it.kind,
-      iconUrl: iconUrlForLabel(it.label),
-    }));
+    .map((it, idx) => {
+      const { source, subtipo } = sourceFromItem(it);
+      return {
+        id: it.key || `item-${idx}`,
+        badge: null,
+        label: it.label,
+        subtitle: null,
+        color: macro.color,
+        kind: it.kind,
+        iconUrl: iconUrlForLabel(it.label),
+        source,
+        refId: it.refId,
+        subtipo: subtipo ?? null,
+      };
+    });
 
   return [...fromItems, ...fromSubgroups];
+}
+
+// =============================================================================
+// Nível 3 — seleção e filtragem de fornecedores "ticados" de um acesso.
+//
+// Um fornecedor entra na lista do Nível 3 quando tem AO MENOS UM dos selos
+// preenchidos: potencial, preço (precoClass) OU status livre (statusLivre).
+// Os campos vivem em entry.fields. Mantido puro para testes de unidade.
+// =============================================================================
+
+/** Forma mínima de um fornecedor para o Nível 3 (nome + endereço). */
+export interface NegotiationSupplierInput {
+  id: string;
+  name: string;
+  city?: string | null;
+  province?: string | null;
+  address?: string | null;
+}
+
+/** Forma mínima de uma nota (entry) para o Nível 3. */
+export interface NegotiationNoteInput {
+  fields?: Record<string, string> | null;
+}
+
+/** Item resultante exibido no Nível 3. */
+export interface NegotiationSupplier {
+  id: string;
+  name: string;
+  /** Endereço composto para exibição/mapa (cidade, província, endereço). */
+  addressText: string;
+  potencial: string | null;
+  preco: string | null;
+  statusLivre: string | null;
+  /** Resumo da negociação (observacoes), só quando houver texto. */
+  resumo: string | null;
+}
+
+/** Monta o texto de endereço a partir das partes disponíveis. */
+export function composeAddress(s: NegotiationSupplierInput): string {
+  const parts = [s.address, s.city, s.province]
+    .map((p) => (p ?? "").trim())
+    .filter((p) => p.length > 0);
+  // Remove duplicatas mantendo ordem (ex.: cidade repetida no address).
+  const seen = new Set<string>();
+  const uniq = parts.filter((p) => {
+    const k = p.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return uniq.join(", ");
+}
+
+/**
+ * Decide se um fornecedor está "ticado" (tem ao menos um selo preenchido).
+ * Vazio/whitespace conta como NÃO preenchido.
+ */
+export function hasAnyTick(note: NegotiationNoteInput | undefined): boolean {
+  const f = note?.fields ?? {};
+  const potencial = (f.potencial ?? "").trim();
+  const preco = (f.precoClassificacao ?? "").trim();
+  const statusLivre = (f.statusLivre ?? "").trim();
+  return potencial !== "" || preco !== "" || statusLivre !== "";
+}
+
+/**
+ * Constrói a lista de fornecedores ticados de um acesso, juntando os dados de
+ * cadastro (nome/endereço) com a respectiva nota (selos + resumo).
+ * `entries` é o mapa supplierId -> nota do scope correspondente.
+ */
+export function buildNegotiationSuppliers(
+  suppliers: NegotiationSupplierInput[],
+  entries: Record<string, NegotiationNoteInput | undefined>,
+): NegotiationSupplier[] {
+  const out: NegotiationSupplier[] = [];
+  for (const s of suppliers) {
+    const note = entries[s.id];
+    if (!hasAnyTick(note)) continue;
+    const f = note?.fields ?? {};
+    const resumoRaw = (f.resumoNegociacao ?? "").trim();
+    out.push({
+      id: s.id,
+      name: s.name,
+      addressText: composeAddress(s),
+      potencial: (f.potencial ?? "").trim() || null,
+      preco: (f.precoClassificacao ?? "").trim() || null,
+      statusLivre: (f.statusLivre ?? "").trim() || null,
+      resumo: resumoRaw || null,
+    });
+  }
+  // Ordena por nome (case/acento-insensitive) para leitura estável.
+  out.sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+  );
+  return out;
+}
+
+/** Critérios de filtro combináveis do Nível 3 (múltiplos ao mesmo tempo). */
+export interface NegotiationFilter {
+  potencial: string[];
+  preco: string[];
+  /** Filtro de status: "com" exige statusLivre preenchido; vazio = sem filtro. */
+  statusLivre: "any" | "com";
+}
+
+export const EMPTY_FILTER: NegotiationFilter = {
+  potencial: [],
+  preco: [],
+  statusLivre: "any",
+};
+
+/**
+ * Aplica os filtros combináveis. Dentro de uma dimensão (ex.: potencial) o
+ * critério é OU; entre dimensões diferentes é E (AND).
+ */
+export function applyNegotiationFilter(
+  items: NegotiationSupplier[],
+  filter: NegotiationFilter,
+): NegotiationSupplier[] {
+  return items.filter((it) => {
+    if (filter.potencial.length > 0) {
+      if (!it.potencial || !filter.potencial.includes(it.potencial))
+        return false;
+    }
+    if (filter.preco.length > 0) {
+      if (!it.preco || !filter.preco.includes(it.preco)) return false;
+    }
+    if (filter.statusLivre === "com") {
+      if (!it.statusLivre) return false;
+    }
+    return true;
+  });
 }
