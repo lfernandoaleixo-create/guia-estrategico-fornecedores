@@ -803,3 +803,8 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] SupplierMapDialog: seção Rotas (destino, modos carro/transporte/a pé, distância em km e tempo) via DirectionsService/DirectionsRenderer
 - [x] Map.tsx: biblioteca "routes" adicionada ao script do Google Maps
 - [x] Testes do Nível 3 atualizados (district, tipo, parceiros, anexos) — 385 verdes, TypeScript limpo
+
+## Correção — Permitir subgrupos no macro 0 (ex.: Documentos → 0.1, 0.2, 0.3)
+- [x] parseSubgroupNumber passa a aceitar macro 0 e sub 0 (rejeita apenas negativos)
+- [x] validateSubgroupNumber/SubgroupPicker/GroupsManager liberam criação no macro 0
+- [x] Testes atualizados (parse 0.1/0.3/1.0, validação no macro 0, duplicado 0.1) — 387 verdes, TS limpo

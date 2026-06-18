@@ -21,7 +21,7 @@ export interface ParsedSubgroupNumber {
  *
  * Regras:
  *  - Deve conter exatamente um ponto separando dois inteiros positivos.
- *  - Ambos os lados devem ser inteiros >= 1 (não aceita 0 nem negativos).
+ *  - Ambos os lados devem ser inteiros >= 0 (aceita macro/sub 0; rejeita negativos).
  *  - Não aceita casas decimais extras (ex.: "1.4.2" é inválido).
  */
 export function parseSubgroupNumber(raw: string): ParsedSubgroupNumber | null {
@@ -34,7 +34,8 @@ export function parseSubgroupNumber(raw: string): ParsedSubgroupNumber | null {
   const macroNumber = Number(match[1]);
   const sub = Number(match[2]);
   if (!Number.isInteger(macroNumber) || !Number.isInteger(sub)) return null;
-  if (macroNumber < 1 || sub < 1) return null;
+  // Permite macro 0 (ex.: macro "0 — Documentos") e sub 0; rejeita negativos.
+  if (macroNumber < 0 || sub < 0) return null;
   return { macroNumber, sub };
 }
 

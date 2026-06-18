@@ -22,10 +22,14 @@ describe("parseSubgroupNumber", () => {
   it("rejeita três níveis (1.4.2)", () => {
     expect(parseSubgroupNumber("1.4.2")).toBeNull();
   });
-  it("rejeita zero e negativos", () => {
-    expect(parseSubgroupNumber("0.1")).toBeNull();
-    expect(parseSubgroupNumber("1.0")).toBeNull();
+  it("aceita macro 0 (ex.: macro 'Documentos') e sub 0", () => {
+    expect(parseSubgroupNumber("0.1")).toEqual({ macroNumber: 0, sub: 1 });
+    expect(parseSubgroupNumber("0.3")).toEqual({ macroNumber: 0, sub: 3 });
+    expect(parseSubgroupNumber("1.0")).toEqual({ macroNumber: 1, sub: 0 });
+  });
+  it("rejeita negativos", () => {
     expect(parseSubgroupNumber("-1.2")).toBeNull();
+    expect(parseSubgroupNumber("1.-2")).toBeNull();
   });
   it("rejeita string vazia", () => {
     expect(parseSubgroupNumber("")).toBeNull();
@@ -91,6 +95,26 @@ describe("validateSubgroupNumber", () => {
 
   it("mensagem de macro-not-found cita o número do macro", () => {
     expect(subgroupErrorMessage("macro-not-found", 9)).toContain("Nº 9");
+  });
+
+  it("PERMITE criar subgrupos no macro 0 (ex.: 0.1, 0.2, 0.3)", () => {
+    const macros0 = [0, 1, 3];
+    const subs0 = [{ macroNumber: 0, sub: 1, id: "d1" }];
+    const r1 = validateSubgroupNumber({
+      raw: "0.2",
+      existingMacroNumbers: macros0,
+      existingSubgroups: subs0,
+    });
+    expect(r1.ok).toBe(true);
+    expect(r1.parsed).toEqual({ macroNumber: 0, sub: 2 });
+
+    // 0.1 já existe → duplicado
+    const r2 = validateSubgroupNumber({
+      raw: "0.1",
+      existingMacroNumbers: macros0,
+      existingSubgroups: subs0,
+    });
+    expect(r2.error).toBe("duplicate");
   });
 });
 
