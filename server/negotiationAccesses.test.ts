@@ -112,7 +112,7 @@ describe("buildAccesses", () => {
     expect(accesses[1].badge).toBe("2.1");
   });
 
-  it("mescla: item de macro.items com mesmo nome de subgrupo mantém posição e ícone, sem virar badge numérico", () => {
+  it("mescla: item de GRUPO com mesmo nome de subgrupo mantém posição/ícone E preserva a fonte 'group' (não vai para aquário)", () => {
     const macro = makeMacro({
       number: 2,
       items: [
@@ -134,9 +134,62 @@ describe("buildAccesses", () => {
     // Mantém o ícone/kind do item original — NÃO vira chip numérico "2.1".
     expect(accesses[0].badge).toBeNull();
     expect(accesses[0].kind).toBe("group");
-    // Mas agrega o vínculo do subgrupo (filtro do Nível 3).
+    // CRÍTICO: itens com dashboard próprio (grupo) NÃO são redirecionados para a
+    // base "aquario". Os selos vivem no scope "grupo-abc"; redirecionar zeraria
+    // a lista do Nível 3. Mantém source="group" e refId do grupo.
+    expect(accesses[0].source).toBe("group");
+    expect(accesses[0].refId).toBe("abc");
+    expect(accesses[0].subgroupId).toBeNull();
+  });
+
+  it("item DASHBOARD (tapete) com mesmo nome de subgrupo preserva source='dashboard'/refId='tapete' e NÃO filtra por subgroupId (caso Tapete Higiênico Pet)", () => {
+    const macro = makeMacro({
+      number: 1,
+      name: "PET",
+      items: [
+        {
+          key: "dashboard:tapete",
+          kind: "dashboard",
+          refId: "tapete",
+          label: "Tapete Higiênico Pet",
+          href: "/tapete",
+          subtipo: null,
+        },
+      ],
+    });
+    const accesses = buildAccesses(macro, [
+      makeSubgroup({ id: "sg13", macroNumber: 1, sub: 3, name: "Tapete Higiênico Pet" }),
+    ]);
+    expect(accesses).toHaveLength(1);
+    expect(accesses[0].kind).toBe("dashboard");
+    // Os selos são salvos no scope "tapete"; o acesso deve ler essa base.
+    expect(accesses[0].source).toBe("dashboard");
+    expect(accesses[0].refId).toBe("tapete");
+    expect(accesses[0].subgroupId).toBeNull();
+  });
+
+  it("item AQUÁRIO (sem subtipo) com mesmo nome de subgrupo AGREGA o vínculo (source='aquario-subgroup')", () => {
+    const macro = makeMacro({
+      number: 1,
+      items: [
+        {
+          key: "dashboard:aquario",
+          kind: "dashboard",
+          refId: "aquario",
+          label: "Peixe Ornamental",
+          href: "/aquario",
+          subtipo: null,
+        },
+      ],
+    });
+    const accesses = buildAccesses(macro, [
+      makeSubgroup({ id: "sgA", macroNumber: 1, sub: 5, name: "Peixe Ornamental" }),
+    ]);
+    expect(accesses).toHaveLength(1);
+    // Item já é da base aquário → pode usar o filtro por subgroupId.
     expect(accesses[0].source).toBe("aquario-subgroup");
-    expect(accesses[0].subgroupId).toBe("sg1");
+    expect(accesses[0].refId).toBe("aquario");
+    expect(accesses[0].subgroupId).toBe("sgA");
   });
 
   it("retorna lista vazia quando não há items nem subgrupos", () => {

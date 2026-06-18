@@ -826,10 +826,10 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 ## Feature 34 — Pastas nomeadas nos anexos
 - [x] Modelo: adicionar campo opcional `folder` em SupplierAttachment
 - [x] Backend de upload: aceitar e preservar `folder`
-- [ ] UI fornecedor: criar pastas com nome livre (sem limite)
-- [ ] UI fornecedor: upload de pasta pronta (webkitdirectory) agrupando pelo nome da pasta
-- [ ] Resumo das Negociações: exibir pastas (nome + arquivos com olho/baixar) além dos avulsos por categoria
-- [ ] Testes + typecheck + checkpoint
+- [x] UI fornecedor: criar pastas com nome livre (sem limite)
+- [x] UI fornecedor: upload de pasta pronta (webkitdirectory) agrupando pelo nome da pasta
+- [x] Resumo das Negociações: exibir pastas (nome + arquivos com olho/baixar) além dos avulsos por categoria
+- [x] Testes + typecheck + checkpoint
 
 ## Feature 34 — Pastas nomeadas nos anexos
 - [x] Modelo: adicionar campo opcional `folder` em SupplierAttachment
@@ -841,3 +841,8 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] groupAttachmentsByFolder agrupa por pasta
 - [x] Resumo das Negociações exibe pastas (nome + arquivos com olho/baixar)
 - [x] Testes de pastas + suíte verde (390)
+
+## Feature 35 — Correção de bugs (resumo + duplicação)
+- [x] Corrigir duplicação de dashboard ao marcar subgrupo (Home.tsx: subgroupCardsByMacro exclui subgrupos cujo nome coincide com itens do macro)
+- [x] Corrigir potencial/preço/status não aparecendo no Resumo das Negociações (buildAccesses preserva source/refId do dashboard próprio — tapete/yiwu/grupo — em vez de forçar base "aquario"; só itens da base aquário viram "aquario-subgroup")
+- [x] Testes (392 verdes) + typecheck (limpo) + checkpoint

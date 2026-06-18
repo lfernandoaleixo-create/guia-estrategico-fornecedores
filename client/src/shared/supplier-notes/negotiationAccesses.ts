@@ -121,6 +121,16 @@ export function buildAccesses(
     const { source, subtipo } = sourceFromItem(it);
     const matchSg = subgroupByLabel.get(norm(it.label));
     if (matchSg) usedSubgroupIds.add(matchSg.id);
+    // Quando o item coincide com um subgrupo numerado, marcamos o subgrupo como
+    // "usado" (para não gerar card/acesso duplicado), MAS preservamos a FONTE
+    // original do item. Itens que têm dashboard próprio (tapete/yiwu/grupo) leem
+    // seus próprios fornecedores/notas — redirecioná-los para a base "aquario"
+    // fazia o Resumo não encontrar nada (selos marcados no scope do dashboard).
+    // Só trocamos a fonte para "aquario-subgroup" quando o próprio item já é da
+    // base aquario (source "dashboard" com refId "aquario" ou um subtipo aquario).
+    const itemIsAquarioBased =
+      it.refId === "aquario" || source === "aquario-subtipo";
+    const useSubgroupSource = !!matchSg && itemIsAquarioBased;
     return {
       id: it.key || `item-${idx}`,
       // Mantém o ícone/kind do item; o número do subgrupo NÃO vira o chip.
@@ -130,10 +140,10 @@ export function buildAccesses(
       color: macro.color,
       kind: it.kind,
       iconUrl: iconUrlForLabel(it.label),
-      source: matchSg ? ("aquario-subgroup" as const) : source,
-      refId: matchSg ? "aquario" : it.refId,
+      source: useSubgroupSource ? ("aquario-subgroup" as const) : source,
+      refId: useSubgroupSource ? "aquario" : it.refId,
       subtipo: subtipo ?? null,
-      subgroupId: matchSg ? matchSg.id : null,
+      subgroupId: useSubgroupSource ? matchSg!.id : null,
     };
   });
 

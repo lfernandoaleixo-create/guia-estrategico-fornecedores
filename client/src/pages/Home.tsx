@@ -365,7 +365,21 @@ export default function Home() {
   // clicável que abre seu dashboard dedicado (/subgrupo/:id).
   const subgroupCardsByMacro = useMemo<Record<number, DashboardCardData[]>>(() => {
     const map: Record<number, DashboardCardData[]> = {};
+    // Nomes (normalizados) dos itens de cada macro — usados para NÃO duplicar:
+    // se um subgrupo numerado tem o mesmo nome de um item já presente no macro
+    // (ex.: 1.3 · Tapete Higiênico Pet), o item original já é o acesso e o
+    // subgrupo serve apenas de vínculo de filtro — então NÃO criamos card extra.
+    const normName = (s: string) =>
+      s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const itemNamesByMacro = new Map<number, Set<string>>();
+    for (const m of macros) {
+      const set = new Set<string>();
+      for (const it of m.items ?? []) set.add(normName(it.label));
+      itemNamesByMacro.set(m.number, set);
+    }
     for (const sg of subgroups) {
+      // Pula subgrupos que coincidem com um item já exibido no mesmo macro.
+      if (itemNamesByMacro.get(sg.macroNumber)?.has(normName(sg.name))) continue;
       const count = countBySubgroup[sg.id] ?? 0;
       const hier = formatSubgroupNumber(sg.macroNumber, sg.sub);
       const card: DashboardCardData = {
@@ -391,7 +405,7 @@ export default function Home() {
       map[sg.macroNumber].push(card);
     }
     return map;
-  }, [subgroups, countBySubgroup]);
+  }, [subgroups, countBySubgroup, macros]);
 
   // Total de cards exibidos (para o cabeçalho/stats).
   const totalCards = Object.keys(allCards).length;
