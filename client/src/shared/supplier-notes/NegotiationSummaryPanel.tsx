@@ -463,17 +463,9 @@ function SupplierLevel3({ access }: { access: MacroAccess }) {
         ? f.preco.filter((x) => x !== p)
         : [...f.preco, p],
     }));
-  const toggleStatus = () =>
-    setFilter((f) => ({
-      ...f,
-      statusLivre: f.statusLivre === "com" ? "any" : "com",
-    }));
   const clearFilters = () => setFilter(EMPTY_FILTER);
 
-  const activeFilterCount =
-    filter.potencial.length +
-    filter.preco.length +
-    (filter.statusLivre === "com" ? 1 : 0);
+  const activeFilterCount = filter.potencial.length + filter.preco.length;
 
   if (loading) {
     return (
@@ -615,31 +607,6 @@ function SupplierLevel3({ access }: { access: MacroAccess }) {
                 );
               })}
             </div>
-          </div>
-
-          {/* Status livre */}
-          <div className="flex flex-col gap-1.5">
-            <span
-              className="text-[10px] uppercase tracking-[0.18em] font-semibold"
-              style={{ color: "oklch(0.55 0.02 80)" }}
-            >
-              Status
-            </span>
-            <button
-              onClick={toggleStatus}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold self-start transition-all active:scale-[0.97]"
-              style={{
-                background:
-                  filter.statusLivre === "com"
-                    ? "oklch(0.55 0.16 280)"
-                    : "oklch(0.16 0.02 258)",
-                border: `1px solid ${filter.statusLivre === "com" ? "oklch(0.55 0.16 280)" : "oklch(0.3 0.04 260)"}`,
-                color:
-                  filter.statusLivre === "com" ? "#fff" : "oklch(0.78 0.02 80)",
-              }}
-            >
-              Apenas com status preenchido
-            </button>
           </div>
         </div>
       )}
