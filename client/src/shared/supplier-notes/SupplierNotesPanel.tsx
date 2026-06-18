@@ -1020,7 +1020,7 @@ export default function SupplierNotesPanel({
           <div className="text-[11px] font-bold tracking-[0.14em] uppercase text-slate-600 mb-2">
             Potencial do fornecedor
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {POTENCIAL_ORDER.map((p) => {
               const cfg = POTENCIAL_CONFIG[p];
               const active = potencial === p;

@@ -13,14 +13,17 @@ import {
 // =============================================================================
 
 describe("POTENCIAL_CONFIG", () => {
-  it("define as três classificações na ordem Alto > Médio > Baixo", () => {
-    expect(POTENCIAL_ORDER).toEqual(["alto", "medio", "baixo"]);
+  it("define as quatro classificações na ordem Alto > Médio/Alto > Médio > Baixo", () => {
+    expect(POTENCIAL_ORDER).toEqual(["alto", "medio_alto", "medio", "baixo"]);
   });
 
-  it("usa verde para alto, laranja para médio e vermelho para baixo", () => {
+  it("usa verde para alto, azul para médio/alto, laranja para médio e vermelho para baixo", () => {
     // Alto = verde
     expect(POTENCIAL_CONFIG.alto.color).toBe("#166534");
     expect(POTENCIAL_CONFIG.alto.bg).toBe("#dcfce7");
+    // Médio/Alto = azul
+    expect(POTENCIAL_CONFIG.medio_alto.color).toBe("#1e40af");
+    expect(POTENCIAL_CONFIG.medio_alto.bg).toBe("#dbeafe");
     // Médio = laranja
     expect(POTENCIAL_CONFIG.medio.color).toBe("#9a3412");
     expect(POTENCIAL_CONFIG.medio.bg).toBe("#ffedd5");
@@ -44,10 +47,11 @@ describe("filterEntriesByPotencial", () => {
     { id: "c", fields: { potencial: "baixo" } },
     { id: "d", fields: {} },
     { id: "e", fields: null },
+    { id: "f", fields: { potencial: "medio_alto" } },
   ];
 
   it("retorna todas as entradas quando o filtro é null", () => {
-    expect(filterEntriesByPotencial(entries, null)).toHaveLength(5);
+    expect(filterEntriesByPotencial(entries, null)).toHaveLength(6);
   });
 
   it("filtra apenas as entradas do potencial escolhido", () => {
@@ -55,6 +59,8 @@ describe("filterEntriesByPotencial", () => {
     expect(altos.map((e) => e.id)).toEqual(["a"]);
     const baixos = filterEntriesByPotencial(entries, "baixo" as Potencial);
     expect(baixos.map((e) => e.id)).toEqual(["c"]);
+    const medioAlto = filterEntriesByPotencial(entries, "medio_alto" as Potencial);
+    expect(medioAlto.map((e) => e.id)).toEqual(["f"]);
   });
 
   it("não inclui entradas sem potencial marcado", () => {

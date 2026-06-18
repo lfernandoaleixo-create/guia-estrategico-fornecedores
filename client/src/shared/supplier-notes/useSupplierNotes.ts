@@ -187,11 +187,11 @@ export const TIPO_CONFIG: Record<
 export const TIPO_ORDER: TipoFornecedor[] = ["direto", "trader"];
 
 // -----------------------------------------------------------------------------
-// Potencial do fornecedor: Alto (verde) / Médio (laranja) / Baixo (vermelho).
-// Marcado manualmente pelo operador no painel. Salvo em fields.potencial.
-// Aparece como selo no card recolhido (PotentialBadge).
+// Potencial do fornecedor: Alto (verde) / Médio-Alto (azul) / Médio (laranja) /
+// Baixo (vermelho). Marcado manualmente pelo operador no painel. Salvo em
+// fields.potencial. Aparece como selo no card recolhido (PotentialBadge).
 // -----------------------------------------------------------------------------
-export type Potencial = "alto" | "medio" | "baixo";
+export type Potencial = "alto" | "medio_alto" | "medio" | "baixo";
 
 export const POTENCIAL_CONFIG: Record<
   Potencial,
@@ -204,6 +204,14 @@ export const POTENCIAL_CONFIG: Record<
     color: "#166534",
     bg: "#dcfce7",
     border: "#86efac",
+  },
+  medio_alto: {
+    label: "M\u00e9dio/Alto potencial",
+    shortLabel: "M\u00e9dio/Alto",
+    emoji: "\ud83d\udd35",
+    color: "#1e40af",
+    bg: "#dbeafe",
+    border: "#93c5fd",
   },
   medio: {
     label: "M\u00e9dio potencial",
@@ -223,7 +231,7 @@ export const POTENCIAL_CONFIG: Record<
   },
 };
 
-export const POTENCIAL_ORDER: Potencial[] = ["alto", "medio", "baixo"];
+export const POTENCIAL_ORDER: Potencial[] = ["alto", "medio_alto", "medio", "baixo"];
 
 /** Filtra entradas por potencial (null = sem filtro). */
 export function filterEntriesByPotencial<T extends { fields?: Record<string, string> | null }>(
