@@ -853,3 +853,8 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] SupplierNotesPanel passa replaceFields:true em potencial/preço/tipo/status/parceiros/subgrupo/handleSave (sempre envia o objeto completo)
 - [x] Chamadas parciais ({ subgroupId }) em Home.tsx/SubgroupDashboard.tsx mantêm o merge (sem o flag)
 - [x] Função pura resolveNextFields + teste de regressão (resolveNextFields.test.ts, 6 testes) — 398 verdes, TS limpo
+
+## Feature 37 — Trocar modo "Transporte" por "Avião" no mapa do fornecedor
+- [x] SupplierMapDialog: RouteModeKey troca TRANSIT→FLIGHT; chip "Transporte"→"Avião"
+- [x] Modo Avião abre busca de voos no Google Maps (travelmode=flight) em nova aba + aviso no modal (Directions não desenha rota aérea)
+- [x] Mensagem de erro ferroviário passa a sugerir "Avião"/"Carro"; sem refs órfãs a TRANSIT; 398 testes verdes, TS limpo

@@ -36,8 +36,8 @@ interface SupplierMapDialogProps {
   district?: string | null;
 }
 
-/** Chave própria de modo de rota (inclui trem e trem bala via TRANSIT). */
-type RouteModeKey = "DRIVING" | "TRANSIT" | "WALKING" | "TRAIN" | "BULLET_TRAIN";
+/** Chave própria de modo de rota (trem/trem bala via TRANSIT; avião abre Google Maps). */
+type RouteModeKey = "DRIVING" | "FLIGHT" | "WALKING" | "TRAIN" | "BULLET_TRAIN";
 
 interface RouteResult {
   distanceText: string;
@@ -187,6 +187,23 @@ export default function SupplierMapDialog({
       return;
     }
 
+    // Avião: o Google Directions API embutido não traça rotas aéreas. Em vez de
+    // falhar com ZERO_RESULTS, abrimos a rota de voo no Google Maps (modo aéreo)
+    // em nova aba e orientamos o operador dentro do modal.
+    if (modeKey === "FLIGHT") {
+      const flightUrl =
+        "https://www.google.com/maps/dir/?api=1" +
+        `&origin=${encodeURIComponent(originQuery)}` +
+        `&destination=${encodeURIComponent(dest)}` +
+        "&travelmode=flight";
+      window.open(flightUrl, "_blank", "noopener,noreferrer");
+      setRoute(null);
+      setRouteError(
+        "Rotas de avião não são desenhadas no mapa. Abrimos a busca de voos no Google Maps em uma nova aba.",
+      );
+      return;
+    }
+
     setRouting(true);
     try {
       const service = new google.maps.DirectionsService();
@@ -205,8 +222,6 @@ export default function SupplierMapDialog({
         request.travelMode = TM.DRIVING;
       } else if (modeKey === "WALKING") {
         request.travelMode = TM.WALKING;
-      } else if (modeKey === "TRANSIT") {
-        request.travelMode = TM.TRANSIT;
       } else if (modeKey === "TRAIN") {
         request.travelMode = TM.TRANSIT;
         request.transitOptions = {
@@ -255,7 +270,7 @@ export default function SupplierMapDialog({
               modeKey === "TRAIN" || modeKey === "BULLET_TRAIN";
             setRouteError(
               ferroviario
-                ? "Não foi encontrada linha de trem entre os dois pontos. Tente “Transporte” ou “Carro”."
+                ? "Não foi encontrada linha de trem entre os dois pontos. Tente “Avião” ou “Carro”."
                 : "Não há rota entre os dois pontos para o modo escolhido. Tente outro modo de transporte.",
             );
           } else {
@@ -285,7 +300,7 @@ export default function SupplierMapDialog({
     label: string;
   }> = [
     { key: "DRIVING", label: "Carro" },
-    { key: "TRANSIT", label: "Transporte" },
+    { key: "FLIGHT", label: "Avião" },
     { key: "TRAIN", label: "Trem" },
     { key: "BULLET_TRAIN", label: "Trem bala" },
     { key: "WALKING", label: "A pé" },
