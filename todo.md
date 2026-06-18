@@ -808,3 +808,10 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] parseSubgroupNumber passa a aceitar macro 0 e sub 0 (rejeita apenas negativos)
 - [x] validateSubgroupNumber/SubgroupPicker/GroupsManager liberam criação no macro 0
 - [x] Testes atualizados (parse 0.1/0.3/1.0, validação no macro 0, duplicado 0.1) — 387 verdes, TS limpo
+
+## Feature 32 — Anexos clicáveis + status + modos ferroviários
+- [x] Card N3: cada anexo com botão visualizar (olho) e baixar
+- [x] Card N3: bloco de anexos mais compacto e alinhado à direita
+- [x] Card N3: prefixar status livre com "Status: " (ex.: "Status: Parado em nós")
+- [x] Mapa: adicionar modo "Trem" (TRANSIT + RAIL) e "Trem bala" (HIGH_SPEED_TRAIN)
+- [x] Testes atualizados + suíte verde + TS limpo

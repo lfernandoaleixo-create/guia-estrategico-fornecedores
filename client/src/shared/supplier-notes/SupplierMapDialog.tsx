@@ -36,6 +36,9 @@ interface SupplierMapDialogProps {
   district?: string | null;
 }
 
+/** Chave própria de modo de rota (inclui trem e trem bala via TRANSIT). */
+type RouteModeKey = "DRIVING" | "TRANSIT" | "WALKING" | "TRAIN" | "BULLET_TRAIN";
+
 interface RouteResult {
   distanceText: string;
   durationText: string;
@@ -64,9 +67,11 @@ export default function SupplierMapDialog({
   const [geoError, setGeoError] = useState(false);
 
   // Estado da funcionalidade de rotas.
+  // Usamos uma chave PRÓPRIA (não o enum do Google) porque "Trem" e "Trem bala"
+  // não existem como TravelMode separados: ambos são TRANSIT com
+  // transitOptions.modes = [TRAIN] e routingPreference diferente.
   const [destination, setDestination] = useState("");
-  const [travelMode, setTravelMode] =
-    useState<google.maps.TravelMode | null>(null);
+  const [modeKey, setModeKey] = useState<RouteModeKey>("DRIVING");
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -100,6 +105,7 @@ export default function SupplierMapDialog({
       setRoute(null);
       setRouteError(null);
       setRouting(false);
+      setModeKey("DRIVING");
     }
   }, [open, name, address]);
 
@@ -141,10 +147,6 @@ export default function SupplierMapDialog({
     mapRef.current = map;
     map.setMapTypeId(mode);
     setGeoError(false);
-    // TravelMode só existe após o script carregar; inicializa aqui.
-    if (!travelMode && google.maps.TravelMode) {
-      setTravelMode(google.maps.TravelMode.DRIVING);
-    }
     geocodeOrigin(map);
   }
 
@@ -188,15 +190,42 @@ export default function SupplierMapDialog({
     setRouting(true);
     try {
       const service = new google.maps.DirectionsService();
-      const selectedMode =
-        travelMode ?? google.maps.TravelMode.DRIVING;
+
+      // Traduz a chave própria em uma DirectionsRequest do Google.
+      //  - TRAIN: TRANSIT priorizando trem comum (RAIL).
+      //  - BULLET_TRAIN: TRANSIT priorizando trem de alta velocidade.
+      const TM = google.maps.TravelMode;
+      const request: google.maps.DirectionsRequest = {
+        origin: originRef.current,
+        destination: dest,
+        region: "cn",
+        travelMode: TM.DRIVING,
+      };
+      if (modeKey === "DRIVING") {
+        request.travelMode = TM.DRIVING;
+      } else if (modeKey === "WALKING") {
+        request.travelMode = TM.WALKING;
+      } else if (modeKey === "TRANSIT") {
+        request.travelMode = TM.TRANSIT;
+      } else if (modeKey === "TRAIN") {
+        request.travelMode = TM.TRANSIT;
+        request.transitOptions = {
+          modes: [google.maps.TransitMode.TRAIN, google.maps.TransitMode.RAIL],
+          routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS,
+        };
+      } else if (modeKey === "BULLET_TRAIN") {
+        // Trem bala: TRANSIT priorizando menos transferências e modo ferroviário.
+        // O Google escolhe automaticamente trens de alta velocidade (ex.: CRH/G/D
+        // na China) quando disponíveis nessa rota.
+        request.travelMode = TM.TRANSIT;
+        request.transitOptions = {
+          modes: [google.maps.TransitMode.TRAIN],
+          routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS,
+        };
+      }
+
       service.route(
-        {
-          origin: originRef.current,
-          destination: dest,
-          travelMode: selectedMode,
-          region: "cn",
-        },
+        request,
         (result, status) => {
           setRouting(false);
           if (status === "OK" && result && result.routes[0]) {
@@ -222,8 +251,12 @@ export default function SupplierMapDialog({
               destinationLabel: leg?.end_address ?? dest,
             });
           } else if (status === "ZERO_RESULTS") {
+            const ferroviario =
+              modeKey === "TRAIN" || modeKey === "BULLET_TRAIN";
             setRouteError(
-              "Não há rota por terra entre os dois pontos para o modo escolhido. Tente outro modo de transporte.",
+              ferroviario
+                ? "Não foi encontrada linha de trem entre os dois pontos. Tente “Transporte” ou “Carro”."
+                : "Não há rota entre os dois pontos para o modo escolhido. Tente outro modo de transporte.",
             );
           } else {
             setRouteError(
@@ -248,23 +281,15 @@ export default function SupplierMapDialog({
   if (!open) return null;
 
   const TRAVEL_MODES: Array<{
-    key: "DRIVING" | "TRANSIT" | "WALKING";
+    key: RouteModeKey;
     label: string;
   }> = [
     { key: "DRIVING", label: "Carro" },
     { key: "TRANSIT", label: "Transporte" },
+    { key: "TRAIN", label: "Trem" },
+    { key: "BULLET_TRAIN", label: "Trem bala" },
     { key: "WALKING", label: "A pé" },
   ];
-
-  const currentModeKey =
-    travelMode && google.maps?.TravelMode
-      ? (Object.keys(google.maps.TravelMode).find(
-          (k) =>
-            google.maps.TravelMode[
-              k as keyof typeof google.maps.TravelMode
-            ] === travelMode,
-        ) as "DRIVING" | "TRANSIT" | "WALKING" | undefined)
-      : "DRIVING";
 
   return (
     <div
@@ -477,15 +502,11 @@ export default function SupplierMapDialog({
           {/* Modo de transporte */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {TRAVEL_MODES.map((tm) => {
-              const active = currentModeKey === tm.key;
+              const active = modeKey === tm.key;
               return (
                 <button
                   key={tm.key}
-                  onClick={() => {
-                    if (google.maps?.TravelMode) {
-                      setTravelMode(google.maps.TravelMode[tm.key]);
-                    }
-                  }}
+                  onClick={() => setModeKey(tm.key)}
                   className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all active:scale-[0.97]"
                   style={
                     active

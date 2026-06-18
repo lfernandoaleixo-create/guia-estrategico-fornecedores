@@ -167,14 +167,17 @@ export interface NegotiationNoteInput {
   attachments?: SupplierAttachment[] | null;
 }
 
-/** Anexos agrupados por categoria (apenas os nomes dos arquivos). */
-export type AnexosPorCategoria = Record<AttachmentCategory, string[]>;
+/**
+ * Anexos agrupados por categoria. Guarda os OBJETOS completos (não só os nomes)
+ * para que o card consiga visualizar (lightbox) e baixar cada arquivo.
+ */
+export type AnexosPorCategoria = Record<AttachmentCategory, SupplierAttachment[]>;
 
 function emptyAnexos(): AnexosPorCategoria {
   return { catalogos: [], fotos: [], cotacoes: [], outros: [] };
 }
 
-/** Agrupa os anexos de uma nota por categoria, preservando os nomes completos. */
+/** Agrupa os anexos de uma nota por categoria, preservando os objetos completos. */
 export function groupAttachmentsByCategory(
   attachments: SupplierAttachment[] | null | undefined,
 ): AnexosPorCategoria {
@@ -182,7 +185,7 @@ export function groupAttachmentsByCategory(
   for (const a of attachments ?? []) {
     const cat: AttachmentCategory = a.category ?? "outros";
     const name = (a.name ?? "").trim();
-    if (name) out[cat].push(name);
+    if (name) out[cat].push(a);
   }
   return out;
 }

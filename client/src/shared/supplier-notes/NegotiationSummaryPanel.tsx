@@ -28,6 +28,8 @@ import {
   Users,
   Paperclip,
   Factory,
+  Eye,
+  Download,
 } from "lucide-react";
 import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
@@ -52,6 +54,12 @@ import {
   type AttachmentCategory,
 } from "./useSupplierNotes";
 import SupplierMapDialog from "./SupplierMapDialog";
+import {
+  AttachmentLightbox,
+  downloadAttachment,
+  canPreviewAtt,
+} from "./attachmentViewer";
+import type { SupplierAttachment } from "./useSupplierNotes";
 
 function AccessKindIcon({
   kind,
@@ -666,6 +674,9 @@ function SupplierRow({
     ? TIPO_CONFIG[supplier.tipoFornecedor as TipoFornecedor]
     : null;
 
+  // Anexo aberto no visualizador (lightbox). null = fechado.
+  const [viewing, setViewing] = useState<SupplierAttachment | null>(null);
+
   // Selos de potencial/preço POR EXTENSO: "Potencial Alto", "Preço Bom".
   // POTENCIAL_CONFIG[].label já é "Alto potencial"; normalizamos para a forma
   // pedida pelo Fernando ("Potencial Alto").
@@ -793,46 +804,85 @@ function SupplierRow({
             color: "oklch(0.85 0.06 290)",
           }}
         >
+          <span style={{ color: "oklch(0.62 0.04 290)" }}>Status:</span>{" "}
           {supplier.statusLivre}
         </div>
       )}
 
-      {/* Anexos por categoria: contagem + NOMES completos (sem cortar) */}
+      {/* Anexos por categoria: bloco COMPACTO, alinhado à direita, com botões
+          de visualizar (olho) e baixar por arquivo. */}
       {totalAnexos > 0 && (
-        <div className="flex items-start gap-2">
-          <Paperclip
-            className="w-4 h-4 mt-0.5 shrink-0"
-            style={{ color: "oklch(0.72 0.13 230)" }}
-          />
-          <div className="flex flex-col gap-1.5 w-full">
+        <div
+          className="self-end w-full max-w-[280px] rounded-lg p-2.5 flex flex-col gap-2"
+          style={{
+            background: "oklch(0.13 0.02 255 / 0.6)",
+            border: "1px solid oklch(0.24 0.03 260)",
+          }}
+        >
+          <div className="flex items-center justify-end gap-1.5">
+            <Paperclip
+              className="w-3.5 h-3.5 shrink-0"
+              style={{ color: "oklch(0.72 0.13 230)" }}
+            />
             <span
-              className="text-xs font-semibold uppercase tracking-wide"
+              className="text-[11px] font-semibold uppercase tracking-wide"
               style={{ color: "oklch(0.6 0.02 80)" }}
             >
               Anexos ({totalAnexos})
             </span>
-            {anexosComArquivos.map((cat) => (
-              <div key={cat} className="flex flex-col gap-0.5">
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: "oklch(0.82 0.02 80)" }}
-                >
-                  {ATTACHMENT_CATEGORY_LABEL[cat]} ({supplier.anexos[cat].length})
-                </span>
-                <ul className="flex flex-col gap-0.5 pl-3">
-                  {supplier.anexos[cat].map((nome, i) => (
-                    <li
-                      key={`${cat}-${i}`}
-                      className="text-xs leading-relaxed break-words"
-                      style={{ color: "oklch(0.74 0.02 80)" }}
-                    >
-                      • {nome}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
           </div>
+          {anexosComArquivos.map((cat) => (
+            <div key={cat} className="flex flex-col gap-1">
+              <span
+                className="text-[11px] font-semibold text-right"
+                style={{ color: "oklch(0.74 0.02 80)" }}
+              >
+                {ATTACHMENT_CATEGORY_LABEL[cat]} ({supplier.anexos[cat].length})
+              </span>
+              <ul className="flex flex-col gap-1">
+                {supplier.anexos[cat].map((att, i) => (
+                  <li
+                    key={att.id ?? `${cat}-${i}`}
+                    className="flex items-center justify-end gap-1.5"
+                  >
+                    <span
+                      className="text-[11px] leading-snug break-all text-right min-w-0"
+                      style={{ color: "oklch(0.66 0.02 80)" }}
+                      title={att.name}
+                    >
+                      {att.name}
+                    </span>
+                    {canPreviewAtt(att) && (
+                      <button
+                        onClick={() => setViewing(att)}
+                        className="flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-transform active:scale-90"
+                        style={{
+                          background: "oklch(0.2 0.04 230 / 0.5)",
+                          color: "oklch(0.78 0.12 230)",
+                        }}
+                        title="Visualizar"
+                        aria-label={`Visualizar ${att.name}`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => void downloadAttachment(att)}
+                      className="flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-transform active:scale-90"
+                      style={{
+                        background: "oklch(0.2 0.04 145 / 0.5)",
+                        color: "oklch(0.78 0.12 150)",
+                      }}
+                      title="Baixar"
+                      aria-label={`Baixar ${att.name}`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
 
@@ -867,6 +917,14 @@ function SupplierRow({
         <span className="text-xs" style={{ color: "oklch(0.5 0.02 80)" }}>
           Endereço não informado
         </span>
+      )}
+
+      {/* Visualizador de anexo (lightbox) — abre ao clicar no olho. */}
+      {viewing && (
+        <AttachmentLightbox
+          attachment={viewing}
+          onClose={() => setViewing(null)}
+        />
       )}
     </div>
   );

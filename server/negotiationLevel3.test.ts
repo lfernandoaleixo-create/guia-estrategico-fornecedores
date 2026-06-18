@@ -113,10 +113,12 @@ describe("groupAttachmentsByCategory", () => {
       { id: "c", name: "foto-galpao.jpg", type: "", size: 0, addedAt: "", category: "fotos" },
       { id: "d", name: "cotacao-fob.xlsx", type: "", size: 0, addedAt: "", category: "cotacoes" },
     ]);
-    expect(r.catalogos).toEqual(["catalogo-2026.pdf"]);
-    expect(r.fotos).toEqual(["foto-fachada.jpg", "foto-galpao.jpg"]);
-    expect(r.cotacoes).toEqual(["cotacao-fob.xlsx"]);
+    expect(r.catalogos.map((a) => a.name)).toEqual(["catalogo-2026.pdf"]);
+    expect(r.fotos.map((a) => a.name)).toEqual(["foto-fachada.jpg", "foto-galpao.jpg"]);
+    expect(r.cotacoes.map((a) => a.name)).toEqual(["cotacao-fob.xlsx"]);
     expect(r.outros).toEqual([]);
+    // Preserva os OBJETOS completos (para visualizar/baixar), não só os nomes.
+    expect(r.catalogos[0].id).toBe("a");
   });
 
   it("trata anexos sem categoria como 'outros' e ignora nomes vazios", () => {
@@ -124,7 +126,7 @@ describe("groupAttachmentsByCategory", () => {
       { id: "a", name: "legado.pdf", type: "", size: 0, addedAt: "" },
       { id: "b", name: "   ", type: "", size: 0, addedAt: "", category: "fotos" },
     ]);
-    expect(r.outros).toEqual(["legado.pdf"]);
+    expect(r.outros.map((a) => a.name)).toEqual(["legado.pdf"]);
     expect(r.fotos).toEqual([]);
   });
 
@@ -175,8 +177,8 @@ describe("buildNegotiationSuppliers — enriquecimento (tipo, parceiros, anexos)
   });
 
   it("agrupa anexos por categoria com contagem implícita pelos nomes", () => {
-    expect(e1.anexos.catalogos).toEqual(["catalogo.pdf"]);
-    expect(e1.anexos.fotos).toEqual(["foto1.jpg", "foto2.jpg"]);
+    expect(e1.anexos.catalogos.map((a) => a.name)).toEqual(["catalogo.pdf"]);
+    expect(e1.anexos.fotos.map((a) => a.name)).toEqual(["foto1.jpg", "foto2.jpg"]);
     expect(e1.anexos.cotacoes).toEqual([]);
     expect(e1.anexos.outros).toEqual([]);
   });
