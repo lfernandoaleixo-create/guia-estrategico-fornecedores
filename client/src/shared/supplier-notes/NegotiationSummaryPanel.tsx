@@ -25,6 +25,9 @@ import {
   FileText,
   SlidersHorizontal,
   ChevronRight,
+  Users,
+  Paperclip,
+  Factory,
 } from "lucide-react";
 import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
@@ -41,8 +44,12 @@ import {
   POTENCIAL_ORDER,
   PRECO_CONFIG,
   PRECO_ORDER,
+  TIPO_CONFIG,
+  ATTACHMENT_CATEGORY_LABEL,
   type Potencial,
   type PrecoClassificacao,
+  type TipoFornecedor,
+  type AttachmentCategory,
 } from "./useSupplierNotes";
 import SupplierMapDialog from "./SupplierMapDialog";
 
@@ -633,6 +640,10 @@ function SupplierLevel3({ access }: { access: MacroAccess }) {
         onClose={() => setMapFor(null)}
         name={mapFor?.name ?? ""}
         address={mapFor?.addressText ?? ""}
+        street={mapFor?.address ?? null}
+        city={mapFor?.city ?? null}
+        province={mapFor?.province ?? null}
+        district={mapFor?.district ?? null}
       />
     </div>
   );
@@ -651,6 +662,32 @@ function SupplierRow({
   const precoCfg = supplier.preco
     ? PRECO_CONFIG[supplier.preco as PrecoClassificacao]
     : null;
+  const tipoCfg = supplier.tipoFornecedor
+    ? TIPO_CONFIG[supplier.tipoFornecedor as TipoFornecedor]
+    : null;
+
+  // Selos de potencial/preço POR EXTENSO: "Potencial Alto", "Preço Bom".
+  // POTENCIAL_CONFIG[].label já é "Alto potencial"; normalizamos para a forma
+  // pedida pelo Fernando ("Potencial Alto").
+  const potencialTexto = potencialCfg
+    ? `Potencial ${potencialCfg.shortLabel}`
+    : null;
+  const precoTexto = precoCfg ? precoCfg.label : null; // já vem "Preço Bom"
+
+  // Categorias de anexos que têm ao menos 1 arquivo (ordem fixa e amigável).
+  const anexoCategorias: AttachmentCategory[] = [
+    "catalogos",
+    "fotos",
+    "cotacoes",
+    "outros",
+  ];
+  const anexosComArquivos = anexoCategorias.filter(
+    (c) => supplier.anexos[c].length > 0,
+  );
+  const totalAnexos = anexoCategorias.reduce(
+    (acc, c) => acc + supplier.anexos[c].length,
+    0,
+  );
 
   return (
     <div
@@ -660,41 +697,91 @@ function SupplierRow({
         border: "1px solid oklch(0.26 0.03 260)",
       }}
     >
-      {/* Nome + selos */}
-      <div className="flex items-start justify-between gap-3">
+      {/* Nome + selos por extenso (maiores e mais visíveis) */}
+      <div className="flex flex-col gap-2">
         <h4
-          className="text-sm font-semibold leading-snug"
+          className="text-base font-semibold leading-snug"
           style={{ color: "oklch(0.97 0.01 80)" }}
         >
           {supplier.name}
         </h4>
-        <div className="flex flex-wrap items-center gap-1.5 justify-end shrink-0">
-          {potencialCfg && (
+        <div className="flex flex-wrap items-center gap-2">
+          {potencialTexto && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
               style={{
-                background: potencialCfg.bg,
-                color: potencialCfg.color,
-                border: `1px solid ${potencialCfg.border}`,
+                background: potencialCfg!.bg,
+                color: potencialCfg!.color,
+                border: `1px solid ${potencialCfg!.border}`,
               }}
             >
-              {potencialCfg.emoji} {potencialCfg.shortLabel}
+              {potencialCfg!.emoji} {potencialTexto}
             </span>
           )}
-          {precoCfg && (
+          {precoTexto && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
               style={{
-                background: precoCfg.bg,
-                color: precoCfg.color,
-                border: `1px solid ${precoCfg.border}`,
+                background: precoCfg!.bg,
+                color: precoCfg!.color,
+                border: `1px solid ${precoCfg!.border}`,
               }}
             >
-              {precoCfg.emoji} {precoCfg.label}
+              {precoCfg!.emoji} {precoTexto}
             </span>
           )}
         </div>
       </div>
+
+      {/* Tipo de fornecedor: Fabricante Direto / Trader */}
+      {tipoCfg && (
+        <div
+          className="inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-lg text-sm font-semibold"
+          style={{
+            background: tipoCfg.bg,
+            color: tipoCfg.color,
+            border: `1px solid ${tipoCfg.border}`,
+          }}
+        >
+          <Factory className="w-4 h-4" />
+          {tipoCfg.label}
+        </div>
+      )}
+
+      {/* Parceiro(s) chinês(es) — TODOS, sem cortar */}
+      {supplier.parceiros.length > 0 && (
+        <div className="flex items-start gap-2">
+          <Users
+            className="w-4 h-4 mt-0.5 shrink-0"
+            style={{ color: "oklch(0.7 0.13 300)" }}
+          />
+          <div className="flex flex-col gap-0.5">
+            <span
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "oklch(0.6 0.02 80)" }}
+            >
+              {supplier.parceiros.length === 1
+                ? "Parceiro chinês"
+                : `Parceiros chineses (${supplier.parceiros.length})`}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {supplier.parceiros.map((p) => (
+                <span
+                  key={p}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: "oklch(0.24 0.08 300 / 0.4)",
+                    border: "1px solid oklch(0.45 0.12 300 / 0.55)",
+                    color: "oklch(0.88 0.07 300)",
+                  }}
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status livre */}
       {supplier.statusLivre && (
@@ -707,6 +794,45 @@ function SupplierRow({
           }}
         >
           {supplier.statusLivre}
+        </div>
+      )}
+
+      {/* Anexos por categoria: contagem + NOMES completos (sem cortar) */}
+      {totalAnexos > 0 && (
+        <div className="flex items-start gap-2">
+          <Paperclip
+            className="w-4 h-4 mt-0.5 shrink-0"
+            style={{ color: "oklch(0.72 0.13 230)" }}
+          />
+          <div className="flex flex-col gap-1.5 w-full">
+            <span
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "oklch(0.6 0.02 80)" }}
+            >
+              Anexos ({totalAnexos})
+            </span>
+            {anexosComArquivos.map((cat) => (
+              <div key={cat} className="flex flex-col gap-0.5">
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "oklch(0.82 0.02 80)" }}
+                >
+                  {ATTACHMENT_CATEGORY_LABEL[cat]} ({supplier.anexos[cat].length})
+                </span>
+                <ul className="flex flex-col gap-0.5 pl-3">
+                  {supplier.anexos[cat].map((nome, i) => (
+                    <li
+                      key={`${cat}-${i}`}
+                      className="text-xs leading-relaxed break-words"
+                      style={{ color: "oklch(0.74 0.02 80)" }}
+                    >
+                      • {nome}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

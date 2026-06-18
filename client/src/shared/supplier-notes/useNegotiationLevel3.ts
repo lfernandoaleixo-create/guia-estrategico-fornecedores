@@ -89,6 +89,7 @@ export function useNegotiationLevel3(access: MacroAccess | null): {
         name: s.name,
         city: s.city ?? null,
         province: s.province ?? null,
+        district: s.district ?? null,
         address: s.address ?? null,
       }));
 

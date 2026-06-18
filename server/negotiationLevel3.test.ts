@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildNegotiationSuppliers,
   composeAddress,
+  groupAttachmentsByCategory,
   hasAnyTick,
   applyNegotiationFilter,
   EMPTY_FILTER,
@@ -92,6 +93,102 @@ describe("buildNegotiationSuppliers", () => {
     expect(s1.potencial).toBe("alto");
     expect(s1.preco).toBe("bom");
     expect(s1.statusLivre).toBe("Aguardando contrato");
+  });
+
+  it("preserva partes de endereço separadas (incl. distrito)", () => {
+    const s1 = built.find((b) => b.id === "s1")!;
+    expect(s1.address).toBe("Rua A, 123");
+    expect(s1.city).toBe("Ningbo");
+    expect(s1.province).toBe("Zhejiang");
+    // s1 não tem distrito; deve ser null
+    expect(s1.district).toBeNull();
+  });
+});
+
+describe("groupAttachmentsByCategory", () => {
+  it("agrupa por categoria preservando nomes completos", () => {
+    const r = groupAttachmentsByCategory([
+      { id: "a", name: "catalogo-2026.pdf", type: "", size: 0, addedAt: "", category: "catalogos" },
+      { id: "b", name: "foto-fachada.jpg", type: "", size: 0, addedAt: "", category: "fotos" },
+      { id: "c", name: "foto-galpao.jpg", type: "", size: 0, addedAt: "", category: "fotos" },
+      { id: "d", name: "cotacao-fob.xlsx", type: "", size: 0, addedAt: "", category: "cotacoes" },
+    ]);
+    expect(r.catalogos).toEqual(["catalogo-2026.pdf"]);
+    expect(r.fotos).toEqual(["foto-fachada.jpg", "foto-galpao.jpg"]);
+    expect(r.cotacoes).toEqual(["cotacao-fob.xlsx"]);
+    expect(r.outros).toEqual([]);
+  });
+
+  it("trata anexos sem categoria como 'outros' e ignora nomes vazios", () => {
+    const r = groupAttachmentsByCategory([
+      { id: "a", name: "legado.pdf", type: "", size: 0, addedAt: "" },
+      { id: "b", name: "   ", type: "", size: 0, addedAt: "", category: "fotos" },
+    ]);
+    expect(r.outros).toEqual(["legado.pdf"]);
+    expect(r.fotos).toEqual([]);
+  });
+
+  it("retorna todas as categorias vazias para nulo/indefinido", () => {
+    const r = groupAttachmentsByCategory(null);
+    expect(r).toEqual({ catalogos: [], fotos: [], cotacoes: [], outros: [] });
+  });
+});
+
+describe("buildNegotiationSuppliers — enriquecimento (tipo, parceiros, anexos)", () => {
+  const sup: NegotiationSupplierInput[] = [
+    {
+      id: "e1",
+      name: "Enriquecido Co.",
+      city: "Guangzhou",
+      province: "Guangdong",
+      district: "Tianhe",
+      address: "Av. Huabo, 101",
+    },
+  ];
+  const ent: Record<string, NegotiationNoteInput | undefined> = {
+    e1: {
+      fields: {
+        potencial: "alto",
+        tipoFornecedor: "direto",
+        parceirosChineses: JSON.stringify(["Betty", "Lilly"]),
+      },
+      attachments: [
+        { id: "a", name: "catalogo.pdf", type: "", size: 0, addedAt: "", category: "catalogos" },
+        { id: "b", name: "foto1.jpg", type: "", size: 0, addedAt: "", category: "fotos" },
+        { id: "c", name: "foto2.jpg", type: "", size: 0, addedAt: "", category: "fotos" },
+      ],
+    },
+  };
+  const built = buildNegotiationSuppliers(sup, ent);
+  const e1 = built[0];
+
+  it("traz tipo de fornecedor", () => {
+    expect(e1.tipoFornecedor).toBe("direto");
+  });
+
+  it("traz TODOS os parceiros chineses", () => {
+    expect(e1.parceiros).toEqual(["Betty", "Lilly"]);
+  });
+
+  it("traz o distrito", () => {
+    expect(e1.district).toBe("Tianhe");
+  });
+
+  it("agrupa anexos por categoria com contagem implícita pelos nomes", () => {
+    expect(e1.anexos.catalogos).toEqual(["catalogo.pdf"]);
+    expect(e1.anexos.fotos).toEqual(["foto1.jpg", "foto2.jpg"]);
+    expect(e1.anexos.cotacoes).toEqual([]);
+    expect(e1.anexos.outros).toEqual([]);
+  });
+
+  it("campos ausentes viram null/vazio sem quebrar", () => {
+    const b2 = buildNegotiationSuppliers(
+      [{ id: "x", name: "Vazio" }],
+      { x: { fields: { statusLivre: "oi" } } },
+    )[0];
+    expect(b2.tipoFornecedor).toBeNull();
+    expect(b2.parceiros).toEqual([]);
+    expect(b2.anexos).toEqual({ catalogos: [], fotos: [], cotacoes: [], outros: [] });
   });
 });
 

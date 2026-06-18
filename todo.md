@@ -759,7 +759,7 @@ Fernando quer um botão no topo da Home (à direita do cabeçalho, perto de "7 A
 - [x] Criado NegotiationSummaryPanel (modal/overlay amplo max-w-5xl) só leitura, com cabeçalho, conteúdo rolável, fechar via X/ESC/clique fora
 - [x] Nível 1: lista compacta de macros (número · nome · contagem de subgrupos); Nível 2: ao clicar, mostra subgrupos do macro (compacto) com botão voltar
 - [x] Validado no preview: painel abre, lista macros, clica em Utensílios/Casa → mostra 2.1 Marmita Plástica
-- [ ] Níveis seguintes (fornecedores/resumo ao clicar no subgrupo) — aguardando instruções do Fernando
+- [x] Níveis seguintes (Nível 3): fornecedores ticados por acesso com nome, potencial, preço, status livre, resumo opcional e endereço com mapa/satélite + filtros combináveis (concluído)
 - [x] Teste da lógica do painel + suíte verde + TypeScript limpo (negotiationAccesses.test.ts, 345 verdes)
 
 - [x] Painel Resumo: no Nível 2, mostrar TODOS os acessos do macro = união de macro.items (dashboards/subgrupos/grupos, ex.: Terrário, Aquário, Tapete do PET) + subgrupos da tabela `subgroups` (byMacro). Hoje só lia `subgroups`, por isso o PET aparecia vazio.
@@ -767,11 +767,12 @@ Fernando quer um botão no topo da Home (à direita do cabeçalho, perto de "7 A
 ## Feature 28 — Ticagem de Preço sempre visível + Status livre editável
 Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opções — Ótimo (verde), Bom (azul), Ruim (vermelho) — sempre visível (não só quando aprovado); (b) um campo de status LIVRE editável (texto) onde ele escreve o que quiser.
 
-- [ ] PRECO_CONFIG ajustado: excelente="Preço Ótimo" (verde), bom="Preço Bom" (AZUL), ruim="Preço Ruim" (vermelho)
-- [ ] Ticagem de Preço sempre visível no SupplierNotesPanel (independente do status)
-- [ ] Campo "Status (livre)" editável em fields.statusLivre (textarea/input), persistido no handleSave
-- [ ] Exibir status livre no card recolhido (badge/linha)
-- [ ] Atualizar testes (cores/labels do preço + persistência do status livre), validar no preview e salvar checkpoint
+- [x] PRECO_CONFIG ajustado: excelente="Preço Ótimo" (verde), bom="Preço Bom" (AZUL), ruim="Preço Ruim" (vermelho)
+- [x] Ticagem de Preço sempre visível no SupplierNotesPanel (independente do status)
+- [x] Campo "Status (livre)" editável em fields.statusLivre (textarea/input), persistido no handleSave
+- [x] Exibir status livre no card recolhido (badge/linha)
+- [x] Atualizar testes (cores/labels do preço + persistência do status livre), validar no preview e salvar checkpoint
+- [x] Remover seção de filtro "Status / Apenas com status preenchido" do Nível 3 (mantidos Potencial e Preço)
 
 ## Feature 29 — Nível 3 do Resumo das Negociações + filtros combináveis
 - [x] Corrigir duplicação em supplier_notes (unique scope+supplierId, upsert atômico, dedup do banco)
@@ -789,3 +790,16 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Corrigir resets indevidos de estado (useEffect) que apagam o que foi digitado
 - [x] Testes de regressão cobrindo save parcial sem perder campos existentes
 - [x] Validar no preview (observações + status + preço + resumo persistem) e checkpoint
+
+## Feature 31 — Enriquecimento do Nível 3 + Mapa com rotas
+- [x] Estender NegotiationSupplier: tipoFornecedor, parceiros (todos), anexos por categoria (nomes), city/province/district/address separados
+- [x] groupAttachmentsByCategory (módulo puro) com testes
+- [x] useNegotiationLevel3 passa district dos CustomSuppliers
+- [x] Card do Nível 3: selos por extenso e maiores ("Potencial Alto", "Preço Bom")
+- [x] Card do Nível 3: tipo de fornecedor (Fabricante Direto / Trader)
+- [x] Card do Nível 3: parceiro(s) chinês(es) — todos, sem cortar
+- [x] Card do Nível 3: anexos por categoria com contagem + nomes completos (sem truncar)
+- [x] SupplierMapDialog: cabeçalho mostra cidade/distrito/província além do endereço
+- [x] SupplierMapDialog: seção Rotas (destino, modos carro/transporte/a pé, distância em km e tempo) via DirectionsService/DirectionsRenderer
+- [x] Map.tsx: biblioteca "routes" adicionada ao script do Google Maps
+- [x] Testes do Nível 3 atualizados (district, tipo, parceiros, anexos) — 385 verdes, TypeScript limpo

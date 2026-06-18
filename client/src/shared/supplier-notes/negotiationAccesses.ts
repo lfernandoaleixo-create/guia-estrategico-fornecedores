@@ -16,6 +16,8 @@
 import type { Macro, MacroItem } from "./useMacros";
 import type { Subgroup } from "./useSubgroups";
 import { formatSubgroupNumber } from "./subgroupNumber";
+import type { AttachmentCategory, SupplierAttachment } from "./useSupplierNotes";
+import { parsePartners } from "./partners";
 
 /**
  * Origem dos fornecedores de um acesso. Define QUAL fonte o Nível 3 deve
@@ -155,12 +157,34 @@ export interface NegotiationSupplierInput {
   name: string;
   city?: string | null;
   province?: string | null;
+  district?: string | null;
   address?: string | null;
 }
 
 /** Forma mínima de uma nota (entry) para o Nível 3. */
 export interface NegotiationNoteInput {
   fields?: Record<string, string> | null;
+  attachments?: SupplierAttachment[] | null;
+}
+
+/** Anexos agrupados por categoria (apenas os nomes dos arquivos). */
+export type AnexosPorCategoria = Record<AttachmentCategory, string[]>;
+
+function emptyAnexos(): AnexosPorCategoria {
+  return { catalogos: [], fotos: [], cotacoes: [], outros: [] };
+}
+
+/** Agrupa os anexos de uma nota por categoria, preservando os nomes completos. */
+export function groupAttachmentsByCategory(
+  attachments: SupplierAttachment[] | null | undefined,
+): AnexosPorCategoria {
+  const out = emptyAnexos();
+  for (const a of attachments ?? []) {
+    const cat: AttachmentCategory = a.category ?? "outros";
+    const name = (a.name ?? "").trim();
+    if (name) out[cat].push(name);
+  }
+  return out;
 }
 
 /** Item resultante exibido no Nível 3. */
@@ -169,11 +193,22 @@ export interface NegotiationSupplier {
   name: string;
   /** Endereço composto para exibição/mapa (cidade, província, endereço). */
   addressText: string;
+  /** Partes de endereço separadas, para o mapa exibir cidade/distrito. */
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  district: string | null;
   potencial: string | null;
   preco: string | null;
   statusLivre: string | null;
   /** Resumo da negociação (observacoes), só quando houver texto. */
   resumo: string | null;
+  /** Tipo do fornecedor: "direto" | "trader" | null (não marcado). */
+  tipoFornecedor: string | null;
+  /** Lista completa de parceiros chineses responsáveis. */
+  parceiros: string[];
+  /** Anexos agrupados por categoria, com nomes completos dos arquivos. */
+  anexos: AnexosPorCategoria;
 }
 
 /** Monta o texto de endereço a partir das partes disponíveis. */
@@ -223,10 +258,17 @@ export function buildNegotiationSuppliers(
       id: s.id,
       name: s.name,
       addressText: composeAddress(s),
+      address: (s.address ?? "").trim() || null,
+      city: (s.city ?? "").trim() || null,
+      province: (s.province ?? "").trim() || null,
+      district: (s.district ?? "").trim() || null,
       potencial: (f.potencial ?? "").trim() || null,
       preco: (f.precoClassificacao ?? "").trim() || null,
       statusLivre: (f.statusLivre ?? "").trim() || null,
       resumo: resumoRaw || null,
+      tipoFornecedor: (f.tipoFornecedor ?? "").trim() || null,
+      parceiros: parsePartners(f),
+      anexos: groupAttachmentsByCategory(note?.attachments),
     });
   }
   // Ordena por nome (case/acento-insensitive) para leitura estável.
