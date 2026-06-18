@@ -63,6 +63,27 @@ export interface QuoteRow {
   observacao: string;
 }
 
+/**
+ * Resolve o conjunto final de `fields` a ser persistido, dado os fields atuais
+ * (base), o patch enviado e a flag `replaceFields`.
+ *
+ * - Sem `patch.fields`: mantém a base inalterada.
+ * - `replaceFields = true`: o patch SUBSTITUI integralmente (permite DESMARCAR
+ *   campos — ex.: ao remover `potencial`, ele não reaparece via merge).
+ * - `replaceFields` ausente/false: faz merge (base + patch), para chamadas que
+ *   enviam apenas um subconjunto (ex.: { subgroupId }).
+ *
+ * Função pura para permitir teste de regressão.
+ */
+export function resolveNextFields(
+  base: Record<string, string>,
+  patchFields: Record<string, string> | undefined,
+  replaceFields: boolean | undefined,
+): Record<string, string> {
+  if (!patchFields) return base;
+  return replaceFields ? patchFields : { ...base, ...patchFields };
+}
+
 export interface SupplierNoteEntry {
   supplierId: string;
   status: SupplierStatus;
@@ -472,15 +493,28 @@ export function useSupplierNotes(scope: Scope) {
         observacoes?: string;
         fields?: Record<string, string>;
         groupIds?: string[];
+        /**
+         * Quando true, `patch.fields` SUBSTITUI integralmente os fields gravados
+         * (em vez de mesclar). Necessário para permitir DESMARCAR campos: ao
+         * remover uma chave (ex.: potencial/precoClassificacao) o painel envia o
+         * conjunto completo sem ela, e o merge faria a chave antiga reaparecer.
+         * Chamadas que enviam apenas um subconjunto (ex.: { subgroupId }) devem
+         * manter o merge (replaceFields = false / omitido).
+         */
+        replaceFields?: boolean;
       },
     ) => {
       const base = buildBase(supplierId);
-      const mergedFields = { ...base.fields, ...(patch.fields ?? {}) };
+      const nextFields = resolveNextFields(
+        base.fields,
+        patch.fields,
+        patch.replaceFields,
+      );
       const updated: SupplierNoteEntry = {
         ...base,
         status: patch.status ?? base.status,
         observacoes: patch.observacoes ?? base.observacoes,
-        fields: patch.fields ? mergedFields : base.fields,
+        fields: nextFields,
         groupIds: patch.groupIds ?? base.groupIds,
       };
       void persist(updated);
@@ -499,15 +533,21 @@ export function useSupplierNotes(scope: Scope) {
         observacoes?: string;
         fields?: Record<string, string>;
         groupIds?: string[];
+        /** Vide upsertEntry: substitui os fields integralmente quando true. */
+        replaceFields?: boolean;
       },
     ) => {
       const base = buildBase(supplierId);
-      const mergedFields = { ...base.fields, ...(patch.fields ?? {}) };
+      const nextFields = resolveNextFields(
+        base.fields,
+        patch.fields,
+        patch.replaceFields,
+      );
       const updated: SupplierNoteEntry = {
         ...base,
         status: patch.status ?? base.status,
         observacoes: patch.observacoes ?? base.observacoes,
-        fields: patch.fields ? mergedFields : base.fields,
+        fields: nextFields,
         groupIds: patch.groupIds ?? base.groupIds,
       };
       await persist(updated);

@@ -846,3 +846,10 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Corrigir duplicação de dashboard ao marcar subgrupo (Home.tsx: subgroupCardsByMacro exclui subgrupos cujo nome coincide com itens do macro)
 - [x] Corrigir potencial/preço/status não aparecendo no Resumo das Negociações (buildAccesses preserva source/refId do dashboard próprio — tapete/yiwu/grupo — em vez de forçar base "aquario"; só itens da base aquário viram "aquario-subgroup")
 - [x] Testes (392 verdes) + typecheck (limpo) + checkpoint
+
+## Feature 36 — Corrigir "não consigo desmarcar potencial/preço" no painel de anotações
+- [x] Causa: upsertEntry fazia MERGE dos fields (base + patch); ao desmarcar, a chave removida reaparecia (valor antigo no banco preservado)
+- [x] upsertEntry/upsertEntryAsync ganham flag `replaceFields`; quando true, o patch.fields SUBSTITUI integralmente os fields (permite remover chave)
+- [x] SupplierNotesPanel passa replaceFields:true em potencial/preço/tipo/status/parceiros/subgrupo/handleSave (sempre envia o objeto completo)
+- [x] Chamadas parciais ({ subgroupId }) em Home.tsx/SubgroupDashboard.tsx mantêm o merge (sem o flag)
+- [x] Função pura resolveNextFields + teste de regressão (resolveNextFields.test.ts, 6 testes) — 398 verdes, TS limpo

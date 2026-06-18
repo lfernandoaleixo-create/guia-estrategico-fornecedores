@@ -714,7 +714,7 @@ export default function SupplierNotesPanel({
       nextFields.potencial = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
     flashSaved();
   };
 
@@ -728,7 +728,7 @@ export default function SupplierNotesPanel({
       nextFields.tipoFornecedor = t;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
     flashSaved();
   };
 
@@ -738,7 +738,7 @@ export default function SupplierNotesPanel({
     // A classificação de preço é independente do status (sempre visível/editável).
     // Persistimos também os campos atuais (incluindo resumo/status livre digitados)
     // para nunca descartar o que o operador já preencheu antes de salvar.
-    upsertEntry(supplierId, { status: s, observacoes, fields: { ...fields, resumoNegociacao, statusLivre } });
+    upsertEntry(supplierId, { status: s, observacoes, fields: { ...fields, resumoNegociacao, statusLivre }, replaceFields: true });
     flashSaved();
   };
 
@@ -748,7 +748,7 @@ export default function SupplierNotesPanel({
     markDirty();
     const nextFields = { ...fields, [PARTNERS_FIELD_KEY]: serializePartners(next) };
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
     flashSaved();
   };
 
@@ -762,7 +762,7 @@ export default function SupplierNotesPanel({
       nextFields.precoClassificacao = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre } });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
     flashSaved();
   };
 
@@ -771,7 +771,7 @@ export default function SupplierNotesPanel({
     // migração de schema (campo genérico key/value).
     const fieldsToSave = { ...fields, resumoNegociacao, statusLivre };
     setFields(fieldsToSave);
-    upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave });
+    upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave, replaceFields: true });
     upsertQuoteRows(supplierId, quoteRows);
     // O conteúdo salvo é agora a base confirmada: liberamos a reidratação do
     // servidor (que virá com exatamente o que acabamos de gravar).
@@ -1081,7 +1081,7 @@ export default function SupplierNotesPanel({
           onChange={(id) => {
             const nextFields = { ...fields, subgroupId: id ?? "" };
             setFields(nextFields);
-            upsertEntry(supplierId, { status, observacoes, fields: nextFields });
+            upsertEntry(supplierId, { status, observacoes, fields: nextFields, replaceFields: true });
             flashSaved();
           }}
         />
