@@ -30,6 +30,7 @@ import {
   Factory,
   Eye,
   Download,
+  Activity,
 } from "lucide-react";
 import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
@@ -714,6 +715,12 @@ function SupplierRow({
           className="text-base font-semibold leading-snug"
           style={{ color: "oklch(0.97 0.01 80)" }}
         >
+          <span
+            className="font-medium"
+            style={{ color: "oklch(0.6 0.02 80)" }}
+          >
+            Fornecedor:{" "}
+          </span>
           {supplier.name}
         </h4>
         <div className="flex flex-wrap items-center gap-2">
@@ -794,17 +801,27 @@ function SupplierRow({
         </div>
       )}
 
-      {/* Status livre */}
+      {/* Status livre — com MAIS destaque (maior, com ícone e contraste). */}
       {supplier.statusLivre && (
         <div
-          className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-lg text-xs font-medium"
+          className="inline-flex items-center gap-2 self-start px-3.5 py-2 rounded-xl text-sm font-bold"
           style={{
-            background: "oklch(0.22 0.06 280 / 0.35)",
-            border: "1px solid oklch(0.4 0.1 280 / 0.5)",
-            color: "oklch(0.85 0.06 290)",
+            background: "oklch(0.32 0.1 285 / 0.5)",
+            border: "1.5px solid oklch(0.55 0.15 285 / 0.7)",
+            color: "oklch(0.95 0.05 290)",
+            boxShadow: "0 2px 12px oklch(0.4 0.12 285 / 0.25)",
           }}
         >
-          <span style={{ color: "oklch(0.62 0.04 290)" }}>Status:</span>{" "}
+          <Activity
+            className="w-4 h-4 shrink-0"
+            style={{ color: "oklch(0.82 0.13 290)" }}
+          />
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide"
+            style={{ color: "oklch(0.74 0.08 290)" }}
+          >
+            Status:
+          </span>{" "}
           {supplier.statusLivre}
         </div>
       )}
@@ -813,13 +830,13 @@ function SupplierRow({
           de visualizar (olho) e baixar por arquivo. */}
       {totalAnexos > 0 && (
         <div
-          className="self-end w-full max-w-[280px] rounded-lg p-2.5 flex flex-col gap-2"
+          className="self-start w-full max-w-[300px] rounded-lg p-2.5 flex flex-col gap-2"
           style={{
             background: "oklch(0.13 0.02 255 / 0.6)",
             border: "1px solid oklch(0.24 0.03 260)",
           }}
         >
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex items-center justify-start gap-1.5">
             <Paperclip
               className="w-3.5 h-3.5 shrink-0"
               style={{ color: "oklch(0.72 0.13 230)" }}
@@ -834,7 +851,7 @@ function SupplierRow({
           {anexosComArquivos.map((cat) => (
             <div key={cat} className="flex flex-col gap-1">
               <span
-                className="text-[11px] font-semibold text-right"
+                className="text-[11px] font-semibold text-left"
                 style={{ color: "oklch(0.74 0.02 80)" }}
               >
                 {ATTACHMENT_CATEGORY_LABEL[cat]} ({supplier.anexos[cat].length})
@@ -843,10 +860,10 @@ function SupplierRow({
                 {supplier.anexos[cat].map((att, i) => (
                   <li
                     key={att.id ?? `${cat}-${i}`}
-                    className="flex items-center justify-end gap-1.5"
+                    className="flex items-center justify-start gap-1.5"
                   >
                     <span
-                      className="text-[11px] leading-snug break-all text-right min-w-0"
+                      className="text-[11px] leading-snug break-all text-left min-w-0 flex-1"
                       style={{ color: "oklch(0.66 0.02 80)" }}
                       title={att.name}
                     >
@@ -886,37 +903,91 @@ function SupplierRow({
         </div>
       )}
 
-      {/* Resumo (só quando houver) */}
+      {/* Resumo — com rótulo "Resumo:" e MAIS destaque (card próprio). */}
       {supplier.resumo && (
-        <div className="flex items-start gap-2">
+        <div
+          className="flex items-start gap-2.5 rounded-xl p-3"
+          style={{
+            background: "oklch(0.19 0.02 258)",
+            border: "1px solid oklch(0.3 0.03 260)",
+          }}
+        >
           <FileText
-            className="w-3.5 h-3.5 mt-0.5 shrink-0"
-            style={{ color: "oklch(0.55 0.02 80)" }}
+            className="w-4 h-4 mt-0.5 shrink-0"
+            style={{ color: "oklch(0.78 0.14 75)" }}
           />
-          <p
-            className="text-xs leading-relaxed whitespace-pre-wrap"
-            style={{ color: "oklch(0.78 0.02 80)" }}
-          >
-            {supplier.resumo}
-          </p>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wide"
+              style={{ color: "oklch(0.7 0.1 75)" }}
+            >
+              Resumo
+            </span>
+            <p
+              className="text-sm leading-relaxed whitespace-pre-wrap font-medium"
+              style={{ color: "oklch(0.92 0.02 80)" }}
+            >
+              {supplier.resumo}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Endereço clicável → mapa */}
+      {/* Localização clicável → mapa (PIN GPS destacado). */}
       {supplier.addressText ? (
         <button
           onClick={() => onOpenMap(supplier)}
-          className="inline-flex items-center gap-1.5 self-start text-xs font-medium transition-colors hover:underline"
-          style={{ color: "oklch(0.72 0.13 230)" }}
+          className="group inline-flex items-center gap-2 self-start text-sm font-medium transition-colors"
+          style={{ color: "oklch(0.82 0.02 80)" }}
           title="Abrir no mapa"
         >
-          <MapPin className="w-3.5 h-3.5" />
-          {supplier.addressText}
+          <span
+            className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-transform group-active:scale-90"
+            style={{
+              background: "oklch(0.28 0.1 25 / 0.55)",
+              border: "1px solid oklch(0.55 0.16 25 / 0.6)",
+            }}
+          >
+            <MapPin
+              className="w-4 h-4"
+              style={{ color: "oklch(0.78 0.18 25)" }}
+            />
+          </span>
+          <span className="flex flex-col items-start leading-tight">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wide"
+              style={{ color: "oklch(0.6 0.02 80)" }}
+            >
+              Localização
+            </span>
+            <span className="group-hover:underline" style={{ color: "oklch(0.72 0.13 230)" }}>
+              {supplier.addressText}
+            </span>
+          </span>
         </button>
       ) : (
-        <span className="text-xs" style={{ color: "oklch(0.5 0.02 80)" }}>
-          Endereço não informado
-        </span>
+        <div className="inline-flex items-center gap-2 self-start">
+          <span
+            className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+            style={{
+              background: "oklch(0.22 0.02 258)",
+              border: "1px solid oklch(0.3 0.03 260)",
+            }}
+          >
+            <MapPin className="w-4 h-4" style={{ color: "oklch(0.5 0.02 80)" }} />
+          </span>
+          <span className="flex flex-col items-start leading-tight">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wide"
+              style={{ color: "oklch(0.55 0.02 80)" }}
+            >
+              Localização
+            </span>
+            <span className="text-xs" style={{ color: "oklch(0.5 0.02 80)" }}>
+              Endereço não informado
+            </span>
+          </span>
+        </div>
       )}
 
       {/* Visualizador de anexo (lightbox) — abre ao clicar no olho. */}
