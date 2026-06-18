@@ -570,6 +570,16 @@ export default function SupplierNotesPanel({
   const [observacoes, setObservacoes] = useState(entry?.observacoes ?? "");
   const [resumoNegociacao, setResumoNegociacao] = useState(entry?.fields?.resumoNegociacao ?? "");
   const [statusLivre, setStatusLivre] = useState(entry?.fields?.statusLivre ?? "");
+  // Refs sempre atualizados com os textos livres. Os handlers de SELO (potencial,
+  // preço, tipo, status, parceiros) gravam o conjunto completo de fields com
+  // replaceFields:true; se lessem `statusLivre`/`resumoNegociacao` direto do
+  // estado capturado na closure, poderiam persistir um valor desatualizado (ex.:
+  // "") e, por causa do replace, APAGAR o texto que o operador digitou. Ler do
+  // ref garante que todo upsert envie o texto livre mais recente.
+  const statusLivreRef = useRef(statusLivre);
+  const resumoNegociacaoRef = useRef(resumoNegociacao);
+  useEffect(() => { statusLivreRef.current = statusLivre; }, [statusLivre]);
+  useEffect(() => { resumoNegociacaoRef.current = resumoNegociacao; }, [resumoNegociacao]);
   const [fields, setFields] = useState<Record<string, string>>(entry?.fields ?? {});
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>(entry?.quoteRows ?? []);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -715,7 +725,7 @@ export default function SupplierNotesPanel({
       nextFields.potencial = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current }, replaceFields: true });
     flashSaved();
   };
 
@@ -729,7 +739,7 @@ export default function SupplierNotesPanel({
       nextFields.tipoFornecedor = t;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current }, replaceFields: true });
     flashSaved();
   };
 
@@ -739,7 +749,7 @@ export default function SupplierNotesPanel({
     // A classificação de preço é independente do status (sempre visível/editável).
     // Persistimos também os campos atuais (incluindo resumo/status livre digitados)
     // para nunca descartar o que o operador já preencheu antes de salvar.
-    upsertEntry(supplierId, { status: s, observacoes, fields: { ...fields, resumoNegociacao, statusLivre }, replaceFields: true });
+    upsertEntry(supplierId, { status: s, observacoes, fields: { ...fields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current }, replaceFields: true });
     flashSaved();
   };
 
@@ -749,7 +759,7 @@ export default function SupplierNotesPanel({
     markDirty();
     const nextFields = { ...fields, [PARTNERS_FIELD_KEY]: serializePartners(next) };
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current }, replaceFields: true });
     flashSaved();
   };
 
@@ -763,14 +773,14 @@ export default function SupplierNotesPanel({
       nextFields.precoClassificacao = p;
     }
     setFields(nextFields);
-    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao, statusLivre }, replaceFields: true });
+    upsertEntry(supplierId, { status, observacoes, fields: { ...nextFields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current }, replaceFields: true });
     flashSaved();
   };
 
   const handleSave = () => {
     // O resumo da negociação é persistido dentro de fields para não exigir
     // migração de schema (campo genérico key/value).
-    const fieldsToSave = { ...fields, resumoNegociacao, statusLivre };
+    const fieldsToSave = { ...fields, resumoNegociacao: resumoNegociacaoRef.current, statusLivre: statusLivreRef.current };
     setFields(fieldsToSave);
     upsertEntry(supplierId, { status, observacoes, fields: fieldsToSave, replaceFields: true });
     upsertQuoteRows(supplierId, quoteRows);

@@ -864,3 +864,8 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Métrica "Pastas anexadas" em cada dashboard (card no ReportPanel + PDF; usa countFolders sobre filteredEntries)
 - [x] Refletir contagem de pastas no Resumo das Negociações (indicador "N pastas" no cabeçalho de Anexos; pastas já listadas com arquivos)
 - [x] Função pura countFolders + 4 testes; 402 testes verdes; TS limpo
+
+## Feature 39 — Corrigir status livre/resumo não persistindo
+- [x] Causa: handlers de selo (potencial/preço/tipo/status/parceiros) gravavam fields completos com replaceFields:true lendo statusLivre/resumoNegociacao de closure desatualizada (vazia) → apagava o texto digitado
+- [x] Fix: ler statusLivre/resumoNegociacao de refs sincronizados em todos os upserts do painel (handlers de selo + handleSave)
+- [x] 402 testes verdes; TypeScript limpo
