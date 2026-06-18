@@ -31,6 +31,7 @@ import {
   Eye,
   Download,
   Activity,
+  Folder as FolderIcon,
 } from "lucide-react";
 import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
@@ -696,10 +697,14 @@ function SupplierRow({
   const anexosComArquivos = anexoCategorias.filter(
     (c) => supplier.anexos[c].length > 0,
   );
-  const totalAnexos = anexoCategorias.reduce(
+  const totalAvulsos = anexoCategorias.reduce(
     (acc, c) => acc + supplier.anexos[c].length,
     0,
   );
+  // Pastas nomeadas com ao menos 1 arquivo.
+  const pastas = (supplier.pastas ?? []).filter((p) => p.items.length > 0);
+  const totalEmPastas = pastas.reduce((acc, p) => acc + p.items.length, 0);
+  const totalAnexos = totalAvulsos + totalEmPastas;
 
   return (
     <div
@@ -860,6 +865,60 @@ function SupplierRow({
                 {supplier.anexos[cat].map((att, i) => (
                   <li
                     key={att.id ?? `${cat}-${i}`}
+                    className="flex items-center justify-start gap-1.5"
+                  >
+                    <span
+                      className="text-[11px] leading-snug break-all text-left min-w-0 flex-1"
+                      style={{ color: "oklch(0.66 0.02 80)" }}
+                      title={att.name}
+                    >
+                      {att.name}
+                    </span>
+                    {canPreviewAtt(att) && (
+                      <button
+                        onClick={() => setViewing(att)}
+                        className="flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-transform active:scale-90"
+                        style={{
+                          background: "oklch(0.2 0.04 230 / 0.5)",
+                          color: "oklch(0.78 0.12 230)",
+                        }}
+                        title="Visualizar"
+                        aria-label={`Visualizar ${att.name}`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => void downloadAttachment(att)}
+                      className="flex items-center justify-center w-6 h-6 rounded-md shrink-0 transition-transform active:scale-90"
+                      style={{
+                        background: "oklch(0.2 0.04 145 / 0.5)",
+                        color: "oklch(0.78 0.12 150)",
+                      }}
+                      title="Baixar"
+                      aria-label={`Baixar ${att.name}`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          {/* PASTAS NOMEADAS — exibidas junto dos anexos avulsos. */}
+          {pastas.map((pasta) => (
+            <div key={`pasta-${pasta.name}`} className="flex flex-col gap-1">
+              <span
+                className="text-[11px] font-semibold text-left inline-flex items-center gap-1"
+                style={{ color: "oklch(0.78 0.1 300)" }}
+              >
+                <FolderIcon className="w-3 h-3" /> {pasta.name} ({pasta.items.length})
+              </span>
+              <ul className="flex flex-col gap-1">
+                {pasta.items.map((att, i) => (
+                  <li
+                    key={att.id ?? `${pasta.name}-${i}`}
                     className="flex items-center justify-start gap-1.5"
                   >
                     <span

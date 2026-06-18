@@ -822,3 +822,22 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] downloadAttachment: link direto (sem baixar blob inteiro no navegador)
 - [x] PdfCanvas: carrega PDF por URL com Range (renderização progressiva)
 - [x] Testes atualizados (387 verdes) e typecheck limpo
+
+## Feature 34 — Pastas nomeadas nos anexos
+- [x] Modelo: adicionar campo opcional `folder` em SupplierAttachment
+- [x] Backend de upload: aceitar e preservar `folder`
+- [ ] UI fornecedor: criar pastas com nome livre (sem limite)
+- [ ] UI fornecedor: upload de pasta pronta (webkitdirectory) agrupando pelo nome da pasta
+- [ ] Resumo das Negociações: exibir pastas (nome + arquivos com olho/baixar) além dos avulsos por categoria
+- [ ] Testes + typecheck + checkpoint
+
+## Feature 34 — Pastas nomeadas nos anexos
+- [x] Modelo: adicionar campo opcional `folder` em SupplierAttachment
+- [x] Backend de upload: aceitar e preservar `folder`
+- [x] UI fornecedor: criar pasta (nome livre, sem limite)
+- [x] UI fornecedor: enviar pasta pronta (webkitdirectory)
+- [x] UI fornecedor: anexar arquivos dentro de pasta
+- [x] groupAttachmentsByCategory exclui anexos com pasta
+- [x] groupAttachmentsByFolder agrupa por pasta
+- [x] Resumo das Negociações exibe pastas (nome + arquivos com olho/baixar)
+- [x] Testes de pastas + suíte verde (390)

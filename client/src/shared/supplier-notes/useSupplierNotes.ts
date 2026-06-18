@@ -43,6 +43,13 @@ export interface SupplierAttachment {
   fileKey?: string; // chave no S3
   addedAt: string; // dd/mm/yyyy
   category?: AttachmentCategory; // default "outros" para entradas legadas
+  /**
+   * Nome da PASTA nomeada à qual o anexo pertence. Quando vazio/ausente, o
+   * anexo é AVULSO e aparece nas categorias (Catálogos, Cotações, Fotos,
+   * Outros). Quando preenchido, o anexo é exibido dentro da pasta de mesmo
+   * nome. Sem limite de pastas; o nome é livre e definido pelo usuário.
+   */
+  folder?: string;
 }
 
 export interface QuoteRow {
@@ -518,6 +525,7 @@ export function useSupplierNotes(scope: Scope) {
       file: File,
       category: AttachmentCategory = "outros",
       onProgress?: (percent: number) => void,
+      folder?: string,
     ) => {
       if (file.size > 20 * 1024 * 1024) {
         throw new Error("Arquivo maior que 20 MB. Compacte ou reduza antes de anexar.");
@@ -528,6 +536,7 @@ export function useSupplierNotes(scope: Scope) {
         form.append("scope", scope);
         form.append("supplierId", supplierId);
         form.append("category", category);
+        if (folder && folder.trim()) form.append("folder", folder.trim());
         form.append("file", file, file.name);
 
         const xhr = new XMLHttpRequest();

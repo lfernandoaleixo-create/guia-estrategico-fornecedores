@@ -197,11 +197,37 @@ export function groupAttachmentsByCategory(
 ): AnexosPorCategoria {
   const out = emptyAnexos();
   for (const a of attachments ?? []) {
+    // Anexos que pertencem a uma PASTA nomeada são exibidos na seção de pastas,
+    // não nas categorias avulsas.
+    if (a.folder?.trim()) continue;
     const cat: AttachmentCategory = a.category ?? "outros";
     const name = (a.name ?? "").trim();
     if (name) out[cat].push(a);
   }
   return out;
+}
+
+/** Uma pasta nomeada com seus arquivos, para exibir no Resumo das Negociações. */
+export interface AnexoPasta {
+  name: string;
+  items: SupplierAttachment[];
+}
+
+/** Agrupa os anexos COM pasta por nome de pasta, preservando ordem de inserção. */
+export function groupAttachmentsByFolder(
+  attachments: SupplierAttachment[] | null | undefined,
+): AnexoPasta[] {
+  const map = new Map<string, SupplierAttachment[]>();
+  for (const a of attachments ?? []) {
+    const folder = a.folder?.trim();
+    if (!folder) continue;
+    const name = (a.name ?? "").trim();
+    if (!name) continue;
+    const arr = map.get(folder) ?? [];
+    arr.push(a);
+    map.set(folder, arr);
+  }
+  return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
 }
 
 /** Item resultante exibido no Nível 3. */
@@ -226,6 +252,8 @@ export interface NegotiationSupplier {
   parceiros: string[];
   /** Anexos agrupados por categoria, com nomes completos dos arquivos. */
   anexos: AnexosPorCategoria;
+  /** Pastas nomeadas com seus arquivos (separadas dos anexos avulsos). */
+  pastas: AnexoPasta[];
 }
 
 /** Monta o texto de endereço a partir das partes disponíveis. */
@@ -286,6 +314,7 @@ export function buildNegotiationSuppliers(
       tipoFornecedor: (f.tipoFornecedor ?? "").trim() || null,
       parceiros: parsePartners(f),
       anexos: groupAttachmentsByCategory(note?.attachments),
+      pastas: groupAttachmentsByFolder(note?.attachments),
     });
   }
   // Ordena por nome (case/acento-insensitive) para leitura estável.

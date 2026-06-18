@@ -169,7 +169,7 @@ export function registerUploadRoute(app: Express) {
         fail(413, "Arquivo maior que 20 MB. Compacte ou reduza antes de anexar.");
         return;
       }
-      const { scope, supplierId, category } = fields;
+      const { scope, supplierId, category, folder } = fields;
       if (!scope || !supplierId) {
         fail(400, "scope e supplierId são obrigatórios");
         return;
@@ -185,6 +185,12 @@ export function registerUploadRoute(app: Express) {
         )
           ? category
           : "outros";
+        // Nome da pasta (opcional). Mantém livre, apenas apara espaços e limita
+        // o tamanho para evitar abuso. Pasta vazia => anexo avulso.
+        const safeFolder =
+          typeof folder === "string" && folder.trim()
+            ? folder.trim().slice(0, 120)
+            : undefined;
         const relKey = `supplier-notes/${scope}/${supplierId}/${Date.now()}-${fileName}`;
         const { key, url } = await storagePut(relKey, fileBuffer, mimeType);
 
@@ -198,6 +204,7 @@ export function registerUploadRoute(app: Express) {
           url,
           addedAt: nowDateBR(),
           category: safeCategory,
+          ...(safeFolder ? { folder: safeFolder } : {}),
         };
 
         await appendAttachmentToNote(scope, supplierId, attachment, nowDateBR());

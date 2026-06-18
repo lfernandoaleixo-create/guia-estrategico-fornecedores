@@ -3,6 +3,7 @@ import {
   buildNegotiationSuppliers,
   composeAddress,
   groupAttachmentsByCategory,
+  groupAttachmentsByFolder,
   hasAnyTick,
   applyNegotiationFilter,
   EMPTY_FILTER,
@@ -133,6 +134,41 @@ describe("groupAttachmentsByCategory", () => {
   it("retorna todas as categorias vazias para nulo/indefinido", () => {
     const r = groupAttachmentsByCategory(null);
     expect(r).toEqual({ catalogos: [], fotos: [], cotacoes: [], outros: [] });
+  });
+
+  it("exclui anexos que pertencem a uma pasta nomeada", () => {
+    const r = groupAttachmentsByCategory([
+      { id: "a", name: "avulso.pdf", type: "", size: 0, addedAt: "", category: "catalogos" },
+      { id: "b", name: "em-pasta.pdf", type: "", size: 0, addedAt: "", category: "catalogos", folder: "Documentos" },
+    ]);
+    expect(r.catalogos.map((a) => a.name)).toEqual(["avulso.pdf"]);
+  });
+});
+
+describe("groupAttachmentsByFolder", () => {
+  it("agrupa apenas anexos com pasta, preservando nomes e ordem", () => {
+    const r = groupAttachmentsByFolder([
+      { id: "a", name: "avulso.pdf", type: "", size: 0, addedAt: "", category: "catalogos" },
+      { id: "b", name: "contrato.pdf", type: "", size: 0, addedAt: "", folder: "Documentos" },
+      { id: "c", name: "nf.pdf", type: "", size: 0, addedAt: "", folder: "Documentos" },
+      { id: "d", name: "foto.jpg", type: "", size: 0, addedAt: "", folder: "Fotos Fabrica" },
+    ]);
+    expect(r).toEqual([
+      { name: "Documentos", items: [
+        { id: "b", name: "contrato.pdf", type: "", size: 0, addedAt: "", folder: "Documentos" },
+        { id: "c", name: "nf.pdf", type: "", size: 0, addedAt: "", folder: "Documentos" },
+      ] },
+      { name: "Fotos Fabrica", items: [
+        { id: "d", name: "foto.jpg", type: "", size: 0, addedAt: "", folder: "Fotos Fabrica" },
+      ] },
+    ]);
+  });
+
+  it("retorna vazio quando não há anexos com pasta", () => {
+    expect(groupAttachmentsByFolder([
+      { id: "a", name: "x.pdf", type: "", size: 0, addedAt: "", category: "outros" },
+    ])).toEqual([]);
+    expect(groupAttachmentsByFolder(null)).toEqual([]);
   });
 });
 

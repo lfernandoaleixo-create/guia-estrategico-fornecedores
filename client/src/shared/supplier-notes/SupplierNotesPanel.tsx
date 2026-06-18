@@ -65,6 +65,8 @@ import {
   BookOpen,
   DollarSign,
   Folder,
+  FolderOpen,
+  FolderUp,
   Plus,
   Minus,
   Loader2,
@@ -574,6 +576,13 @@ export default function SupplierNotesPanel({
   const [uploadProgress, setUploadProgress] = useState<
     Partial<Record<AttachmentCategory, { name: string; percent: number; index: number; total: number }>>
   >({});
+  // Pastas criadas manualmente que ainda NÃO têm arquivos (pastas vazias).
+  // Pastas com arquivos são derivadas dos próprios anexos (folderGroups).
+  const [emptyFolders, setEmptyFolders] = useState<string[]>([]);
+  // Progresso de upload por PASTA (chave = nome da pasta).
+  const [folderProgress, setFolderProgress] = useState<
+    Record<string, { name: string; percent: number; index: number; total: number }>
+  >({});
   const [savedHint, setSavedHint] = useState(false);
   // Marca que o operador editou algo neste painel desde a última hidratação.
   // Enquanto "sujo", IGNORAMOS qualquer reidratação vinda do servidor (polling/
@@ -598,6 +607,8 @@ export default function SupplierNotesPanel({
   const catalogosRef = useRef<HTMLInputElement>(null);
   const fotosRef = useRef<HTMLInputElement>(null);
   const cotacoesRef = useRef<HTMLInputElement>(null);
+  // Input oculto para selecionar uma PASTA PRONTA (webkitdirectory).
+  const readyFolderRef = useRef<HTMLInputElement>(null);
   const outrosRef = useRef<HTMLInputElement>(null);
 
   // Hidratação do estado local a partir do servidor.
@@ -662,12 +673,27 @@ export default function SupplierNotesPanel({
   };
   const isYiwu = scope === "yiwu";
 
+  // Anexos AVULSOS por categoria: exclui os que pertencem a alguma PASTA
+  // nomeada (esses aparecem na seção "Pastas", não nas categorias soltas).
   const groupAttachments = (cat: AttachmentCategory) =>
-    attachments.filter((a) =>
-      cat === "outros"
-        ? !a.category || a.category === "outros"
-        : a.category === cat
+    attachments.filter(
+      (a) =>
+        !a.folder &&
+        (cat === "outros" ? !a.category || a.category === "outros" : a.category === cat),
     );
+
+  // Agrupa os anexos COM pasta por nome de pasta, preservando ordem de inserção.
+  const folderGroups = (() => {
+    const map = new Map<string, SupplierAttachment[]>();
+    for (const a of attachments) {
+      const f = a.folder?.trim();
+      if (!f) continue;
+      const arr = map.get(f) ?? [];
+      arr.push(a);
+      map.set(f, arr);
+    }
+    return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+  })();
 
   // Classificação de preço atual (Ótimo/Bom/Ruim). Sempre disponível, independente do status.
   const precoClass = (fields.precoClassificacao as PrecoClassificacao | undefined) ?? undefined;
@@ -884,6 +910,87 @@ export default function SupplierNotesPanel({
     };
     const r = refs[category];
     if (r.current) r.current.value = "";
+  };
+
+  // Envia uma lista de arquivos para DENTRO de uma pasta nomeada. Usado tanto
+  // pelo botão "Anexar arquivo" de cada pasta quanto pelo upload de pasta pronta
+  // (webkitdirectory). Os arquivos foldered guardam category "outros".
+  const handleFolderFiles = async (folderName: string, files: File[]) => {
+    const folder = folderName.trim();
+    if (!folder || files.length === 0) return;
+    markDirty();
+    setUploadError(null);
+    // Garante que a pasta exista na UI mesmo durante o upload.
+    setEmptyFolders((prev) => (prev.includes(folder) ? prev : [...prev, folder]));
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setFolderProgress((prev) => ({
+        ...prev,
+        [folder]: { name: f.name, percent: 0, index: i + 1, total: files.length },
+      }));
+      try {
+        await addAttachment(
+          supplierId,
+          f,
+          "outros",
+          (percent) => {
+            setFolderProgress((prev) => ({
+              ...prev,
+              [folder]: { name: f.name, percent, index: i + 1, total: files.length },
+            }));
+          },
+          folder,
+        );
+      } catch (err) {
+        setUploadError(
+          `${f.name}: ${err instanceof Error ? err.message : "erro ao anexar"}. Os dados já preenchidos foram preservados.`,
+        );
+      }
+    }
+    setFolderProgress((prev) => {
+      const next = { ...prev };
+      delete next[folder];
+      return next;
+    });
+    // Como a pasta agora tem arquivos, remove-a da lista de pastas vazias
+    // (ela passa a ser derivada de folderGroups).
+    setEmptyFolders((prev) => prev.filter((n) => n !== folder));
+  };
+
+  // Lê uma PASTA PRONTA escolhida pelo usuário (input webkitdirectory). O nome
+  // da pasta raiz vira o nome da pasta no sistema; subpastas viram "Raiz/Sub".
+  const handleReadyFolderUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    // Agrupa por pasta-raiz extraída do webkitRelativePath (ex.: "Docs/x.pdf").
+    const byFolder = new Map<string, File[]>();
+    for (const f of list) {
+      const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+      const parts = rel.split("/").filter(Boolean);
+      // Usa o caminho da pasta (tudo menos o nome do arquivo). Se vier sem
+      // caminho, joga numa pasta "Pasta".
+      const folderPath = parts.length > 1 ? parts.slice(0, -1).join("/") : "Pasta";
+      const arr = byFolder.get(folderPath) ?? [];
+      arr.push(f);
+      byFolder.set(folderPath, arr);
+    }
+    for (const [folderName, folderFiles] of Array.from(byFolder.entries())) {
+      await handleFolderFiles(folderName, folderFiles);
+    }
+    if (readyFolderRef.current) readyFolderRef.current.value = "";
+  };
+
+  // Cria uma pasta vazia (nome livre). Sem limite de pastas.
+  const handleCreateFolder = () => {
+    const name = window.prompt("Nome da nova pasta:")?.trim();
+    if (!name) return;
+    const exists =
+      emptyFolders.includes(name) || folderGroups.some((g) => g.name === name);
+    if (exists) {
+      setUploadError(`Já existe uma pasta chamada "${name}".`);
+      return;
+    }
+    setEmptyFolders((prev) => [...prev, name]);
   };
 
   const handleClear = () => {
@@ -1501,6 +1608,19 @@ export default function SupplierNotesPanel({
         uploadProgress={uploadProgress.outros}
       />
 
+      {/* PASTAS NOMEADAS */}
+      <FolderSection
+        emptyFolders={emptyFolders}
+        folderGroups={folderGroups}
+        folderProgress={folderProgress}
+        readyFolderRef={readyFolderRef}
+        onCreateFolder={handleCreateFolder}
+        onReadyFolderUpload={handleReadyFolderUpload}
+        onAddFilesToFolder={handleFolderFiles}
+        onRemove={(id) => removeAttachment(supplierId, id)}
+        onPreview={setPreview}
+      />
+
       {/* AÇÕES */}
       <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "#e4e4e7" }}>
         <div className="flex items-center gap-2">
@@ -1789,5 +1909,169 @@ function AttachmentList({ items, onRemove, onPreview, emptyText, onCalc }: Attac
         </li>
       ))}
     </ul>
+  );
+}
+
+// ============================================================================
+// FolderSection — pastas nomeadas (sem limite)
+// ============================================================================
+
+interface FolderSectionProps {
+  /** Pastas criadas que ainda não têm arquivos. */
+  emptyFolders: string[];
+  /** Pastas derivadas dos anexos (nome + arquivos). */
+  folderGroups: { name: string; items: SupplierAttachment[] }[];
+  /** Progresso de upload por pasta (chave = nome da pasta). */
+  folderProgress: Record<string, { name: string; percent: number; index: number; total: number }>;
+  readyFolderRef: React.RefObject<HTMLInputElement | null>;
+  onCreateFolder: () => void;
+  onReadyFolderUpload: (files: FileList | null) => void;
+  onAddFilesToFolder: (folderName: string, files: File[]) => void;
+  onRemove: (id: string) => void;
+  onPreview?: (att: SupplierAttachment) => void;
+}
+
+function FolderSection({
+  emptyFolders,
+  folderGroups,
+  folderProgress,
+  readyFolderRef,
+  onCreateFolder,
+  onReadyFolderUpload,
+  onAddFilesToFolder,
+  onRemove,
+  onPreview,
+}: FolderSectionProps) {
+  // Une as pastas com arquivos e as vazias (sem duplicar nomes), preservando ordem.
+  const names: string[] = [];
+  for (const g of folderGroups) if (!names.includes(g.name)) names.push(g.name);
+  for (const n of emptyFolders) if (!names.includes(n)) names.push(n);
+
+  const itemsOf = (name: string) =>
+    folderGroups.find((g) => g.name === name)?.items ?? [];
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[11px] font-bold tracking-[0.18em] uppercase text-zinc-500 inline-flex items-center gap-1.5">
+          <FolderOpen size={14} style={{ color: "#7c3aed" }} />
+          Pastas
+          <span className="text-zinc-400 font-normal normal-case tracking-normal">
+            · {names.length}
+          </span>
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCreateFolder}
+            className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-violet-50 active:scale-[0.97] border bg-white"
+            style={{ borderColor: "#ddd6fe", color: "#6d28d9" }}
+          >
+            <Plus size={13} /> Nova pasta
+          </button>
+          <button
+            type="button"
+            onClick={() => readyFolderRef.current?.click()}
+            className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-zinc-100 active:scale-[0.97] border bg-white"
+            style={{ borderColor: "#e4e4e7", color: "#3f3f46" }}
+          >
+            <FolderUp size={13} /> Enviar pasta pronta
+          </button>
+          {/* Input oculto que seleciona uma PASTA inteira do computador. */}
+          <input
+            ref={readyFolderRef}
+            type="file"
+            multiple
+            // @ts-expect-error - atributos não-padrão para seleção de diretório
+            webkitdirectory=""
+            directory=""
+            onChange={(e) => onReadyFolderUpload(e.target.files)}
+            className="hidden"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500 mb-2">
+        Organize seus documentos em pastas nomeadas (sem limite). Use <strong>Enviar pasta pronta</strong> para subir uma pasta inteira do computador de uma vez.
+      </p>
+
+      {names.length === 0 ? (
+        <div
+          className="text-center py-4 rounded-lg border border-dashed text-xs text-zinc-500"
+          style={{ borderColor: "#e4e4e7", background: "#fafafa" }}
+        >
+          Nenhuma pasta criada. Clique em <strong>Nova pasta</strong> ou <strong>Enviar pasta pronta</strong>.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {names.map((name) => (
+            <FolderCard
+              key={name}
+              name={name}
+              items={itemsOf(name)}
+              progress={folderProgress[name]}
+              onAddFiles={(files) => onAddFilesToFolder(name, files)}
+              onRemove={onRemove}
+              onPreview={onPreview}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Cartão de uma única pasta: cabeçalho com nome + botão de anexar, e a lista. */
+function FolderCard({
+  name,
+  items,
+  progress,
+  onAddFiles,
+  onRemove,
+  onPreview,
+}: {
+  name: string;
+  items: SupplierAttachment[];
+  progress?: { name: string; percent: number; index: number; total: number };
+  onAddFiles: (files: File[]) => void;
+  onRemove: (id: string) => void;
+  onPreview?: (att: SupplierAttachment) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="rounded-lg border bg-violet-50/40 p-3" style={{ borderColor: "#ddd6fe" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold text-violet-900 inline-flex items-center gap-1.5 min-w-0">
+          <Folder size={15} style={{ color: "#7c3aed" }} className="flex-shrink-0" />
+          <span className="truncate">{name}</span>
+          <span className="text-violet-400 font-normal">· {items.length}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all hover:bg-white active:scale-[0.97] border bg-white/70 flex-shrink-0"
+          style={{ borderColor: "#ddd6fe", color: "#6d28d9" }}
+        >
+          <Paperclip size={12} /> Anexar
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="*/*"
+          onChange={(e) => {
+            if (e.target.files) onAddFiles(Array.from(e.target.files));
+            e.target.value = "";
+          }}
+          className="hidden"
+        />
+      </div>
+      <UploadProgressBar progress={progress} accent="#7c3aed" />
+      <AttachmentList
+        items={items}
+        onRemove={onRemove}
+        onPreview={onPreview}
+        emptyText="Pasta vazia. Clique em Anexar para adicionar arquivos."
+      />
+    </div>
   );
 }
