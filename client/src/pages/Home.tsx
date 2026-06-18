@@ -438,30 +438,12 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSummaryOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
-              style={{
-                background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.16), oklch(0.55 0.18 25 / 0.16))",
-                border: "1px solid oklch(0.78 0.16 75 / 0.45)",
-                color: "oklch(0.92 0.08 80)",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.02em",
-              }}
-              title="Resumo das Negociações (visão executiva)"
-            >
-              <ClipboardList className="w-4 h-4" style={{ color: "oklch(0.82 0.14 75)" }} />
-              <span className="hidden sm:inline">Resumo das Negociações</span>
-              <span className="sm:hidden">Resumo</span>
-            </button>
-            <div
-              className="hidden md:flex items-center gap-3 text-xs"
-              style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
-            >
-              <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
-              <span>{totalCards} ACESSOS · ATUALIZADO MAI/2026</span>
-            </div>
+          <div
+            className="hidden md:flex items-center gap-3 text-xs"
+            style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
+          >
+            <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
+            <span>{totalCards} ACESSOS · ATUALIZADO MAI/2026</span>
           </div>
         </div>
       </header>
@@ -526,6 +508,26 @@ export default function Home() {
             organizados por classificações macro. Acesse fornecedores, importadores, mapas, dados de NCM e
             roteiros — tudo em um lugar, sem login.
           </p>
+
+          {/* Botão Resumo das Negociações (visão executiva, só leitura) */}
+          <div className="capa-anim mb-10" style={{ animationDelay: "0.15s" }}>
+            <button
+              onClick={() => setSummaryOpen(true)}
+              className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] hover:brightness-110"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.18), oklch(0.55 0.18 25 / 0.18))",
+                border: "1px solid oklch(0.78 0.16 75 / 0.5)",
+                color: "oklch(0.94 0.08 80)",
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: "0.02em",
+                boxShadow: "0 8px 30px oklch(0.78 0.16 75 / 0.12)",
+              }}
+              title="Resumo das Negociações (visão executiva)"
+            >
+              <ClipboardList className="w-4.5 h-4.5" style={{ color: "oklch(0.82 0.14 75)" }} />
+              <span>Resumo das Negociações</span>
+            </button>
+          </div>
 
           {/* Stats bar */}
           <div

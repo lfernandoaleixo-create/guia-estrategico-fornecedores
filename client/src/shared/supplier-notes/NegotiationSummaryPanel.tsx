@@ -7,15 +7,39 @@
 //
 // Navegação em níveis dentro do MESMO painel:
 //   - Nível 1: lista compacta de MACROS (número · nome).
-//   - Nível 2: ao clicar num macro, mostra os SUBGRUPOS dele (compactos).
+//   - Nível 2: ao clicar num macro, mostra os ACESSOS dele (dashboards/
+//      subgrupos/grupos de macro.items + subgrupos numerados da tabela).
 //   - (Níveis seguintes — fornecedores/resumo — serão adicionados conforme
 //      instruções do Fernando.)
 // =============================================================================
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, FolderTree, Layers, X } from "lucide-react";
-import { useMacros, type Macro } from "./useMacros";
+import {
+  ChevronLeft,
+  FolderTree,
+  Layers,
+  LayoutDashboard,
+  FolderOpen,
+  Boxes,
+  X,
+} from "lucide-react";
+import { useMacros, type Macro, type MacroItem } from "./useMacros";
 import { useSubgroups } from "./useSubgroups";
-import { formatSubgroupNumber } from "./subgroupNumber";
+import { buildAccesses, type MacroAccess } from "./negotiationAccesses";
+
+function AccessKindIcon({
+  kind,
+  color,
+}: {
+  kind: MacroItem["kind"];
+  color: string;
+}) {
+  const cls = "w-4 h-4";
+  if (kind === "dashboard")
+    return <LayoutDashboard className={cls} style={{ color }} />;
+  if (kind === "group")
+    return <FolderOpen className={cls} style={{ color }} />;
+  return <Boxes className={cls} style={{ color }} />;
+}
 
 interface NegotiationSummaryPanelProps {
   open: boolean;
@@ -60,8 +84,11 @@ export default function NegotiationSummaryPanel({
     [macros, selectedMacroId],
   );
 
-  const subgroupsOfSelected = useMemo(
-    () => (selectedMacro ? byMacro(selectedMacro.number) : []),
+  const accessesOfSelected = useMemo(
+    () =>
+      selectedMacro
+        ? buildAccesses(selectedMacro, byMacro(selectedMacro.number))
+        : [],
     [selectedMacro, byMacro],
   );
 
@@ -156,7 +183,7 @@ export default function NegotiationSummaryPanel({
                 }}
               >
                 {selectedMacro
-                  ? "Subgrupos deste macro"
+                  ? "Acessos deste macro"
                   : "Visão executiva · somente leitura"}
               </p>
             </div>
@@ -189,14 +216,11 @@ export default function NegotiationSummaryPanel({
           ) : !selectedMacro ? (
             <MacroList
               macros={macros}
-              subgroupCount={(n) => byMacro(n).length}
+              accessCount={(m) => buildAccesses(m, byMacro(m.number)).length}
               onSelect={setSelectedMacroId}
             />
           ) : (
-            <SubgroupList
-              macro={selectedMacro}
-              subgroups={subgroupsOfSelected}
-            />
+            <AccessList accesses={accessesOfSelected} />
           )}
         </div>
       </div>
@@ -209,11 +233,11 @@ export default function NegotiationSummaryPanel({
 // -----------------------------------------------------------------------------
 function MacroList({
   macros,
-  subgroupCount,
+  accessCount,
   onSelect,
 }: {
   macros: Macro[];
-  subgroupCount: (macroNumber: number) => number;
+  accessCount: (macro: Macro) => number;
   onSelect: (id: string) => void;
 }) {
   if (macros.length === 0) {
@@ -230,7 +254,7 @@ function MacroList({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {macros.map((m) => {
-        const count = subgroupCount(m.number);
+        const count = accessCount(m);
         return (
           <button
             key={m.id}
@@ -266,7 +290,7 @@ function MacroList({
                   color: "oklch(0.58 0.02 80)",
                 }}
               >
-                {count} {count === 1 ? "subgrupo" : "subgrupos"}
+                {count} {count === 1 ? "acesso" : "acessos"}
               </span>
             </span>
             <FolderTree
@@ -281,31 +305,25 @@ function MacroList({
 }
 
 // -----------------------------------------------------------------------------
-// Nível 2 — subgrupos do macro selecionado (compacto)
+// Nível 2 — acessos do macro selecionado (macro.items + subgrupos numerados)
 // -----------------------------------------------------------------------------
-function SubgroupList({
-  macro,
-  subgroups,
-}: {
-  macro: Macro;
-  subgroups: ReturnType<ReturnType<typeof useSubgroups>["byMacro"]>;
-}) {
-  if (subgroups.length === 0) {
+function AccessList({ accesses }: { accesses: MacroAccess[] }) {
+  if (accesses.length === 0) {
     return (
       <div
         className="text-sm py-12 text-center"
         style={{ color: "oklch(0.6 0.02 80)" }}
       >
-        Este macro ainda não tem subgrupos.
+        Este macro ainda não tem acessos.
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2.5">
-      {subgroups.map((sg) => (
+      {accesses.map((ac) => (
         <div
-          key={sg.id}
+          key={ac.id}
           className="flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{
             background: "oklch(0.16 0.02 258)",
@@ -313,29 +331,29 @@ function SubgroupList({
           }}
         >
           <span
-            className="flex items-center justify-center px-2.5 h-8 rounded-lg shrink-0 font-bold text-sm"
+            className="flex items-center justify-center px-2.5 h-8 min-w-[2.5rem] rounded-lg shrink-0 font-bold text-sm"
             style={{
-              background: `${sg.color}22`,
-              border: `1px solid ${sg.color}66`,
-              color: sg.color,
+              background: `${ac.color}22`,
+              border: `1px solid ${ac.color}66`,
+              color: ac.color,
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {formatSubgroupNumber(macro.number, sg.sub)}
+            {ac.badge ?? <AccessKindIcon kind={ac.kind} color={ac.color} />}
           </span>
           <span className="min-w-0 flex-1">
             <span
               className="block text-sm font-semibold truncate"
               style={{ color: "oklch(0.96 0.01 80)" }}
             >
-              {sg.name}
+              {ac.label}
             </span>
-            {sg.subtitle ? (
+            {ac.subtitle ? (
               <span
                 className="block text-xs truncate"
                 style={{ color: "oklch(0.62 0.02 80)" }}
               >
-                {sg.subtitle}
+                {ac.subtitle}
               </span>
             ) : null}
           </span>

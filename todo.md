@@ -760,4 +760,6 @@ Fernando quer um botão no topo da Home (à direita do cabeçalho, perto de "7 A
 - [x] Nível 1: lista compacta de macros (número · nome · contagem de subgrupos); Nível 2: ao clicar, mostra subgrupos do macro (compacto) com botão voltar
 - [x] Validado no preview: painel abre, lista macros, clica em Utensílios/Casa → mostra 2.1 Marmita Plástica
 - [ ] Níveis seguintes (fornecedores/resumo ao clicar no subgrupo) — aguardando instruções do Fernando
-- [ ] Teste da lógica do painel + suíte verde + TypeScript limpo
+- [x] Teste da lógica do painel + suíte verde + TypeScript limpo (negotiationAccesses.test.ts, 345 verdes)
+
+- [x] Painel Resumo: no Nível 2, mostrar TODOS os acessos do macro = união de macro.items (dashboards/subgrupos/grupos, ex.: Terrário, Aquário, Tapete do PET) + subgrupos da tabela `subgroups` (byMacro). Hoje só lia `subgroups`, por isso o PET aparecia vazio.
