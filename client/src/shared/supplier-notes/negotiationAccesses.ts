@@ -25,6 +25,31 @@ export interface MacroAccess {
   subtitle?: string | null;
   color: string;
   kind: MacroItem["kind"];
+  /**
+   * URL de uma imagem (fotinha) a exibir no chip no lugar do badge/ícone.
+   * Quando presente, tem prioridade sobre `badge` e o ícone do kind.
+   */
+  iconUrl?: string | null;
+}
+
+// Imagens customizadas por acesso, casadas pelo NOME normalizado do rótulo.
+// Permite trocar o número/ícone padrão do chip por uma "fotinha" específica.
+const ACCESS_ICON_BY_LABEL: Array<{ keywords: string[]; url: string }> = [
+  {
+    keywords: ["marmita"],
+    url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663487476806/GDUDarDhqx4BsWngn4hyvG/marmita-icon-nAzMyvbXovHYNNfvCjfEu8.webp",
+  },
+];
+
+function iconUrlForLabel(label: string): string | null {
+  const n = label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  for (const rule of ACCESS_ICON_BY_LABEL) {
+    if (rule.keywords.some((k) => n.includes(k))) return rule.url;
+  }
+  return null;
 }
 
 /**
@@ -46,6 +71,7 @@ export function buildAccesses(
     subtitle: sg.subtitle || null,
     color: sg.color,
     kind: "subgroup" as const,
+    iconUrl: iconUrlForLabel(sg.name),
   }));
 
   const seen = new Set(fromSubgroups.map((s) => s.label.trim().toLowerCase()));
@@ -59,6 +85,7 @@ export function buildAccesses(
       subtitle: null,
       color: macro.color,
       kind: it.kind,
+      iconUrl: iconUrlForLabel(it.label),
     }));
 
   return [...fromItems, ...fromSubgroups];

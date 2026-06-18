@@ -146,4 +146,21 @@ describe("buildAccesses", () => {
     ]);
     expect(accesses[0].subtitle).toBe("Linha pet");
   });
+
+  it("anexa iconUrl (fotinha) ao subgrupo Marmita Plástica", () => {
+    const macro = makeMacro({ number: 2, items: [] });
+    const accesses = buildAccesses(macro, [
+      makeSubgroup({ id: "sg1", macroNumber: 2, sub: 1, name: "Marmita Plástica" }),
+    ]);
+    expect(accesses[0].iconUrl).toBeTruthy();
+    expect(accesses[0].iconUrl).toContain("marmita-icon");
+  });
+
+  it("não anexa iconUrl para acessos sem regra de imagem casada", () => {
+    const macro = makeMacro({ number: 1, items: [] });
+    const accesses = buildAccesses(macro, [
+      makeSubgroup({ id: "sg1", sub: 1, name: "Coleira" }),
+    ]);
+    expect(accesses[0].iconUrl ?? null).toBeNull();
+  });
 });

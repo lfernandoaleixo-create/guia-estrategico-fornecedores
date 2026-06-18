@@ -330,17 +330,34 @@ function AccessList({ accesses }: { accesses: MacroAccess[] }) {
             border: "1px solid oklch(0.26 0.03 260)",
           }}
         >
-          <span
-            className="flex items-center justify-center px-2.5 h-8 min-w-[2.5rem] rounded-lg shrink-0 font-bold text-sm"
-            style={{
-              background: `${ac.color}22`,
-              border: `1px solid ${ac.color}66`,
-              color: ac.color,
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
-          >
-            {ac.badge ?? <AccessKindIcon kind={ac.kind} color={ac.color} />}
-          </span>
+          {ac.iconUrl ? (
+            <span
+              className="flex items-center justify-center h-9 w-9 min-w-[2.25rem] rounded-lg shrink-0 overflow-hidden"
+              style={{
+                background: `${ac.color}1a`,
+                border: `1px solid ${ac.color}55`,
+              }}
+            >
+              <img
+                src={ac.iconUrl}
+                alt={ac.label}
+                className="h-full w-full object-contain"
+                loading="lazy"
+              />
+            </span>
+          ) : (
+            <span
+              className="flex items-center justify-center px-2.5 h-8 min-w-[2.5rem] rounded-lg shrink-0 font-bold text-sm"
+              style={{
+                background: `${ac.color}22`,
+                border: `1px solid ${ac.color}66`,
+                color: ac.color,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {ac.badge ?? <AccessKindIcon kind={ac.kind} color={ac.color} />}
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span
               className="block text-sm font-semibold truncate"
