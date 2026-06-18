@@ -51,24 +51,62 @@ export function registerUploadRoute(app: Express) {
       res.status(400).send("Missing key");
       return;
     }
+    // ?download=1 → força o navegador a salvar (Content-Disposition: attachment).
+    const forceDownload = req.query.download === "1";
+    const downloadName =
+      typeof req.query.name === "string" ? sanitizeFilename(req.query.name) : "";
     try {
       const signedUrl = await storageGetSignedUrl(key);
-      const upstream = await fetch(signedUrl);
+
+      // Encaminha o cabeçalho Range (permite o navegador pedir só um pedaço do
+      // PDF e começar a renderizar antes de baixar tudo).
+      const range = req.headers.range;
+      const upstream = await fetch(signedUrl, {
+        headers: range ? { Range: range } : undefined,
+      });
       if (!upstream.ok || !upstream.body) {
         res.status(502).send("Storage backend error");
         return;
       }
+
       const contentType =
         upstream.headers.get("content-type") || "application/octet-stream";
-      const buf = Buffer.from(await upstream.arrayBuffer());
       res.setHeader("Content-Type", contentType);
-      res.setHeader("Content-Length", String(buf.length));
-      res.setHeader("Cache-Control", "private, max-age=300");
-      res.setHeader("Content-Disposition", "inline");
-      res.status(200).end(buf);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.setHeader("Accept-Ranges", "bytes");
+      const len = upstream.headers.get("content-length");
+      if (len) res.setHeader("Content-Length", len);
+      const cr = upstream.headers.get("content-range");
+      if (cr) res.setHeader("Content-Range", cr);
+      res.setHeader(
+        "Content-Disposition",
+        forceDownload
+          ? `attachment${downloadName ? `; filename="${downloadName}"` : ""}`
+          : "inline",
+      );
+      // 206 quando a S3 respondeu parcial (Range atendido).
+      res.status(upstream.status === 206 ? 206 : 200);
+
+      // STREAMING: encaminha os bytes assim que chegam, sem segurar o arquivo
+      // inteiro em memória. Reduz drasticamente o tempo até o 1º byte.
+      const reader = upstream.body.getReader();
+      const pump = async (): Promise<void> => {
+        const { done, value } = await reader.read();
+        if (done) {
+          res.end();
+          return;
+        }
+        if (!res.write(Buffer.from(value))) {
+          await new Promise<void>((resolve) => res.once("drain", resolve));
+        }
+        return pump();
+      };
+      req.on("close", () => void reader.cancel().catch(() => {}));
+      await pump();
     } catch (err) {
       console.error("[attachment-file] erro:", err);
-      res.status(502).send("Storage proxy error");
+      if (!res.headersSent) res.status(502).send("Storage proxy error");
+      else res.end();
     }
   });
 

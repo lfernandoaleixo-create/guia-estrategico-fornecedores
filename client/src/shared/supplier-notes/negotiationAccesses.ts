@@ -107,38 +107,52 @@ export function buildAccesses(
   macro: Macro,
   subgroups: Subgroup[],
 ): MacroAccess[] {
-  const fromSubgroups: MacroAccess[] = subgroups.map((sg) => ({
-    id: sg.id,
-    badge: formatSubgroupNumber(macro.number, sg.sub),
-    label: sg.name,
-    subtitle: sg.subtitle || null,
-    color: sg.color,
-    kind: "subgroup" as const,
-    iconUrl: iconUrlForLabel(sg.name),
-    source: "aquario-subgroup" as const,
-    refId: "aquario",
-    subgroupId: sg.id,
-  }));
+  // Indexa subgrupos numerados pelo nome normalizado para casar com itens.
+  const norm = (s: string) => s.trim().toLowerCase();
+  const subgroupByLabel = new Map<string, Subgroup>();
+  for (const sg of subgroups) subgroupByLabel.set(norm(sg.name), sg);
+  const usedSubgroupIds = new Set<string>();
 
-  const seen = new Set(fromSubgroups.map((s) => s.label.trim().toLowerCase()));
+  // 1) Itens do macro (macro.items) PRESERVAM sua posição e seu ícone/kind.
+  //    Se um item coincide com um subgrupo numerado (mesmo nome), apenas
+  //    AGREGAMOS o vínculo do subgrupo (filtro por subgroupId), SEM trocar o
+  //    ícone, sem virar "badge numérico" e sem reordenar.
+  const fromItems: MacroAccess[] = (macro.items ?? []).map((it, idx) => {
+    const { source, subtipo } = sourceFromItem(it);
+    const matchSg = subgroupByLabel.get(norm(it.label));
+    if (matchSg) usedSubgroupIds.add(matchSg.id);
+    return {
+      id: it.key || `item-${idx}`,
+      // Mantém o ícone/kind do item; o número do subgrupo NÃO vira o chip.
+      badge: null,
+      label: it.label,
+      subtitle: it.label === matchSg?.name ? matchSg?.subtitle || null : null,
+      color: macro.color,
+      kind: it.kind,
+      iconUrl: iconUrlForLabel(it.label),
+      source: matchSg ? ("aquario-subgroup" as const) : source,
+      refId: matchSg ? "aquario" : it.refId,
+      subtipo: subtipo ?? null,
+      subgroupId: matchSg ? matchSg.id : null,
+    };
+  });
 
-  const fromItems: MacroAccess[] = (macro.items ?? [])
-    .filter((it) => !seen.has(it.label.trim().toLowerCase()))
-    .map((it, idx) => {
-      const { source, subtipo } = sourceFromItem(it);
-      return {
-        id: it.key || `item-${idx}`,
-        badge: null,
-        label: it.label,
-        subtitle: null,
-        color: macro.color,
-        kind: it.kind,
-        iconUrl: iconUrlForLabel(it.label),
-        source,
-        refId: it.refId,
-        subtipo: subtipo ?? null,
-      };
-    });
+  // 2) Subgrupos numerados que NÃO casam com nenhum item entram como acesso
+  //    próprio (chip com o número x.y), ao fim da lista.
+  const fromSubgroups: MacroAccess[] = subgroups
+    .filter((sg) => !usedSubgroupIds.has(sg.id))
+    .map((sg) => ({
+      id: sg.id,
+      badge: formatSubgroupNumber(macro.number, sg.sub),
+      label: sg.name,
+      subtitle: sg.subtitle || null,
+      color: sg.color,
+      kind: "subgroup" as const,
+      iconUrl: iconUrlForLabel(sg.name),
+      source: "aquario-subgroup" as const,
+      refId: "aquario",
+      subgroupId: sg.id,
+    }));
 
   return [...fromItems, ...fromSubgroups];
 }

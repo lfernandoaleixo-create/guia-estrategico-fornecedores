@@ -112,7 +112,7 @@ describe("buildAccesses", () => {
     expect(accesses[1].badge).toBe("2.1");
   });
 
-  it("deduplica: item de macro.items com mesmo nome de um subgrupo numerado é descartado", () => {
+  it("mescla: item de macro.items com mesmo nome de subgrupo mantém posição e ícone, sem virar badge numérico", () => {
     const macro = makeMacro({
       number: 2,
       items: [
@@ -129,10 +129,14 @@ describe("buildAccesses", () => {
     const accesses = buildAccesses(macro, [
       makeSubgroup({ id: "sg1", macroNumber: 2, sub: 1, name: "Marmita Plástica" }),
     ]);
-    // Apenas a versão numerada (subgrupo) deve permanecer.
+    // Não duplica: continua um único acesso, na posição do item.
     expect(accesses).toHaveLength(1);
-    expect(accesses[0].badge).toBe("2.1");
-    expect(accesses[0].kind).toBe("subgroup");
+    // Mantém o ícone/kind do item original — NÃO vira chip numérico "2.1".
+    expect(accesses[0].badge).toBeNull();
+    expect(accesses[0].kind).toBe("group");
+    // Mas agrega o vínculo do subgrupo (filtro do Nível 3).
+    expect(accesses[0].source).toBe("aquario-subgroup");
+    expect(accesses[0].subgroupId).toBe("sg1");
   });
 
   it("retorna lista vazia quando não há items nem subgrupos", () => {

@@ -815,3 +815,10 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Card N3: prefixar status livre com "Status: " (ex.: "Status: Parado em nós")
 - [x] Mapa: adicionar modo "Trem" (TRANSIT + RAIL) e "Trem bala" (HIGH_SPEED_TRAIN)
 - [x] Testes atualizados + suíte verde + TS limpo
+
+## Feature 33 — Subgrupo mesclado + anexos rápidos
+- [x] buildAccesses: subgrupo numerado mescla na posição/ícone do item de macro (sem reordenar nem trocar logo)
+- [x] Endpoint /api/attachment-file: streaming + suporte a Range + download direto (?download=1)
+- [x] downloadAttachment: link direto (sem baixar blob inteiro no navegador)
+- [x] PdfCanvas: carrega PDF por URL com Range (renderização progressiva)
+- [x] Testes atualizados (387 verdes) e typecheck limpo

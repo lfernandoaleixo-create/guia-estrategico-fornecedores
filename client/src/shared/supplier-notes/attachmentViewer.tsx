@@ -237,29 +237,40 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-/** Baixa o anexo ORIGINAL (chinês) de forma confiável (Blob + objectURL). */
+/**
+ * Baixa o anexo ORIGINAL. Para arquivos do S3 (fileKey/url), aponta um link
+ * direto para `/api/attachment-file?...&download=1`, que faz STREAMING no
+ * servidor com Content-Disposition: attachment. Assim o navegador salva
+ * imediatamente, sem precisar baixar o arquivo inteiro em memória via fetch.
+ */
 export async function downloadAttachment(att: SupplierAttachment): Promise<void> {
-  if (att.url || att.fileKey) {
-    const fetchUrl = attachmentStreamSrc(att);
-    try {
-      const resp = await fetch(fetchUrl, { credentials: "include" });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const raw = await resp.blob();
-      // Garante o MIME correto (ex.: application/pdf) para que o navegador SALVE
-      // o arquivo binário em vez de abri-lo como link/aba.
-      triggerBlobDownload(blobWithCorrectType(raw, att.name, att.type), att.name);
-      return;
-    } catch {
-      // Fallback: ainda assim tenta forçar download via <a download> na URL S3.
-      const a = document.createElement("a");
-      a.href = attachmentSrc(att);
-      a.download = att.name;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
+  // Resolve a key do S3 (preferindo fileKey; ou extraindo de /manus-storage/).
+  let key = att.fileKey || "";
+  if (!key && att.url && att.url.startsWith("/manus-storage/")) {
+    key = att.url.slice("/manus-storage/".length);
+  }
+  if (key) {
+    const url = `/api/attachment-file?key=${encodeURIComponent(
+      key,
+    )}&download=1&name=${encodeURIComponent(att.name)}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = att.name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+  if (att.url) {
+    const a = document.createElement("a");
+    a.href = attachmentSrc(att);
+    a.download = att.name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
   }
   if (att.dataUrl) {
     const blob = dataURLToBlob(att.dataUrl);
@@ -397,16 +408,15 @@ export function PdfCanvas({
         }
         docParams = { data: bytes };
       } else {
-        try {
-          const resp = await fetch(src, { credentials: "include" });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const buf = await resp.arrayBuffer();
-          if (cancelled) return;
-          docParams = { data: new Uint8Array(buf) };
-        } catch {
-          if (!cancelled) setStatus("error");
-          return;
-        }
+        // Carrega o PDF direto pela URL: o pdf.js usa HTTP Range para buscar
+        // apenas as páginas visíveis (progressivo), começando a renderizar antes
+        // de baixar o arquivo inteiro. O endpoint /api/attachment-file já faz
+        // streaming e suporta Range na mesma origem.
+        docParams = {
+          url: src,
+          withCredentials: true,
+          rangeChunkSize: 262144, // 256 KB por chunk
+        };
       }
 
       task = pdfjsLib.getDocument(docParams);
