@@ -751,3 +751,13 @@ Fernando quer, dentro de cada fornecedor (todos os dashboards/cards/subgrupos): 
 - [x] PotentialBadge.tsx: novo selo para o card recolhido (padrão TipoBadge)
 - [x] CustomSupplierCard.tsx + GrupoDashboard (cards de catálogo): exibem PotentialBadge no cabeçalho recolhido ao lado dos selos existentes
 - [x] Teste supplierPotential.test.ts (POTENCIAL_CONFIG, badge resolve, resumo persiste) + suíte 339 verde + TypeScript limpo + validado no preview (marcado 🟢 Alto + resumo, persistiu após reload)
+
+## Feature 27 — Botão "Resumo das Negociações" (painel de visão executiva, só leitura)
+Fernando quer um botão no topo da Home (à direita do cabeçalho, perto de "7 ACESSOS · ATUALIZADO MAI/2026") chamado "Resumo das Negociações". Ao clicar, abre um PAINEL amplo e grande (modal/overlay) sobre a home, em modo somente leitura, voltado aos gestores (sem cadastro/diário/anotações operacionais). Não mexer em nada do que já está pronto — apenas acrescentar. O conteúdo do painel será definido conforme instruções do Fernando.
+
+- [x] Adicionado botão "Resumo das Negociações" no cabeçalho da Home (à esquerda do selo de acessos), sem alterar itens existentes
+- [x] Criado NegotiationSummaryPanel (modal/overlay amplo max-w-5xl) só leitura, com cabeçalho, conteúdo rolável, fechar via X/ESC/clique fora
+- [x] Nível 1: lista compacta de macros (número · nome · contagem de subgrupos); Nível 2: ao clicar, mostra subgrupos do macro (compacto) com botão voltar
+- [x] Validado no preview: painel abre, lista macros, clica em Utensílios/Casa → mostra 2.1 Marmita Plástica
+- [ ] Níveis seguintes (fornecedores/resumo ao clicar no subgrupo) — aguardando instruções do Fernando
+- [ ] Teste da lógica do painel + suíte verde + TypeScript limpo

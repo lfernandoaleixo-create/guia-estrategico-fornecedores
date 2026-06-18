@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  ClipboardList,
   Trash2,
   RotateCcw,
   EyeOff,
@@ -43,6 +44,7 @@ import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
 import PartnerFilterPanel from "@/shared/supplier-notes/PartnerFilterPanel";
+import NegotiationSummaryPanel from "@/shared/supplier-notes/NegotiationSummaryPanel";
 import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
@@ -186,6 +188,8 @@ export default function Home() {
   const [deletingMacro, setDeletingMacro] = useState(false);
   // Painel de cards ocultos (para restaurar).
   const [hiddenPanelOpen, setHiddenPanelOpen] = useState(false);
+  // Painel "Resumo das Negociações" (visão executiva, só leitura).
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Oculta um card de acesso fixo do portal (NÃO apaga dados do dashboard).
   const handleHideCard = async () => {
@@ -435,6 +439,22 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSummaryOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.16), oklch(0.55 0.18 25 / 0.16))",
+                border: "1px solid oklch(0.78 0.16 75 / 0.45)",
+                color: "oklch(0.92 0.08 80)",
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: "0.02em",
+              }}
+              title="Resumo das Negociações (visão executiva)"
+            >
+              <ClipboardList className="w-4 h-4" style={{ color: "oklch(0.82 0.14 75)" }} />
+              <span className="hidden sm:inline">Resumo das Negociações</span>
+              <span className="sm:hidden">Resumo</span>
+            </button>
             <div
               className="hidden md:flex items-center gap-3 text-xs"
               style={{ color: "oklch(0.65 0.02 80)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}
@@ -1038,6 +1058,8 @@ export default function Home() {
       </footer>
 
       <MacroManager open={managerOpen} onOpenChange={setManagerOpen} promotedGroups={promotedGroupsForManager} />
+
+      <NegotiationSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} />
 
       {addToMacro && (
         <AddSupplierToMacroDialog
