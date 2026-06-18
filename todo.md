@@ -869,3 +869,11 @@ Fernando quer, dentro de CADA fornecedor: (a) uma ticagem de Preço com 3 opçõ
 - [x] Causa: handlers de selo (potencial/preço/tipo/status/parceiros) gravavam fields completos com replaceFields:true lendo statusLivre/resumoNegociacao de closure desatualizada (vazia) → apagava o texto digitado
 - [x] Fix: ler statusLivre/resumoNegociacao de refs sincronizados em todos os upserts do painel (handlers de selo + handleSave)
 - [x] 402 testes verdes; TypeScript limpo
+
+## Feature 40 — Corrigir fotos/anexos que não abrem (key com espaço no S3)
+Causa: a key do S3 era montada com scope/supplierId crus (ex.: "JIANGSU DEZHU CHINA"); o espaço era gravado como "+" no objeto e o presign de leitura do espaço literal retornava 403 → fotos não abriam.
+- [x] Sanitizar scope/supplierId no caminho da key de upload (sem espaços/acentos) para novos anexos (sanitizeKeySegment em uploadRoute)
+- [x] Leitura resiliente: storageGetSignedUrl tenta variante espaço->'+' e valida o objeto (Range 0-0); storageProxy reaproveita esse helper
+- [x] Miniatura/lightbox: encodeStorageUrl codifica cada segmento da URL /manus-storage/ (attachmentViewer + SupplierNotesPanel)
+- [x] Validado por curl: /manus-storage e /api/attachment-file devolvem 200 image/jpeg para a key legada com espaço
+- [x] 8 testes de sanitizeKeySegment; 410 testes verdes; TypeScript limpo; checkpoint

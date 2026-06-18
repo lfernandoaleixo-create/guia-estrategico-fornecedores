@@ -17,7 +17,7 @@
 
 import type { Express, Request, Response } from "express";
 import Busboy from "busboy";
-import { storagePut, storageGetSignedUrl } from "./storage";
+import { storagePut, storageGetSignedUrl, sanitizeKeySegment } from "./storage";
 import { appendAttachmentToNote } from "./db";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB por arquivo
@@ -191,7 +191,13 @@ export function registerUploadRoute(app: Express) {
           typeof folder === "string" && folder.trim()
             ? folder.trim().slice(0, 120)
             : undefined;
-        const relKey = `supplier-notes/${scope}/${supplierId}/${Date.now()}-${fileName}`;
+        // IMPORTANTE: sanitiza scope/supplierId no CAMINHO do S3 (sem espaços/
+        // acentos). Espaços na key faziam o objeto ser gravado com "+" e o
+        // presign de leitura retornava 403 (fotos não abriam). O scope/supplierId
+        // "de negócio" continuam intactos no banco; só o caminho físico muda.
+        const safeScope = sanitizeKeySegment(scope);
+        const safeSupplier = sanitizeKeySegment(supplierId);
+        const relKey = `supplier-notes/${safeScope}/${safeSupplier}/${Date.now()}-${fileName}`;
         const { key, url } = await storagePut(relKey, fileBuffer, mimeType);
 
         const attachment = {

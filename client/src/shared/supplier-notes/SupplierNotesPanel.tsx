@@ -165,11 +165,23 @@ function dataURLToBytes(dataUrl: string): Uint8Array | null {
 }
 
 /**
+ * Codifica cada SEGMENTO de uma URL /manus-storage/ (preservando as "/"). Keys
+ * legadas contêm espaços/maiúsculas (ex.: ".../JIANGSU DEZHU CHINA/..."); sem
+ * isso o <img> da miniatura não carrega.
+ */
+function encodeStorageUrl(raw: string): string {
+  if (!raw.startsWith("/manus-storage/")) return raw;
+  const prefix = "/manus-storage/";
+  const key = raw.slice(prefix.length);
+  return prefix + key.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+}
+
+/**
  * Retorna a fonte exibível de um anexo: a URL do S3 (novo modelo) ou o
  * data URL base64 (anexos legados). Usada por <img>, download e PDF.
  */
 function attachmentSrc(att: SupplierAttachment): string {
-  return att.url ?? att.dataUrl ?? "";
+  return encodeStorageUrl(att.url ?? att.dataUrl ?? "");
 }
 
 /**

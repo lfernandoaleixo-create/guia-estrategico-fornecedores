@@ -87,9 +87,26 @@ export function isTranslatableAtt(att: SupplierAttachment): boolean {
 
 // ----- Fontes / conversões ----------------------------------------------------
 
+/**
+ * Codifica cada SEGMENTO de uma URL /manus-storage/ (mantendo as "/"). Keys
+ * legadas contêm espaços/maiúsculas (ex.: ".../JIANGSU DEZHU CHINA/..."); sem
+ * codificar, o <img> não carrega. Para data URLs (legado) retorna como está.
+ */
+function encodeStorageUrl(raw: string): string {
+  if (!raw.startsWith("/manus-storage/")) return raw;
+  const prefix = "/manus-storage/";
+  const key = raw.slice(prefix.length);
+  const encoded = key
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+  return prefix + encoded;
+}
+
 /** Fonte para <img>/<video> (segue redirect assinado do S3 ou data URL legado). */
 export function attachmentSrc(att: SupplierAttachment): string {
-  return att.url ?? att.dataUrl ?? "";
+  const raw = att.url ?? att.dataUrl ?? "";
+  return encodeStorageUrl(raw);
 }
 
 /**
