@@ -33,6 +33,8 @@ export interface AggNoteAttachment {
   fileKey?: string;
   dataUrl?: string;
   addedAt?: string;
+  /** Pasta nomeada à qual o anexo pertence (quando organizado em pastas). */
+  folder?: string;
 }
 
 export interface AggNote {

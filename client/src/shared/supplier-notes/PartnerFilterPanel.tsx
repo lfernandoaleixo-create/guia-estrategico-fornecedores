@@ -24,6 +24,7 @@ import {
   Download,
   Link2,
   ChevronRight,
+  FolderClosed,
 } from "lucide-react";
 import { usePartnerFilter } from "./usePartnerFilter";
 import { normalizePartner } from "./partners";
@@ -311,6 +312,180 @@ export function PartnerFilterPanel() {
   );
 }
 
+/**
+ * Um "chip" de documento (visualizar + baixar). Reaproveitado em soltos e dentro de pastas.
+ */
+function DocChip({
+  att,
+  onView,
+}: {
+  att: AggNoteAttachment;
+  onView: (att: SupplierAttachment) => void;
+}) {
+  const full = toSupplierAttachment(att);
+  const previewable = canPreviewAtt(full);
+  return (
+    <span
+      className="group inline-flex items-center gap-1 rounded-md pl-2 pr-1 py-1 text-[11px] font-medium border"
+      style={{
+        borderColor: "oklch(0.3 0.02 250)",
+        background: "oklch(0.14 0.02 250)",
+        color: "oklch(0.8 0.02 80)",
+      }}
+    >
+      <FileText className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.78 0.16 75)" }} />
+      <span className="max-w-[150px] truncate">{att.name}</span>
+      {previewable && (
+        <button
+          type="button"
+          onClick={() => onView(full)}
+          title="Visualizar documento"
+          aria-label={`Visualizar ${att.name}`}
+          className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
+          style={{ background: "oklch(0.78 0.16 300 / 0.18)", color: "oklch(0.85 0.12 300)" }}
+        >
+          <Eye className="w-3 h-3" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => void downloadAttachment(full)}
+        title="Baixar documento"
+        aria-label={`Baixar ${att.name}`}
+        className="inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
+        style={{ background: "oklch(0.78 0.16 75 / 0.18)", color: "oklch(0.82 0.14 75)" }}
+      >
+        <Download className="w-3 h-3" />
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Documentos de um fornecedor no filtro por parceiro.
+ * Mostra cada PASTA nomeada como um bloco próprio recolhível (nome + contagem + seta),
+ * exatamente como no painel do fornecedor; anexos sem pasta ficam num bloco "Documentos".
+ * Tudo começa recolhido para evitar poluição visual.
+ */
+function SupplierDocs({
+  attachments,
+  onView,
+}: {
+  attachments: AggNoteAttachment[];
+  onView: (att: SupplierAttachment) => void;
+}) {
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+
+  // Separa anexos soltos (sem pasta) das pastas nomeadas, preservando a ordem de surgimento.
+  const loose: AggNoteAttachment[] = [];
+  const folderOrder: string[] = [];
+  const byFolder = new Map<string, AggNoteAttachment[]>();
+  for (const a of attachments) {
+    const f = (a.folder ?? "").trim();
+    if (!f) {
+      loose.push(a);
+      continue;
+    }
+    if (!byFolder.has(f)) {
+      byFolder.set(f, []);
+      folderOrder.push(f);
+    }
+    byFolder.get(f)!.push(a);
+  }
+
+  const chevron = (k: string) => (
+    <ChevronRight
+      className="w-3 h-3 transition-transform duration-200"
+      style={{ transform: open.has(k) ? "rotate(90deg)" : "none" }}
+    />
+  );
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {/* Pastas nomeadas — cada uma abre individualmente */}
+      {folderOrder.map((f) => {
+        const items = byFolder.get(f)!;
+        const k = `folder:${f}`;
+        const isOpen = open.has(k);
+        return (
+          <div
+            key={k}
+            className="rounded-md border overflow-hidden"
+            style={{ borderColor: "oklch(0.28 0.02 250)", background: "oklch(0.13 0.02 250)" }}
+          >
+            <button
+              type="button"
+              onClick={() => toggle(k)}
+              aria-expanded={isOpen}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-transform active:scale-[0.99] hover:brightness-125"
+              style={{ color: "oklch(0.85 0.05 300)" }}
+              title={isOpen ? "Recolher pasta" : "Abrir pasta"}
+            >
+              {chevron(k)}
+              <FolderClosed className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.12 300)" }} />
+              <span className="text-xs font-semibold truncate">{f}</span>
+              <span
+                className="ml-auto text-[10px]"
+                style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {items.length} doc{items.length === 1 ? "" : "s"}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5 pt-0.5">
+                {items.map((att) => (
+                  <DocChip key={att.id} att={att} onView={onView} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Anexos soltos (sem pasta) — bloco "Documentos" recolhível */}
+      {loose.length > 0 && (
+        <div
+          className="rounded-md border overflow-hidden"
+          style={{ borderColor: "oklch(0.28 0.02 250)", background: "oklch(0.13 0.02 250)" }}
+        >
+          <button
+            type="button"
+            onClick={() => toggle("loose")}
+            aria-expanded={open.has("loose")}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-transform active:scale-[0.99] hover:brightness-125"
+            style={{ color: "oklch(0.82 0.02 80)" }}
+            title={open.has("loose") ? "Recolher documentos" : "Ver documentos"}
+          >
+            {chevron("loose")}
+            <FileText className="w-3.5 h-3.5" style={{ color: "oklch(0.78 0.16 75)" }} />
+            <span className="text-xs font-semibold">Documentos</span>
+            <span
+              className="ml-auto text-[10px]"
+              style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {loose.length} doc{loose.length === 1 ? "" : "s"}
+            </span>
+          </button>
+          {open.has("loose") && (
+            <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5 pt-0.5">
+              {loose.map((att) => (
+                <DocChip key={att.id} att={att} onView={onView} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PartnerResultTree({
   result,
   onView,
@@ -318,17 +493,6 @@ function PartnerResultTree({
   result: PartnerResult;
   onView: (att: SupplierAttachment) => void;
 }) {
-  // Documentos de cada fornecedor RECOLHIDOS por padrão (evita poluir a tela
-  // quando o fornecedor tem dezenas de anexos). Chave: `${scope}:${supplierId}`.
-  const [openDocs, setOpenDocs] = useState<Set<string>>(() => new Set());
-  const toggleDocs = (key: string) =>
-    setOpenDocs((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
   return (
     <div>
       {/* Resumo */}
@@ -445,75 +609,17 @@ function PartnerResultTree({
                             </span>
                           )}
 
-                          {s.attachments.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleDocs(`${s.scope}:${s.supplierId}`)}
-                              className="text-[10px] ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-transform active:scale-95 hover:brightness-125"
-                              style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'JetBrains Mono', monospace", background: "oklch(0.18 0.02 250)" }}
-                              aria-expanded={openDocs.has(`${s.scope}:${s.supplierId}`)}
-                              title={openDocs.has(`${s.scope}:${s.supplierId}`) ? "Recolher documentos" : "Ver documentos"}
-                            >
-                              <ChevronRight
-                                className="w-3 h-3 transition-transform duration-200"
-                                style={{ transform: openDocs.has(`${s.scope}:${s.supplierId}`) ? "rotate(90deg)" : "none" }}
-                              />
-                              {s.attachments.length} doc{s.attachments.length === 1 ? "" : "s"}
-                            </button>
-                          ) : (
-                            <span
-                              className="text-[10px] ml-auto"
-                              style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
-                            >
-                              0 docs
-                            </span>
-                          )}
+                          <span
+                            className="text-[10px] ml-auto"
+                            style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {s.attachments.length} doc{s.attachments.length === 1 ? "" : "s"}
+                          </span>
                         </div>
 
-                        {/* Documentos — recolhidos por padrão; expandem ao clicar no contador. */}
-                        {s.attachments.length > 0 && openDocs.has(`${s.scope}:${s.supplierId}`) && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {s.attachments.map((att) => {
-                              const full = toSupplierAttachment(att);
-                              const previewable = canPreviewAtt(full);
-                              return (
-                                <span
-                                  key={att.id}
-                                  className="group inline-flex items-center gap-1 rounded-md pl-2 pr-1 py-1 text-[11px] font-medium border"
-                                  style={{
-                                    borderColor: "oklch(0.3 0.02 250)",
-                                    background: "oklch(0.14 0.02 250)",
-                                    color: "oklch(0.8 0.02 80)",
-                                  }}
-                                >
-                                  <FileText className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.78 0.16 75)" }} />
-                                  <span className="max-w-[150px] truncate">{att.name}</span>
-                                  {previewable && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onView(full)}
-                                      title="Visualizar documento"
-                                      aria-label={`Visualizar ${att.name}`}
-                                      className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
-                                      style={{ background: "oklch(0.78 0.16 300 / 0.18)", color: "oklch(0.85 0.12 300)" }}
-                                    >
-                                      <Eye className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => void downloadAttachment(full)}
-                                    title="Baixar documento"
-                                    aria-label={`Baixar ${att.name}`}
-                                    className="inline-flex items-center justify-center w-5 h-5 rounded transition-colors hover:brightness-150 active:scale-[0.9]"
-                                    style={{ background: "oklch(0.78 0.16 75 / 0.18)", color: "oklch(0.82 0.14 75)" }}
-                                  >
-                                    <Download className="w-3 h-3" />
-                                  </button>
-                                </span>
-                              );
-                            })}
-                          </div>
+                        {/* Documentos — cada PASTA nomeada vira um bloco próprio recolhível. */}
+                        {s.attachments.length > 0 && (
+                          <SupplierDocs attachments={s.attachments} onView={onView} />
                         )}
                       </div>
                     ))}

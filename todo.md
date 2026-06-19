@@ -884,3 +884,11 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] NegotiationSummaryPanel: pastas nomeadas recolhidas por padrão (estado openFolders + toggleFolder)
 - [x] PartnerFilterPanel: documentos de cada fornecedor recolhidos por padrão; contador "N docs" vira botão com chevron (estado openDocs em PartnerResultTree)
 - [x] Typecheck limpo + 410 testes verdes + checkpoint
+
+## Feature 42 — Pastas nomeadas individuais no "consultar parceiro"
+- [x] PartnerFilterPanel: pastas nomeadas aparecem como blocos individuais recolhíveis (nome + contagem + seta), iguais ao painel do fornecedor — em vez de uma única lista plana
+- [x] Anexos sem pasta ficam num bloco "Documentos" recolhível
+- [x] AggNoteAttachment ganhou folder?: string; usePartnerFilter propaga o campo folder
+- [x] Componentes DocChip + SupplierDocs (separa soltos x pastas por nome); tudo recolhido por padrão
+- [x] NegotiationSummaryPanel já renderizava cada pasta como bloco nomeado individual (confirmado, sem mudança)
+- [x] TypeScript limpo, 410 testes verdes

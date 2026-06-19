@@ -51,6 +51,7 @@ function parseAttachments(raw: unknown): import("./partnerAggregation").AggNoteA
       fileKey: typeof a.fileKey === "string" ? a.fileKey : undefined,
       dataUrl: typeof a.dataUrl === "string" ? a.dataUrl : undefined,
       addedAt: typeof a.addedAt === "string" ? a.addedAt : undefined,
+      folder: typeof a.folder === "string" ? a.folder : undefined,
     }));
 }
 
