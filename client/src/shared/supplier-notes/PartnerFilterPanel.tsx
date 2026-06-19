@@ -23,6 +23,7 @@ import {
   Eye,
   Download,
   Link2,
+  ChevronRight,
 } from "lucide-react";
 import { usePartnerFilter } from "./usePartnerFilter";
 import { normalizePartner } from "./partners";
@@ -317,6 +318,17 @@ function PartnerResultTree({
   result: PartnerResult;
   onView: (att: SupplierAttachment) => void;
 }) {
+  // Documentos de cada fornecedor RECOLHIDOS por padrão (evita poluir a tela
+  // quando o fornecedor tem dezenas de anexos). Chave: `${scope}:${supplierId}`.
+  const [openDocs, setOpenDocs] = useState<Set<string>>(() => new Set());
+  const toggleDocs = (key: string) =>
+    setOpenDocs((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   return (
     <div>
       {/* Resumo */}
@@ -433,16 +445,33 @@ function PartnerResultTree({
                             </span>
                           )}
 
-                          <span
-                            className="text-[10px] ml-auto"
-                            style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
-                          >
-                            {s.attachments.length} doc{s.attachments.length === 1 ? "" : "s"}
-                          </span>
+                          {s.attachments.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleDocs(`${s.scope}:${s.supplierId}`)}
+                              className="text-[10px] ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-transform active:scale-95 hover:brightness-125"
+                              style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'JetBrains Mono', monospace", background: "oklch(0.18 0.02 250)" }}
+                              aria-expanded={openDocs.has(`${s.scope}:${s.supplierId}`)}
+                              title={openDocs.has(`${s.scope}:${s.supplierId}`) ? "Recolher documentos" : "Ver documentos"}
+                            >
+                              <ChevronRight
+                                className="w-3 h-3 transition-transform duration-200"
+                                style={{ transform: openDocs.has(`${s.scope}:${s.supplierId}`) ? "rotate(90deg)" : "none" }}
+                              />
+                              {s.attachments.length} doc{s.attachments.length === 1 ? "" : "s"}
+                            </button>
+                          ) : (
+                            <span
+                              className="text-[10px] ml-auto"
+                              style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              0 docs
+                            </span>
+                          )}
                         </div>
 
-                        {/* Documentos — visualizar/baixar DIRETO daqui */}
-                        {s.attachments.length > 0 && (
+                        {/* Documentos — recolhidos por padrão; expandem ao clicar no contador. */}
+                        {s.attachments.length > 0 && openDocs.has(`${s.scope}:${s.supplierId}`) && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {s.attachments.map((att) => {
                               const full = toSupplierAttachment(att);

@@ -877,3 +877,10 @@ Causa: a key do S3 era montada com scope/supplierId crus (ex.: "JIANGSU DEZHU CH
 - [x] Miniatura/lightbox: encodeStorageUrl codifica cada segmento da URL /manus-storage/ (attachmentViewer + SupplierNotesPanel)
 - [x] Validado por curl: /manus-storage e /api/attachment-file devolvem 200 image/jpeg para a key legada com espaço
 - [x] 8 testes de sanitizeKeySegment; 410 testes verdes; TypeScript limpo; checkpoint
+
+## Feature 41 — Documentos recolhidos por padrão no Resumo e no filtro por parceiro
+Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pastas e categorias começam fechadas e expandem sob demanda.
+- [x] NegotiationSummaryPanel: categorias de anexos avulsos (Catálogos/Fotos/Cotações/Outros) viram cabeçalho clicável com chevron, recolhidas por padrão
+- [x] NegotiationSummaryPanel: pastas nomeadas recolhidas por padrão (estado openFolders + toggleFolder)
+- [x] PartnerFilterPanel: documentos de cada fornecedor recolhidos por padrão; contador "N docs" vira botão com chevron (estado openDocs em PartnerResultTree)
+- [x] Typecheck limpo + 410 testes verdes + checkpoint

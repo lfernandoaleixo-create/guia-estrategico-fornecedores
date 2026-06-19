@@ -679,6 +679,17 @@ function SupplierRow({
   // Anexo aberto no visualizador (lightbox). null = fechado.
   const [viewing, setViewing] = useState<SupplierAttachment | null>(null);
 
+  // Pastas expandidas no Resumo. Por padrão TODAS recolhidas (Set vazio) para
+  // evitar poluição visual; o usuário expande sob demanda clicando no cabeçalho.
+  const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set());
+  const toggleFolder = (name: string) =>
+    setOpenFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
   // Selos de potencial/preço POR EXTENSO: "Potencial Alto", "Preço Bom".
   // POTENCIAL_CONFIG[].label já é "Alto potencial"; normalizamos para a forma
   // pedida pelo Fernando ("Potencial Alto").
@@ -868,12 +879,26 @@ function SupplierRow({
           </div>
           {anexosComArquivos.map((cat) => (
             <div key={cat} className="flex flex-col gap-1">
-              <span
-                className="text-[11px] font-semibold text-left"
+              {(() => {
+                const catKey = `cat:${cat}`;
+                const isCatOpen = openFolders.has(catKey);
+                return (
+              <>
+              <button
+                type="button"
+                onClick={() => toggleFolder(catKey)}
+                className="text-[11px] font-semibold text-left inline-flex items-center gap-1 rounded-md px-1 py-0.5 -mx-1 transition-transform active:scale-[0.98] hover:opacity-80 w-full"
                 style={{ color: "oklch(0.74 0.02 80)" }}
+                aria-expanded={isCatOpen}
+                title={isCatOpen ? "Recolher" : "Expandir"}
               >
+                <ChevronRight
+                  className="w-3 h-3 shrink-0 transition-transform duration-200"
+                  style={{ transform: isCatOpen ? "rotate(90deg)" : "none" }}
+                />
                 {ATTACHMENT_CATEGORY_LABEL[cat]} ({supplier.anexos[cat].length})
-              </span>
+              </button>
+              {isCatOpen && (
               <ul className="flex flex-col gap-1">
                 {supplier.anexos[cat].map((att, i) => (
                   <li
@@ -916,18 +941,34 @@ function SupplierRow({
                   </li>
                 ))}
               </ul>
+              )}
+              </>
+                );
+              })()}
             </div>
           ))}
 
-          {/* PASTAS NOMEADAS — exibidas junto dos anexos avulsos. */}
-          {pastas.map((pasta) => (
+          {/* PASTAS NOMEADAS — recolhidas por padrão para evitar poluição
+              visual; cabeçalho clicável expande/recolhe sob demanda. */}
+          {pastas.map((pasta) => {
+            const isOpen = openFolders.has(pasta.name);
+            return (
             <div key={`pasta-${pasta.name}`} className="flex flex-col gap-1">
-              <span
-                className="text-[11px] font-semibold text-left inline-flex items-center gap-1"
+              <button
+                type="button"
+                onClick={() => toggleFolder(pasta.name)}
+                className="text-[11px] font-semibold text-left inline-flex items-center gap-1 rounded-md px-1 py-0.5 -mx-1 transition-transform active:scale-[0.98] hover:opacity-80 w-full"
                 style={{ color: "oklch(0.78 0.1 300)" }}
+                aria-expanded={isOpen}
+                title={isOpen ? "Recolher pasta" : "Expandir pasta"}
               >
-                <FolderIcon className="w-3 h-3" /> {pasta.name} ({pasta.items.length})
-              </span>
+                <ChevronRight
+                  className="w-3 h-3 shrink-0 transition-transform duration-200"
+                  style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                />
+                <FolderIcon className="w-3 h-3 shrink-0" /> {pasta.name} ({pasta.items.length})
+              </button>
+              {isOpen && (
               <ul className="flex flex-col gap-1">
                 {pasta.items.map((att, i) => (
                   <li
@@ -970,8 +1011,10 @@ function SupplierRow({
                   </li>
                 ))}
               </ul>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
