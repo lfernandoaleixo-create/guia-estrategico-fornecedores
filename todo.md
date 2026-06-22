@@ -892,3 +892,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Componentes DocChip + SupplierDocs (separa soltos x pastas por nome); tudo recolhido por padrão
 - [x] NegotiationSummaryPanel já renderizava cada pasta como bloco nomeado individual (confirmado, sem mudança)
 - [x] TypeScript limpo, 410 testes verdes
+
+## Feature 43 — Card de fornecedor recolhível no Resumo das Negociações
+- [x] Cada fornecedor no Resumo das Negociações vira um card recolhível, iniciando RECOLHIDO
+- [x] Cabeçalho clicável (seta + "Fornecedor: nome" + selos de potencial/preço sempre visíveis)
+- [x] Todo o detalhe (tipo, parceiros, status, anexos/pastas, resumo, localização) só aparece quando expandido
+- [x] TypeScript limpo, 410 testes verdes

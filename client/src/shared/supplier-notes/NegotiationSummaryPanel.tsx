@@ -679,6 +679,10 @@ function SupplierRow({
   // Anexo aberto no visualizador (lightbox). null = fechado.
   const [viewing, setViewing] = useState<SupplierAttachment | null>(null);
 
+  // Card do fornecedor RECOLHIDO por padrão: mostra só o cabeçalho (nome +
+  // selos principais); o operador expande para ver status/anexos/resumo/local.
+  const [expanded, setExpanded] = useState(false);
+
   // Pastas expandidas no Resumo. Por padrão TODAS recolhidas (Set vazio) para
   // evitar poluição visual; o usuário expande sob demanda clicando no cabeçalho.
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set());
@@ -725,21 +729,34 @@ function SupplierRow({
         border: "1px solid oklch(0.26 0.03 260)",
       }}
     >
-      {/* Nome + selos por extenso (maiores e mais visíveis) */}
-      <div className="flex flex-col gap-2">
+      {/* Cabeçalho CLICÁVEL: expande/recolhe o card inteiro. Sempre visível:
+          seta + nome + selos de potencial/preço (resumo rápido). */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        title={expanded ? "Recolher fornecedor" : "Expandir fornecedor"}
+        className="flex flex-col gap-2 text-left w-full transition-transform active:scale-[0.997]"
+      >
         <h4
-          className="text-base font-semibold leading-snug"
+          className="text-base font-semibold leading-snug flex items-center gap-2"
           style={{ color: "oklch(0.97 0.01 80)" }}
         >
-          <span
-            className="font-medium"
-            style={{ color: "oklch(0.6 0.02 80)" }}
-          >
-            Fornecedor:{" "}
+          <ChevronRight
+            className="w-4 h-4 shrink-0 transition-transform duration-200"
+            style={{ color: "oklch(0.7 0.1 80)", transform: expanded ? "rotate(90deg)" : "none" }}
+          />
+          <span>
+            <span
+              className="font-medium"
+              style={{ color: "oklch(0.6 0.02 80)" }}
+            >
+              Fornecedor:{" "}
+            </span>
+            {supplier.name}
           </span>
-          {supplier.name}
         </h4>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 pl-6">
           {potencialTexto && (
             <span
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
@@ -765,8 +782,11 @@ function SupplierRow({
             </span>
           )}
         </div>
-      </div>
+      </button>
 
+      {/* Conteúdo detalhado: só aparece quando o card está EXPANDIDO. */}
+      {expanded && (
+        <>
       {/* Tipo de fornecedor: Fabricante Direto / Trader */}
       {tipoCfg && (
         <div
@@ -1103,6 +1123,8 @@ function SupplierRow({
             </span>
           </span>
         </div>
+      )}
+        </>
       )}
 
       {/* Visualizador de anexo (lightbox) — abre ao clicar no olho. */}
