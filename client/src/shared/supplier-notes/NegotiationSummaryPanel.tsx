@@ -730,7 +730,7 @@ function SupplierRow({
       }}
     >
       {/* Cabeçalho CLICÁVEL: expande/recolhe o card inteiro. Sempre visível:
-          seta + nome + selos de potencial/preço (resumo rápido). */}
+          seta + apenas o nome do fornecedor. */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -756,6 +756,13 @@ function SupplierRow({
             {supplier.name}
           </span>
         </h4>
+      </button>
+
+      {/* Conteúdo detalhado: só aparece quando o card está EXPANDIDO. */}
+      {expanded && (
+        <>
+      {/* Selos de potencial/preço */}
+      {(potencialTexto || precoTexto) && (
         <div className="flex flex-wrap items-center gap-2 pl-6">
           {potencialTexto && (
             <span
@@ -782,11 +789,8 @@ function SupplierRow({
             </span>
           )}
         </div>
-      </button>
+      )}
 
-      {/* Conteúdo detalhado: só aparece quando o card está EXPANDIDO. */}
-      {expanded && (
-        <>
       {/* Tipo de fornecedor: Fabricante Direto / Trader */}
       {tipoCfg && (
         <div
