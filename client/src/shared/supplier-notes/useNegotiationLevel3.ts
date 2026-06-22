@@ -25,6 +25,11 @@ import {
   type NegotiationSupplier,
   type NegotiationSupplierInput,
 } from "./negotiationAccesses";
+import {
+  aquarioSubtipoById,
+  mergeSupplierInputs,
+  staticSuppliersForScope,
+} from "./staticSupplierSources";
 
 /**
  * Hook único e estável (sempre chama os mesmos hooks na mesma ordem). Carrega
@@ -84,7 +89,7 @@ export function useNegotiationLevel3(access: MacroAccess | null): {
             ? tapete.list
             : yiwu.list;
 
-      base = src.map((s) => ({
+      const customBase: NegotiationSupplierInput[] = src.map((s) => ({
         id: s.id,
         name: s.name,
         city: s.city ?? null,
@@ -93,13 +98,24 @@ export function useNegotiationLevel3(access: MacroAccess | null): {
         address: s.address ?? null,
       }));
 
+      // Mescla a base ESTÁTICA do dashboard (Aquário/Tapete/Yiwu) com os custom
+      // suppliers. Sem isso, fornecedores da base estática que receberam selos
+      // (potencial/preço/status) nunca apareciam no Resumo, pois o supplierId da
+      // nota é o id/nome estático, ausente em custom_suppliers. Custom tem
+      // prioridade na dedupe por id.
+      base = mergeSupplierInputs(customBase, staticSuppliersForScope(scope));
+
       // Filtro adicional por subtipo/subgrupo (vínculo gravado na NOTA).
       if (access.source === "aquario-subtipo" && access.subtipo) {
-        base = base.filter(
-          (s) =>
-            (notes.entries[s.id]?.fields?.subtipoAquario ?? "") ===
-            access.subtipo,
-        );
+        // Subtipo efetivo: a marcação manual na nota (fields.subtipoAquario)
+        // tem prioridade; na ausência dela, cai para a categoria original da
+        // base estática do Aquário — espelhando a "categoria efetiva" da Home.
+        const subtipoFallback = aquarioSubtipoById();
+        base = base.filter((s) => {
+          const fromNote = (notes.entries[s.id]?.fields?.subtipoAquario ?? "").trim();
+          const effective = fromNote || subtipoFallback[s.id] || "";
+          return effective === access.subtipo;
+        });
       } else if (access.source === "aquario-subgroup" && access.subgroupId) {
         base = base.filter(
           (s) =>

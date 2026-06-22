@@ -898,3 +898,11 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Cabeçalho clicável (seta + "Fornecedor: nome" + selos de potencial/preço sempre visíveis)
 - [x] Todo o detalhe (tipo, parceiros, status, anexos/pastas, resumo, localização) só aparece quando expandido
 - [x] TypeScript limpo, 410 testes verdes
+
+## Bug — Fornecedores da base estática não aparecem no Resumo das Negociações
+- [ ] Zhejiang Ecocom (e Changzhou Carede, Jiangsu Dezhu, Xiamen Yanjan, mclanzoo) têm nota com selo (scope tapete/aquario) mas supplierId é o NOME e não constam em custom_suppliers/extra_suppliers
+- [ ] useNegotiationLevel3 só usa custom + extra suppliers → fornecedores da base estática ficam de fora
+- [ ] Incluir fornecedores da base estática (Tapete/Aquário/Yiwu) com nota+selo na fonte do Resumo, casando o supplierId usado ao salvar
+- [ ] Testes + typecheck verdes
+
+- [x] Bug fix: fornecedores da base estatica (Tapete/Aquario/Yiwu) com selo agora entram no Resumo das Negociacoes (modulo staticSupplierSources + merge no useNegotiationLevel3 + fallback de subtipo por categoria; 4 testes novos)
