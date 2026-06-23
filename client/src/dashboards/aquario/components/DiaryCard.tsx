@@ -135,6 +135,12 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
           {statusCfg.emoji}
         </div>
         <div className="flex-1 min-w-0">
+          <h3
+            className="font-display font-semibold leading-tight mb-1.5"
+            style={{ fontSize: "1.15rem", letterSpacing: "-0.015em" }}
+          >
+            {supplier.name}
+          </h3>
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span
               className="eyebrow px-2 py-0.5 rounded font-bold"
@@ -228,12 +234,6 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             <SubgroupBadge fields={entry?.fields} />
             <PartnerChips fields={entry?.fields} accent="#dc2626" />
           </div>
-          <h3
-            className="font-display font-semibold leading-tight"
-            style={{ fontSize: "1.15rem", letterSpacing: "-0.015em" }}
-          >
-            {supplier.name}
-          </h3>
           {supplier.namePortuguese && (
             <p
               className="italic mt-0.5"

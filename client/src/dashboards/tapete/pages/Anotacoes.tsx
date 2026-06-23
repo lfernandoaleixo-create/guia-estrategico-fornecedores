@@ -710,6 +710,7 @@ export default function Anotacoes() {
                         i === 2 ? "bg-slate-400 text-white" : "bg-slate-100 text-slate-500"
                       }`}>{i + 1}</span>
                        <div className="flex-1 min-w-0">
+                         <p className="text-sm font-semibold text-slate-900 mb-1">{fab.nome}</p>
                          <div className="flex items-center gap-2 flex-wrap">
                            {(() => {
                              const tEntry = tapeteEntries[fab.nome];
@@ -758,11 +759,10 @@ export default function Anotacoes() {
                                )}
                                <TipoBadge fields={tEntry?.fields} />
                                <SubgroupBadge fields={tEntry?.fields} />
+                               {negSt && <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${negSt.color}`}>{negSt.label}</span>}
                                </>
                              );
                            })()}
-                           <p className="text-sm font-semibold text-slate-900">{fab.nome}</p>
-                           {negSt && <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${negSt.color}`}>{negSt.label}</span>}
                          </div>
                         <p className="text-xs text-slate-500">{fab.provincia}{c?.nomeOficial ? ` · ${c.nomeOficial}` : ""}</p>
                       </div>
@@ -977,6 +977,7 @@ export default function Anotacoes() {
               >
                 <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 mb-1">{fab.nome}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {(() => {
                       const tEntry = tapeteEntries[fab.nome];
@@ -1028,7 +1029,6 @@ export default function Anotacoes() {
                         </>
                       );
                     })()}
-                    <p className="text-sm font-semibold text-slate-800">{fab.nome}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${rel.color}`}>{rel.label}</span>
                     {tipoInfo && (
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${tipoInfo.color}`}>

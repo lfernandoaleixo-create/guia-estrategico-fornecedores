@@ -399,6 +399,7 @@ export default function YiwuAnotacoes() {
                       {cfg.emoji}
                     </div>
                     <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-base text-foreground mb-1">{s.name}</h3>
                       <div className="flex flex-wrap items-center gap-2 mb-0.5">
                         <span
                           className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
@@ -455,7 +456,6 @@ export default function YiwuAnotacoes() {
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-bold text-base text-foreground">{s.name}</h3>
                         {s.score !== undefined && (
                           <span
                             className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded font-mono"

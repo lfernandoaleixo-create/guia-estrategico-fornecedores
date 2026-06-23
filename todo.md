@@ -910,3 +910,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Cards do dashboard Tapete (Top 5 + lista completa) agora exibem selos de Potencial, Preco e Status da negociacao (status livre) das notas, alem do tipo (Fabricante Direto), sem precisar expandir
 
 - [x] Selos de Potencial, Preco e Status livre tambem nos cards dos dashboards Aquario (DiaryCard) e Yiwu (Anotacoes), padronizando com o Tapete
+
+- [x] Feature 47: Nome do fornecedor sempre primeiro (antes dos selos) em todos os cards — Tapete (Top 5 + lista), Yiwu, Aquario (DiaryCard), CustomSupplierCard; GrupoDashboard ja tinha nome primeiro

@@ -126,6 +126,12 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
         className="w-full text-left px-4 py-3 flex items-start gap-3"
       >
         <div className="flex-1 min-w-0">
+          <h3 className={`text-base sm:text-lg font-bold leading-tight mb-1.5 ${palette.title}`}>
+            {supplier.name}
+            {supplier.chineseName && (
+              <span className={`ml-2 text-sm font-normal ${palette.sub}`}>{supplier.chineseName}</span>
+            )}
+          </h3>
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${palette.badge}`}>
               ★ Cadastro manual
@@ -175,12 +181,6 @@ export default function CustomSupplierCard({ supplier, tone = "dark", onEdit, on
               </span>
             )}
           </div>
-          <h3 className={`text-base sm:text-lg font-bold leading-tight ${palette.title}`}>
-            {supplier.name}
-            {supplier.chineseName && (
-              <span className={`ml-2 text-sm font-normal ${palette.sub}`}>{supplier.chineseName}</span>
-            )}
-          </h3>
           <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs ${palette.sub}`}>
             {supplier.city && <span>{supplier.city}</span>}
             {supplier.district && <span>Distrito {supplier.district}</span>}
