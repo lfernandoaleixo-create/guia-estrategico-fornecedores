@@ -908,3 +908,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Bug fix: fornecedores da base estatica (Tapete/Aquario/Yiwu) com selo agora entram no Resumo das Negociacoes (modulo staticSupplierSources + merge no useNegotiationLevel3 + fallback de subtipo por categoria; 4 testes novos)
 
 - [x] Cards do dashboard Tapete (Top 5 + lista completa) agora exibem selos de Potencial, Preco e Status da negociacao (status livre) das notas, alem do tipo (Fabricante Direto), sem precisar expandir
+
+- [x] Selos de Potencial, Preco e Status livre tambem nos cards dos dashboards Aquario (DiaryCard) e Yiwu (Anotacoes), padronizando com o Tapete

@@ -6,15 +6,17 @@
 // =============================================================================
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { FileText, Search, X, Filter, ChevronDown, Layers } from "lucide-react";
+import { FileText, Search, X, Filter, ChevronDown, Layers, NotebookPen } from "lucide-react";
 import Header from "@yiwu/components/Header";
 import suppliersData from "@yiwu/data/suppliers.json";
 import {
   useSupplierNotes,
   STATUS_CONFIG,
   PRECO_CONFIG,
+  POTENCIAL_CONFIG,
   type SupplierStatus,
   type PrecoClassificacao,
+  type Potencial,
 } from "@/shared/supplier-notes/useSupplierNotes";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
@@ -372,10 +374,11 @@ export default function YiwuAnotacoes() {
               const status = statusOf(s.id);
               const cfg = STATUS_CONFIG[status];
               const entry = entries[String(s.id)];
-              const precoKey = status === "fornecedor-aprovado"
-                ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
-                : undefined;
+              const potKey = (entry?.fields?.potencial as Potencial | undefined) || undefined;
+              const potcfg = potKey ? POTENCIAL_CONFIG[potKey] : null;
+              const precoKey = (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined) || undefined;
               const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
+              const statusLivre = (entry?.fields?.statusLivre ?? "").trim();
               const isOpen = expandedId === s.id;
               return (
                 <div
@@ -407,6 +410,18 @@ export default function YiwuAnotacoes() {
                         >
                           {cfg.label}
                         </span>
+                        {potcfg && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                            style={{
+                              background: potcfg.bg,
+                              color: potcfg.color,
+                              border: `1px solid ${potcfg.border}`,
+                            }}
+                          >
+                            {potcfg.emoji} Potencial {potcfg.shortLabel}
+                          </span>
+                        )}
                         {pcfg && (
                           <span
                             className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
@@ -417,6 +432,19 @@ export default function YiwuAnotacoes() {
                             }}
                           >
                             {pcfg.emoji} {pcfg.label}
+                          </span>
+                        )}
+                        {statusLivre && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                            style={{
+                              background: "oklch(0.96 0.03 290)",
+                              color: "oklch(0.45 0.12 290)",
+                              border: "1px solid oklch(0.85 0.06 290)",
+                            }}
+                            title={statusLivre}
+                          >
+                            <NotebookPen className="w-3 h-3" /> {statusLivre}
                           </span>
                         )}
                         <TipoBadge fields={entry?.fields} />

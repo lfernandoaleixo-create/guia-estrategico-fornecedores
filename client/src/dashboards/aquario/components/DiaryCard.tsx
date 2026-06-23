@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { type Supplier } from "@aquario/data/suppliers";
-import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, POTENCIAL_CONFIG, type PrecoClassificacao, type Potencial } from "@/shared/supplier-notes/useSupplierNotes";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { PartnerChips } from "@/shared/supplier-notes/PartnerChips";
 import { useSubgroups } from "@/shared/supplier-notes/useSubgroups";
@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Paperclip,
   FileText,
+  NotebookPen,
   MapPin,
   Building2,
   Calendar,
@@ -98,10 +99,11 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
   const hasSubgroup = !!(subgroupId && subgroupById.get(subgroupId));
   const status = entry?.status ?? "nao-visitado";
   const statusCfg = STATUS_CONFIG[status];
-  const precoKey = status === "fornecedor-aprovado"
-    ? (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
-    : undefined;
+  const potKey = (entry?.fields?.potencial as Potencial | undefined) || undefined;
+  const potCfg = potKey ? POTENCIAL_CONFIG[potKey] : null;
+  const precoKey = (entry?.fields?.precoClassificacao as PrecoClassificacao | undefined) || undefined;
   const precoCfg = precoKey ? PRECO_CONFIG[precoKey] : null;
+  const statusLivre = (entry?.fields?.statusLivre ?? "").trim();
   const attachments = entry?.attachments ?? [];
   const hasContent =
     (entry?.observacoes?.length ?? 0) > 0 ||
@@ -146,6 +148,20 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
             >
               {statusCfg.label.toUpperCase()}
             </span>
+            {potCfg && (
+              <span
+                className="eyebrow px-2 py-0.5 rounded font-bold"
+                style={{
+                  background: potCfg.bg,
+                  color: potCfg.color,
+                  border: `1px solid ${potCfg.border}`,
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {potCfg.emoji} POTENCIAL {potCfg.shortLabel.toUpperCase()}
+              </span>
+            )}
             {precoCfg && (
               <span
                 className="eyebrow px-2 py-0.5 rounded font-bold"
@@ -158,6 +174,21 @@ export default function DiaryCard({ supplier, defaultExpanded = false }: Props) 
                 }}
               >
                 {precoCfg.emoji} {precoCfg.label.toUpperCase()}
+              </span>
+            )}
+            {statusLivre && (
+              <span
+                className="eyebrow px-2 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                style={{
+                  background: "oklch(0.96 0.03 290)",
+                  color: "oklch(0.45 0.12 290)",
+                  border: "1px solid oklch(0.85 0.06 290)",
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.08em",
+                }}
+                title={statusLivre}
+              >
+                <NotebookPen size={10} /> {statusLivre.toUpperCase()}
               </span>
             )}
             {!hasSubgroup && (
