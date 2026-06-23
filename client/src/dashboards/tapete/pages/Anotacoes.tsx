@@ -15,7 +15,7 @@ import { contatosFabricas } from "@tapete/lib/contatos";
 import { trpc } from "@tapete/lib/trpc-stub";
 import type { Negociacao, EntradaDiario } from "@tapete/lib/types";
 import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes/SupplierNotesPanel";
-import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, type PrecoClassificacao } from "@/shared/supplier-notes/useSupplierNotes";
+import { useSupplierNotes, STATUS_CONFIG, PRECO_CONFIG, POTENCIAL_CONFIG, type PrecoClassificacao, type Potencial } from "@/shared/supplier-notes/useSupplierNotes";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
 import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
@@ -715,10 +715,11 @@ export default function Anotacoes() {
                              const tEntry = tapeteEntries[fab.nome];
                              const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                              const cfg = STATUS_CONFIG[tStatus];
-                             const precoKey = tStatus === "fornecedor-aprovado"
-                               ? (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
-                               : undefined;
+                             const potKey = (tEntry?.fields?.potencial as Potencial | undefined) || undefined;
+                             const potcfg = potKey ? POTENCIAL_CONFIG[potKey] : null;
+                             const precoKey = (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined) || undefined;
                              const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
+                             const statusLivre = (tEntry?.fields?.statusLivre ?? "").trim();
                              return (
                                <>
                                <span
@@ -728,6 +729,15 @@ export default function Anotacoes() {
                                >
                                  <span className="mr-1">{cfg.emoji}</span>{cfg.label}
                                </span>
+                               {potcfg && (
+                                 <span
+                                   className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                                   style={{ background: potcfg.bg, color: potcfg.color, border: `1px solid ${potcfg.border}` }}
+                                   title={potcfg.label}
+                                 >
+                                   <span className="mr-1">{potcfg.emoji}</span>Potencial {potcfg.shortLabel}
+                                 </span>
+                               )}
                                {pcfg && (
                                  <span
                                    className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
@@ -735,6 +745,15 @@ export default function Anotacoes() {
                                    title={pcfg.label}
                                  >
                                    <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
+                                 </span>
+                               )}
+                               {statusLivre && (
+                                 <span
+                                   className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                                   style={{ background: "oklch(0.96 0.03 290)", color: "oklch(0.45 0.12 290)", border: "1px solid oklch(0.85 0.06 290)" }}
+                                   title={statusLivre}
+                                 >
+                                   <NotebookPen className="w-3 h-3" /> {statusLivre}
                                  </span>
                                )}
                                <TipoBadge fields={tEntry?.fields} />
@@ -963,10 +982,11 @@ export default function Anotacoes() {
                       const tEntry = tapeteEntries[fab.nome];
                       const tStatus = (tEntry?.status ?? "nao-visitado") as keyof typeof STATUS_CONFIG;
                       const cfg = STATUS_CONFIG[tStatus];
-                      const precoKey = tStatus === "fornecedor-aprovado"
-                        ? (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined)
-                        : undefined;
+                      const potKey = (tEntry?.fields?.potencial as Potencial | undefined) || undefined;
+                      const potcfg = potKey ? POTENCIAL_CONFIG[potKey] : null;
+                      const precoKey = (tEntry?.fields?.precoClassificacao as PrecoClassificacao | undefined) || undefined;
                       const pcfg = precoKey ? PRECO_CONFIG[precoKey] : null;
+                      const statusLivre = (tEntry?.fields?.statusLivre ?? "").trim();
                       return (
                         <>
                         <span
@@ -976,6 +996,15 @@ export default function Anotacoes() {
                         >
                           <span className="mr-1">{cfg.emoji}</span>{cfg.label}
                         </span>
+                        {potcfg && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
+                            style={{ background: potcfg.bg, color: potcfg.color, border: `1px solid ${potcfg.border}` }}
+                            title={potcfg.label}
+                          >
+                            <span className="mr-1">{potcfg.emoji}</span>Potencial {potcfg.shortLabel}
+                          </span>
+                        )}
                         {pcfg && (
                           <span
                             className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold"
@@ -983,6 +1012,15 @@ export default function Anotacoes() {
                             title={pcfg.label}
                           >
                             <span className="mr-1">{pcfg.emoji}</span>{pcfg.label}
+                          </span>
+                        )}
+                        {statusLivre && (
+                          <span
+                            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                            style={{ background: "oklch(0.96 0.03 290)", color: "oklch(0.45 0.12 290)", border: "1px solid oklch(0.85 0.06 290)" }}
+                            title={statusLivre}
+                          >
+                            <NotebookPen className="w-3 h-3" /> {statusLivre}
                           </span>
                         )}
                         <TipoBadge fields={tEntry?.fields} />
