@@ -937,3 +937,10 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Diferenciar visualmente os tributos com padrao editavel (II/IPI obrigatorios do NCM; PIS/COFINS/AFRMM/Siscomex com badge "ja preenchidos")
   - [x] Indicador de "faltam X campos" + botoes de exportar desabilitados quando incompleto
   - [x] Typecheck + 433 testes + validacao no preview (9 campos sinalizados em ambar)
+
+- [x] Feature 52: Tributos fixos e nao editaveis na calculadora
+  - [x] II e IPI sempre do NCM (somente leitura, sem campo editavel)
+  - [x] PIS 0,65 / COFINS 3 / AFRMM 8 fixos; Siscomex R$ 200 fixo (SISCOMEX_DEFAULT = 200)
+  - [x] Remover os inputs editaveis de tributos; mostrar como quadro ReadOnlyTax somente leitura
+  - [x] Ajustar required: II/IPI nao sao "campos a preencher" (vem do NCM); usuario so precisa escolher o NCM
+  - [x] Atualizar testes (Siscomex 200) + typecheck + 433 testes + validacao no preview

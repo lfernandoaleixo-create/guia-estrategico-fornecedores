@@ -151,6 +151,6 @@ describe("NCM — tabela e helpers", () => {
     expect(PIS_PCT).toBe(0.65);
     expect(COFINS_PCT).toBe(3.0);
     expect(AFRMM_PCT).toBe(8);
-    expect(SISCOMEX_DEFAULT).toBe(250);
+    expect(SISCOMEX_DEFAULT).toBe(200);
   });
 });

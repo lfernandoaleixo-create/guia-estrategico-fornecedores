@@ -147,6 +147,26 @@ function TextField({ label, value, onChange, placeholder, icon }: Omit<FieldProp
   );
 }
 
+// Chip somente leitura para uma alíquota/tributo fixo (não editável).
+function ReadOnlyTax({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div
+      className="flex flex-col gap-0.5 rounded-lg px-3 py-2"
+      style={{
+        background: "oklch(0.13 0.02 255)",
+        border: highlight ? "1px solid oklch(0.6 0.13 150 / 0.45)" : "1px solid oklch(0.24 0.03 258)",
+      }}
+    >
+      <span className="text-[0.62rem] uppercase tracking-[0.08em]" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+        {label}
+      </span>
+      <span className="text-sm font-semibold" style={{ color: "oklch(0.92 0.04 80)", fontFamily: "'Inter', sans-serif" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 // Campo NCM com busca/autocomplete sobre a tabela interna.
 function NcmField({
   ncm,
@@ -293,13 +313,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const [qtd, setQtd] = useState("");
   const [ciPct, setCiPct] = useState("");
 
-  // Campos tributários (todos editáveis para simulação).
-  const [iiPct, setIiPct] = useState("");
-  const [ipiPct, setIpiPct] = useState("");
-  const [pisPct, setPisPct] = useState(String(PIS_PCT).replace(".", ","));
-  const [cofinsPct, setCofinsPct] = useState(String(COFINS_PCT).replace(".", ","));
-  const [afrmmPct, setAfrmmPct] = useState(String(AFRMM_PCT));
-  const [siscomex, setSiscomex] = useState(String(SISCOMEX_DEFAULT));
+  // II e IPI vêm do NCM selecionado (não editáveis). null = nenhum NCM escolhido.
+  const [iiPct, setIiPct] = useState<number | null>(null);
+  const [ipiPct, setIpiPct] = useState<number | null>(null);
+  // PIS/COFINS/AFRMM/Siscomex são FIXOS do regime — não editáveis.
+  const pisPct = PIS_PCT;
+  const cofinsPct = COFINS_PCT;
+  const afrmmPct = AFRMM_PCT;
+  const siscomex = SISCOMEX_DEFAULT;
 
   const [freteMaritimo, setFreteMaritimo] = useState("");
   const [freteTerrestre, setFreteTerrestre] = useState("");
@@ -323,8 +344,8 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   // Ao selecionar um NCM da lista: preenche nome (se vazio), II/IPI e observação.
   const handlePick = (e: NcmEntry) => {
     setNcm(e.ncm);
-    setIiPct(String(e.ii).replace(".", ","));
-    setIpiPct(String(e.ipi).replace(".", ","));
+    setIiPct(e.ii);
+    setIpiPct(e.ipi);
     setNcmObs(e.obs);
     setMatched(true);
     if (!nome.trim()) setNome(e.produto);
@@ -335,12 +356,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setNcm(v);
     const hit = findNcm(v);
     if (hit) {
-      setIiPct(String(hit.ii).replace(".", ","));
-      setIpiPct(String(hit.ipi).replace(".", ","));
+      setIiPct(hit.ii);
+      setIpiPct(hit.ipi);
       setNcmObs(hit.obs);
       setMatched(true);
       if (!nome.trim()) setNome(hit.produto);
     } else {
+      setIiPct(null);
+      setIpiPct(null);
       setMatched(false);
       setNcmObs(undefined);
     }
@@ -353,15 +376,15 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
         precoUnitUSD: parseNum(precoUnit),
         quantidade: parseNum(qtd),
         ciPct: parseNum(ciPct),
-        iiPct: parseNum(iiPct),
-        ipiPct: parseNum(ipiPct),
-        pisPct: parseNum(pisPct),
-        cofinsPct: parseNum(cofinsPct),
+        iiPct: iiPct ?? 0,
+        ipiPct: ipiPct ?? 0,
+        pisPct,
+        cofinsPct,
         freteMaritimoUSD: parseNum(freteMaritimo),
         freteTerrestreBRL: parseNum(freteTerrestre),
         comissaoPct: parseNum(comissaoPct),
-        afrmmPct: parseNum(afrmmPct),
-        siscomexBRL: parseNum(siscomex),
+        afrmmPct,
+        siscomexBRL: siscomex,
       }),
     [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex],
   );
@@ -374,14 +397,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     { label: "Quantidade", value: qtd },
     { label: "Preço real do produto", value: precoUnit },
     { label: "CI (%)", value: ciPct },
-    { label: "II (%)", value: iiPct },
-    { label: "IPI (%)", value: ipiPct },
     { label: "Frete marítimo", value: freteMaritimo },
     { label: "Frete terrestre", value: freteTerrestre },
     { label: "Comissão", value: comissaoPct },
   ];
   const missing = requiredFields.filter((f) => f.value.trim() === "");
-  const isComplete = missing.length === 0;
+  // Precisa de NCM (que define II/IPI) + todos os campos do usuário.
+  const ncmOk = iiPct !== null && ipiPct !== null;
+  const isComplete = missing.length === 0 && ncmOk;
 
   // Monta o snapshot atual usado tanto pelo PDF quanto pelo salvar (.json).
   const buildSnapshot = (): CalcSnapshot => ({
@@ -394,15 +417,15 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       precoUnitUSD: parseNum(precoUnit),
       quantidade: parseNum(qtd),
       ciPct: parseNum(ciPct),
-      iiPct: parseNum(iiPct),
-      ipiPct: parseNum(ipiPct),
-      pisPct: parseNum(pisPct),
-      cofinsPct: parseNum(cofinsPct),
+      iiPct: iiPct ?? 0,
+      ipiPct: ipiPct ?? 0,
+      pisPct,
+      cofinsPct,
       freteMaritimoUSD: parseNum(freteMaritimo),
       freteTerrestreBRL: parseNum(freteTerrestre),
       comissaoPct: parseNum(comissaoPct),
-      afrmmPct: parseNum(afrmmPct),
-      siscomexBRL: parseNum(siscomex),
+      afrmmPct,
+      siscomexBRL: siscomex,
     },
     result: calc,
   });
@@ -429,12 +452,8 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setPrecoUnit("");
     setQtd("");
     setCiPct("");
-    setIiPct("");
-    setIpiPct("");
-    setPisPct(String(PIS_PCT).replace(".", ","));
-    setCofinsPct(String(COFINS_PCT).replace(".", ","));
-    setAfrmmPct(String(AFRMM_PCT));
-    setSiscomex(String(SISCOMEX_DEFAULT));
+    setIiPct(null);
+    setIpiPct(null);
     setFreteMaritimo("");
     setFreteTerrestre("");
     setComissaoPct("");
@@ -538,7 +557,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 >
                   <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
                   <span className="text-xs leading-relaxed" style={{ color: "oklch(0.8 0.05 150)", fontFamily: "'Inter', sans-serif" }}>
-                    NCM reconhecido — II e IPI preenchidos automaticamente (edite se necessário).
+                    NCM reconhecido — II e IPI definidos automaticamente.
                     {ncmObs ? ` Obs.: ${ncmObs}` : ""}
                   </span>
                 </div>
@@ -556,39 +575,42 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <Field label="CI (% do valor real)" value={ciPct} onChange={setCiPct} placeholder="Digite o %" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Base declarada — reduz toda a cadeia tributária" required />
               </div>
 
-              {/* Bloco de alíquotas tributárias */}
+              {/* Tributos aplicados — FIXOS, somente leitura (II/IPI do NCM, demais do regime) */}
               <div
-                className="rounded-xl p-4 flex flex-col gap-4"
+                className="rounded-xl p-4 flex flex-col gap-3"
                 style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.26 0.035 260)" }}
               >
                 <div className="flex items-center gap-2">
                   <Receipt className="w-4 h-4" style={{ color: "oklch(0.72 0.06 75)" }} />
                   <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    Alíquotas do produto
-                  </span>
-                </div>
-                <p className="text-[0.7rem] leading-snug -mt-2" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                  II e IPI vêm do NCM selecionado — preencha se escolher o produto manualmente.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="II" value={iiPct} onChange={setIiPct} placeholder="Digite o %" suffix="%" required />
-                  <Field label="IPI" value={ipiPct} onChange={setIpiPct} placeholder="Digite o %" suffix="%" required />
-                </div>
-
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    Tributos padrão
+                    Tributos aplicados
                   </span>
                   <span className="text-[0.65rem] px-2 py-0.5 rounded-full" style={{ background: "oklch(0.6 0.13 150 / 0.15)", color: "oklch(0.8 0.08 150)", fontFamily: "'Inter', sans-serif" }}>
-                    já preenchidos · ajuste se precisar
+                    automático
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Field label="PIS" value={pisPct} onChange={setPisPct} placeholder="0,65" suffix="%" />
-                  <Field label="COFINS" value={cofinsPct} onChange={setCofinsPct} placeholder="3,0" suffix="%" />
-                  <Field label="AFRMM" value={afrmmPct} onChange={setAfrmmPct} placeholder="8" suffix="%" />
-                  <Field label="Siscomex" value={siscomex} onChange={setSiscomex} placeholder="250" prefix="R$" />
+                <p className="text-[0.7rem] leading-snug -mt-1" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                  II e IPI vêm do NCM escolhido. PIS, COFINS, AFRMM e Siscomex são fixos — você não precisa preencher nada aqui.
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  <ReadOnlyTax label="II" value={iiPct !== null ? `${iiPct}%` : "—"} highlight={iiPct !== null} />
+                  <ReadOnlyTax label="IPI" value={ipiPct !== null ? `${ipiPct}%` : "—"} highlight={ipiPct !== null} />
+                  <ReadOnlyTax label="PIS" value={`${pisPct}%`} />
+                  <ReadOnlyTax label="COFINS" value={`${cofinsPct}%`} />
+                  <ReadOnlyTax label="AFRMM" value={`${afrmmPct}%`} />
+                  <ReadOnlyTax label="Siscomex" value={BRL(siscomex)} />
                 </div>
+                {iiPct === null ? (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2"
+                    style={{ background: "oklch(0.7 0.15 60 / 0.12)", border: "1px solid oklch(0.7 0.15 60 / 0.4)" }}
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.8 0.16 60)" }} />
+                    <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.82 0.08 70)", fontFamily: "'Inter', sans-serif" }}>
+                      Escolha um NCM acima para definir II e IPI automaticamente.
+                    </span>
+                  </div>
+                ) : null}
                 <div
                   className="flex items-center gap-2 rounded-lg px-3 py-2"
                   style={{ background: "oklch(0.16 0.02 258)", border: "1px solid oklch(0.28 0.04 260)" }}
@@ -678,10 +700,10 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={USD(calc.baseDeclaradaUSD)} muted />
                 <ResultRow label="Valor aduaneiro (+ frete mar.)" value={USD(calc.valorAduaneiroUSD)} />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label={`II (${parseNum(iiPct) || 0}%)`} value={USD(calc.iiUSD)} />
-                <ResultRow label={`IPI (${parseNum(ipiPct) || 0}%)`} value={USD(calc.ipiUSD)} />
-                <ResultRow label={`PIS (${parseNum(pisPct) || 0}%)`} value={USD(calc.pisUSD)} />
-                <ResultRow label={`COFINS (${parseNum(cofinsPct) || 0}%)`} value={USD(calc.cofinsUSD)} />
+                <ResultRow label={`II (${iiPct ?? 0}%)`} value={USD(calc.iiUSD)} />
+                <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={USD(calc.ipiUSD)} />
+                <ResultRow label={`PIS (${pisPct}%)`} value={USD(calc.pisUSD)} />
+                <ResultRow label={`COFINS (${cofinsPct}%)`} value={USD(calc.cofinsUSD)} />
                 <ResultRow label="ICMS importação" value="R$ 0 · TTS ✓" muted />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
                 <ResultRow label="Total de tributos" value={USD(calc.tributosUSD)} strong />

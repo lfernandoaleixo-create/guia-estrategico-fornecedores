@@ -9,7 +9,7 @@
 //     real). Essa base reduzida aplica em TODA a cadeia (II, IPI, PIS, COFINS).
 //   - Frete marítimo (US$): pago 1x ao fornecedor (entra no custo) e também
 //     compõe a base do II/cadeia. Frete terrestre (R$): somado direto.
-//   - AFRMM: 8% sobre o frete marítimo. Taxa Siscomex: valor fixo (R$ 250 padrão).
+//   - AFRMM: 8% sobre o frete marítimo. Taxa Siscomex: valor fixo (R$ 200).
 //
 // Cadeia (em cascata), tudo em US$ até converter:
 //   baseDeclarada      = valorRealTotalUSD × (CI%/100)
@@ -40,10 +40,10 @@ export interface NcmEntry {
 // PIS/COFINS fixos do regime do usuário (lucro presumido / cumulativo).
 export const PIS_PCT = 0.65;
 export const COFINS_PCT = 3.0;
-// AFRMM padrão (8% sobre o frete marítimo internacional).
+// AFRMM fixo (8% sobre o frete marítimo internacional).
 export const AFRMM_PCT = 8;
-// Taxa Siscomex padrão (editável na tela).
-export const SISCOMEX_DEFAULT = 250;
+// Taxa Siscomex fixa (R$ 200).
+export const SISCOMEX_DEFAULT = 200;
 
 // Tabela base de NCMs usados pela empresa. Editável/expansível na tela.
 // Alíquotas levantadas em jun/2026 (TEC/Gecex + TIPI Decreto 11.158/2022).
