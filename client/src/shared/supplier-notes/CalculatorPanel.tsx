@@ -61,9 +61,12 @@ interface FieldProps {
   icon?: React.ReactNode;
   suffix?: string;
   prefix?: string;
+  required?: boolean;
 }
 
-function Field({ label, hint, value, onChange, placeholder, icon, suffix, prefix }: FieldProps) {
+function Field({ label, hint, value, onChange, placeholder, icon, suffix, prefix, required }: FieldProps) {
+  // Campo obrigatorio ainda nao preenchido => destaque ambar para sinalizar.
+  const empty = required && value.trim() === "";
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -72,10 +75,17 @@ function Field({ label, hint, value, onChange, placeholder, icon, suffix, prefix
       >
         {icon}
         {label}
+        {required ? (
+          <span style={{ color: "oklch(0.78 0.16 60)" }} title="Campo obrigatório">*</span>
+        ) : null}
       </label>
       <div
-        className="flex items-center rounded-lg overflow-hidden"
-        style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.28 0.04 260)" }}
+        className="flex items-center rounded-lg overflow-hidden transition-colors"
+        style={{
+          background: "oklch(0.1 0.018 255)",
+          border: empty ? "1px solid oklch(0.7 0.15 60 / 0.7)" : "1px solid oklch(0.28 0.04 260)",
+          boxShadow: empty ? "0 0 0 3px oklch(0.7 0.15 60 / 0.12)" : "none",
+        }}
       >
         {prefix ? (
           <span
@@ -358,6 +368,21 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
   const qNum = parseNum(qtd);
 
+  // Campos obrigatorios para um calculo valido (NCM/produto + valores).
+  const requiredFields: { label: string; value: string }[] = [
+    { label: "Cotação do dólar", value: cotacao },
+    { label: "Quantidade", value: qtd },
+    { label: "Preço real do produto", value: precoUnit },
+    { label: "CI (%)", value: ciPct },
+    { label: "II (%)", value: iiPct },
+    { label: "IPI (%)", value: ipiPct },
+    { label: "Frete marítimo", value: freteMaritimo },
+    { label: "Frete terrestre", value: freteTerrestre },
+    { label: "Comissão", value: comissaoPct },
+  ];
+  const missing = requiredFields.filter((f) => f.value.trim() === "");
+  const isComplete = missing.length === 0;
+
   // Monta o snapshot atual usado tanto pelo PDF quanto pelo salvar (.json).
   const buildSnapshot = (): CalcSnapshot => ({
     nome,
@@ -385,11 +410,13 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const [popupBloqueado, setPopupBloqueado] = useState(false);
 
   const handlePdf = () => {
+    if (!isComplete) return;
     const ok = openPdfReport(buildSnapshot());
     setPopupBloqueado(!ok);
   };
 
   const handleSave = () => {
+    if (!isComplete) return;
     downloadJson(buildSnapshot());
   };
 
@@ -517,16 +544,16 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 </div>
               ) : null}
 
-              <TextField label="Nome do produto" value={nome} onChange={setNome} placeholder="Ex.: Tapete higiênico 60x90" icon={<Package className="w-3.5 h-3.5" />} />
+              <TextField label="Nome do produto" value={nome} onChange={setNome} placeholder="Digite o nome do produto" icon={<Package className="w-3.5 h-3.5" />} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Cotação do dólar" value={cotacao} onChange={setCotacao} placeholder="5,40" prefix="R$" icon={<DollarSign className="w-3.5 h-3.5" />} hint="Quanto vale US$ 1,00 em reais" />
-                <Field label="Qtd. de unidades no container" value={qtd} onChange={setQtd} placeholder="5000" suffix="un" />
+                <Field label="Cotação do dólar" value={cotacao} onChange={setCotacao} placeholder="Digite a cotação" prefix="R$" icon={<DollarSign className="w-3.5 h-3.5" />} hint="Quanto vale US$ 1,00 em reais" required />
+                <Field label="Qtd. de unidades no container" value={qtd} onChange={setQtd} placeholder="Digite a quantidade" suffix="un" required />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Preço real do produto" value={precoUnit} onChange={setPrecoUnit} placeholder="0,85" prefix="US$" hint="Valor real por unidade (em dólar)" />
-                <Field label="CI (% do valor real)" value={ciPct} onChange={setCiPct} placeholder="60" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Base declarada — reduz toda a cadeia tributária" />
+                <Field label="Preço real do produto" value={precoUnit} onChange={setPrecoUnit} placeholder="Digite o preço" prefix="US$" hint="Valor real por unidade (em dólar)" required />
+                <Field label="CI (% do valor real)" value={ciPct} onChange={setCiPct} placeholder="Digite o %" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Base declarada — reduz toda a cadeia tributária" required />
               </div>
 
               {/* Bloco de alíquotas tributárias */}
@@ -537,12 +564,26 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <div className="flex items-center gap-2">
                   <Receipt className="w-4 h-4" style={{ color: "oklch(0.72 0.06 75)" }} />
                   <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    Tributos (editáveis)
+                    Alíquotas do produto
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <Field label="II" value={iiPct} onChange={setIiPct} placeholder="14,4" suffix="%" />
-                  <Field label="IPI" value={ipiPct} onChange={setIpiPct} placeholder="3,25" suffix="%" />
+                <p className="text-[0.7rem] leading-snug -mt-2" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                  II e IPI vêm do NCM selecionado — preencha se escolher o produto manualmente.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="II" value={iiPct} onChange={setIiPct} placeholder="Digite o %" suffix="%" required />
+                  <Field label="IPI" value={ipiPct} onChange={setIpiPct} placeholder="Digite o %" suffix="%" required />
+                </div>
+
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                    Tributos padrão
+                  </span>
+                  <span className="text-[0.65rem] px-2 py-0.5 rounded-full" style={{ background: "oklch(0.6 0.13 150 / 0.15)", color: "oklch(0.8 0.08 150)", fontFamily: "'Inter', sans-serif" }}>
+                    já preenchidos · ajuste se precisar
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <Field label="PIS" value={pisPct} onChange={setPisPct} placeholder="0,65" suffix="%" />
                   <Field label="COFINS" value={cofinsPct} onChange={setCofinsPct} placeholder="3,0" suffix="%" />
                   <Field label="AFRMM" value={afrmmPct} onChange={setAfrmmPct} placeholder="8" suffix="%" />
@@ -560,11 +601,11 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Frete marítimo" value={freteMaritimo} onChange={setFreteMaritimo} placeholder="3500" prefix="US$" icon={<Ship className="w-3.5 h-3.5" />} hint="Pago ao fornecedor + compõe o valor aduaneiro" />
-                <Field label="Frete terrestre" value={freteTerrestre} onChange={setFreteTerrestre} placeholder="2000" prefix="R$" icon={<Truck className="w-3.5 h-3.5" />} hint="Valor fixo em reais" />
+                <Field label="Frete marítimo" value={freteMaritimo} onChange={setFreteMaritimo} placeholder="Digite o frete" prefix="US$" icon={<Ship className="w-3.5 h-3.5" />} hint="Pago ao fornecedor + compõe o valor aduaneiro" required />
+                <Field label="Frete terrestre" value={freteTerrestre} onChange={setFreteTerrestre} placeholder="Digite o frete" prefix="R$" icon={<Truck className="w-3.5 h-3.5" />} hint="Valor fixo em reais" required />
               </div>
 
-              <Field label="Comissão Bety" value={comissaoPct} onChange={setComissaoPct} placeholder="5" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Sobre o valor real do produto" />
+              <Field label="Comissão Bety" value={comissaoPct} onChange={setComissaoPct} placeholder="Digite o %" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Sobre o valor real do produto" required />
             </div>
 
             {/* Coluna de resultado + detalhamento tributário */}
@@ -580,6 +621,18 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 >
                   Resultado {nome ? `· ${nome}` : ""}
                 </h3>
+
+                {!isComplete ? (
+                  <div
+                    className="flex items-start gap-2 rounded-lg px-3 py-2 mb-1"
+                    style={{ background: "oklch(0.7 0.15 60 / 0.12)", border: "1px solid oklch(0.7 0.15 60 / 0.4)" }}
+                  >
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.8 0.16 60)" }} />
+                    <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.82 0.08 70)", fontFamily: "'Inter', sans-serif" }}>
+                      Faltam <strong>{missing.length}</strong> {missing.length === 1 ? "campo" : "campos"} para o cálculo: {missing.map((m) => m.label).join(", ")}.
+                    </span>
+                  </div>
+                ) : null}
 
                 <div
                   className="rounded-lg p-4 mb-2"
@@ -652,27 +705,33 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     onClick={handlePdf}
+                    disabled={!isComplete}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
                     style={{
-                      background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.9), oklch(0.6 0.18 35 / 0.9))",
-                      color: "oklch(0.16 0.02 60)",
+                      background: isComplete ? "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.9), oklch(0.6 0.18 35 / 0.9))" : "oklch(0.2 0.02 258)",
+                      color: isComplete ? "oklch(0.16 0.02 60)" : "oklch(0.5 0.02 80)",
                       fontFamily: "'Inter', sans-serif",
+                      cursor: isComplete ? "pointer" : "not-allowed",
+                      opacity: isComplete ? 1 : 0.7,
                     }}
-                    title="Gerar PDF com o detalhamento e a explicação do cálculo"
+                    title={isComplete ? "Gerar PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
                   >
                     <FileText className="w-4 h-4" />
                     Gerar PDF
                   </button>
                   <button
                     onClick={handleSave}
+                    disabled={!isComplete}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
                     style={{
                       background: "oklch(0.18 0.02 258)",
                       border: "1px solid oklch(0.3 0.04 260)",
-                      color: "oklch(0.88 0.02 80)",
+                      color: isComplete ? "oklch(0.88 0.02 80)" : "oklch(0.5 0.02 80)",
                       fontFamily: "'Inter', sans-serif",
+                      cursor: isComplete ? "pointer" : "not-allowed",
+                      opacity: isComplete ? 1 : 0.7,
                     }}
-                    title="Salvar a simulação (arquivo .json) para reabrir depois"
+                    title={isComplete ? "Salvar a simulação (arquivo .json) para reabrir depois" : "Preencha todos os campos obrigatórios primeiro"}
                   >
                     <Save className="w-4 h-4" />
                     Salvar simulação

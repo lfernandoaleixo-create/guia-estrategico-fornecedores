@@ -930,3 +930,10 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Salvar simulacao (download .json com entradas + resultado, reabrivel)
   - [x] Gerar PDF com: dados de entrada, resultado, detalhamento tributario e EXPLICACAO passo a passo (14 passos) da logica de cada conta (base CI, valor aduaneiro, II, IPI em cascata, PIS/COFINS, AFRMM, Siscomex, ICMS zerado TTS, custo total e unitario)
   - [x] Testes (7 novos em calcReport.test.ts) + typecheck + validacao no preview (PDF conferido)
+
+- [x] Feature 51: Clareza dos campos da calculadora (campos a preencher vazios e sinalizados)
+  - [x] Placeholders neutros ("Digite...") em vez de valores-exemplo que parecem preenchidos
+  - [x] Marcar campos obrigatorios: asterisco no label + borda/destaque ambar quando vazio
+  - [x] Diferenciar visualmente os tributos com padrao editavel (II/IPI obrigatorios do NCM; PIS/COFINS/AFRMM/Siscomex com badge "ja preenchidos")
+  - [x] Indicador de "faltam X campos" + botoes de exportar desabilitados quando incompleto
+  - [x] Typecheck + 433 testes + validacao no preview (9 campos sinalizados em ambar)
