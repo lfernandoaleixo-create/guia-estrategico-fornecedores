@@ -20,6 +20,9 @@ import {
   Search,
   CheckCircle2,
   Receipt,
+  FileText,
+  Save,
+  AlertTriangle,
 } from "lucide-react";
 import {
   NCM_TABLE,
@@ -32,6 +35,7 @@ import {
   SISCOMEX_DEFAULT,
   type NcmEntry,
 } from "./importTax";
+import { openPdfReport, downloadJson, type CalcSnapshot } from "./calcReport";
 
 export interface CalculatorPanelProps {
   open: boolean;
@@ -354,6 +358,41 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
   const qNum = parseNum(qtd);
 
+  // Monta o snapshot atual usado tanto pelo PDF quanto pelo salvar (.json).
+  const buildSnapshot = (): CalcSnapshot => ({
+    nome,
+    ncm,
+    ncmObs,
+    geradoEm: Date.now(),
+    input: {
+      cotacao: parseNum(cotacao),
+      precoUnitUSD: parseNum(precoUnit),
+      quantidade: parseNum(qtd),
+      ciPct: parseNum(ciPct),
+      iiPct: parseNum(iiPct),
+      ipiPct: parseNum(ipiPct),
+      pisPct: parseNum(pisPct),
+      cofinsPct: parseNum(cofinsPct),
+      freteMaritimoUSD: parseNum(freteMaritimo),
+      freteTerrestreBRL: parseNum(freteTerrestre),
+      comissaoPct: parseNum(comissaoPct),
+      afrmmPct: parseNum(afrmmPct),
+      siscomexBRL: parseNum(siscomex),
+    },
+    result: calc,
+  });
+
+  const [popupBloqueado, setPopupBloqueado] = useState(false);
+
+  const handlePdf = () => {
+    const ok = openPdfReport(buildSnapshot());
+    setPopupBloqueado(!ok);
+  };
+
+  const handleSave = () => {
+    downloadJson(buildSnapshot());
+  };
+
   const reset = () => {
     setNome("");
     setNcm("");
@@ -372,6 +411,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setFreteMaritimo("");
     setFreteTerrestre("");
     setComissaoPct("");
+    setPopupBloqueado(false);
   };
 
   if (!open) return null;
@@ -596,6 +636,63 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <p className="text-[0.7rem] leading-relaxed mt-2" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
                   IPI incide sobre (valor aduaneiro + II). PIS/COFINS sobre o valor aduaneiro. AFRMM (8%) e Siscomex são somados em R$ ao custo final. Valores em US$ convertidos pela cotação.
                 </p>
+              </div>
+
+              {/* Card de ações — salvar simulação e gerar PDF */}
+              <div
+                className="rounded-xl p-4 flex flex-col gap-3"
+                style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.28 0.04 260)" }}
+              >
+                <span
+                  className="text-xs font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+                >
+                  Exportar simulação
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={handlePdf}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+                    style={{
+                      background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.9), oklch(0.6 0.18 35 / 0.9))",
+                      color: "oklch(0.16 0.02 60)",
+                      fontFamily: "'Inter', sans-serif",
+                    }}
+                    title="Gerar PDF com o detalhamento e a explicação do cálculo"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Gerar PDF
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+                    style={{
+                      background: "oklch(0.18 0.02 258)",
+                      border: "1px solid oklch(0.3 0.04 260)",
+                      color: "oklch(0.88 0.02 80)",
+                      fontFamily: "'Inter', sans-serif",
+                    }}
+                    title="Salvar a simulação (arquivo .json) para reabrir depois"
+                  >
+                    <Save className="w-4 h-4" />
+                    Salvar simulação
+                  </button>
+                </div>
+                {popupBloqueado ? (
+                  <div
+                    className="flex items-start gap-2 rounded-lg px-3 py-2"
+                    style={{ background: "oklch(0.6 0.16 50 / 0.12)", border: "1px solid oklch(0.6 0.16 50 / 0.4)" }}
+                  >
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.78 0.16 60)" }} />
+                    <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.8 0.06 60)", fontFamily: "'Inter', sans-serif" }}>
+                      O navegador bloqueou a janela do PDF. Permita pop-ups deste site e tente novamente.
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[0.7rem] leading-relaxed" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                    O PDF abre a janela de impressão (escolha “Salvar como PDF”) e traz todos os dados, o resultado e a explicação passo a passo de cada conta. Salvar gera um arquivo reabrível.
+                  </p>
+                )}
               </div>
             </div>
           </div>

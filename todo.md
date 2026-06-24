@@ -924,3 +924,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] ICMS importacao = R$ 0 (TTS/Corredor de Importacao MG)
   - [x] Card paralelo de detalhamento da cadeia tributaria (Resultado + Detalhamento)
   - [x] Testes + typecheck + validacao no preview (426 testes, calculo conferido manualmente)
+
+- [x] Feature 50: Card de acoes na calculadora — "Salvar simulacao" e "Gerar PDF"
+  - [x] Card "Exportar simulacao" com botoes Salvar e Gerar PDF abaixo do detalhamento
+  - [x] Salvar simulacao (download .json com entradas + resultado, reabrivel)
+  - [x] Gerar PDF com: dados de entrada, resultado, detalhamento tributario e EXPLICACAO passo a passo (14 passos) da logica de cada conta (base CI, valor aduaneiro, II, IPI em cascata, PIS/COFINS, AFRMM, Siscomex, ICMS zerado TTS, custo total e unitario)
+  - [x] Testes (7 novos em calcReport.test.ts) + typecheck + validacao no preview (PDF conferido)
