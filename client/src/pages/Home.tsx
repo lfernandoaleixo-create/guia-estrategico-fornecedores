@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronUp,
   ClipboardList,
+  Calculator,
   Trash2,
   RotateCcw,
   EyeOff,
@@ -45,6 +46,7 @@ import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/D
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
 import PartnerFilterPanel from "@/shared/supplier-notes/PartnerFilterPanel";
 import NegotiationSummaryPanel from "@/shared/supplier-notes/NegotiationSummaryPanel";
+import CalculatorPanel from "@/shared/supplier-notes/CalculatorPanel";
 import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
@@ -190,6 +192,7 @@ export default function Home() {
   const [hiddenPanelOpen, setHiddenPanelOpen] = useState(false);
   // Painel "Resumo das Negociações" (visão executiva, só leitura).
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   // Oculta um card de acesso fixo do portal (NÃO apaga dados do dashboard).
   const handleHideCard = async () => {
@@ -523,8 +526,8 @@ export default function Home() {
             roteiros — tudo em um lugar, sem login.
           </p>
 
-          {/* Botão Resumo das Negociações (visão executiva, só leitura) */}
-          <div className="capa-anim mb-10" style={{ animationDelay: "0.15s" }}>
+          {/* Botões: Resumo das Negociações + Calculadora (mesmo tamanho/estilo) */}
+          <div className="capa-anim mb-10 flex flex-wrap gap-3" style={{ animationDelay: "0.15s" }}>
             <button
               onClick={() => setSummaryOpen(true)}
               className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] hover:brightness-110"
@@ -540,6 +543,22 @@ export default function Home() {
             >
               <ClipboardList className="w-4.5 h-4.5" style={{ color: "oklch(0.82 0.14 75)" }} />
               <span>Resumo das Negociações</span>
+            </button>
+            <button
+              onClick={() => setCalcOpen(true)}
+              className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] hover:brightness-110"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.18), oklch(0.55 0.18 25 / 0.18))",
+                border: "1px solid oklch(0.78 0.16 75 / 0.5)",
+                color: "oklch(0.94 0.08 80)",
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: "0.02em",
+                boxShadow: "0 8px 30px oklch(0.78 0.16 75 / 0.12)",
+              }}
+              title="Calculadora de custo de importação"
+            >
+              <Calculator className="w-4.5 h-4.5" style={{ color: "oklch(0.82 0.14 75)" }} />
+              <span>Calculadora</span>
             </button>
           </div>
 
@@ -1076,6 +1095,7 @@ export default function Home() {
       <MacroManager open={managerOpen} onOpenChange={setManagerOpen} promotedGroups={promotedGroupsForManager} />
 
       <NegotiationSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} />
+      <CalculatorPanel open={calcOpen} onClose={() => setCalcOpen(false)} />
 
       {addToMacro && (
         <AddSupplierToMacroDialog

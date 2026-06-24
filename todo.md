@@ -912,3 +912,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Selos de Potencial, Preco e Status livre tambem nos cards dos dashboards Aquario (DiaryCard) e Yiwu (Anotacoes), padronizando com o Tapete
 
 - [x] Feature 47: Nome do fornecedor sempre primeiro (antes dos selos) em todos os cards — Tapete (Top 5 + lista), Yiwu, Aquario (DiaryCard), CustomSupplierCard; GrupoDashboard ja tinha nome primeiro
+
+- [x] Feature 48: Card "Calculadora" ao lado do "Resumo das Negociacoes" + painel CalculatorPanel (nome, NCM, cotacao dolar, preco real US$/un, qtd container, CI %, aliquota imposto % editavel, frete maritimo US$, frete terrestre R$, comissao Bety %). Formula: imposto=(valorRealTotalUSD*CI% + freteMaritimoUSD)*aliquota%; comissao=valorRealTotalUSD*comissao%; custoBRL=(valorRealTotalUSD+freteMaritimoUSD+impostoUSD+comissaoUSD)*cotacao + freteTerrestreBRL; custoUnit=custoBRL/qtd
