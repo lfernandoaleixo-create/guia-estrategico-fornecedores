@@ -914,3 +914,13 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 47: Nome do fornecedor sempre primeiro (antes dos selos) em todos os cards — Tapete (Top 5 + lista), Yiwu, Aquario (DiaryCard), CustomSupplierCard; GrupoDashboard ja tinha nome primeiro
 
 - [x] Feature 48: Card "Calculadora" ao lado do "Resumo das Negociacoes" + painel CalculatorPanel (nome, NCM, cotacao dolar, preco real US$/un, qtd container, CI %, aliquota imposto % editavel, frete maritimo US$, frete terrestre R$, comissao Bety %). Formula: imposto=(valorRealTotalUSD*CI% + freteMaritimoUSD)*aliquota%; comissao=valorRealTotalUSD*comissao%; custoBRL=(valorRealTotalUSD+freteMaritimoUSD+impostoUSD+comissaoUSD)*cotacao + freteTerrestreBRL; custoUnit=custoBRL/qtd
+
+- [x] Feature 49: Calculadora — cadeia completa de impostos de importacao (II, IPI, PIS, COFINS, ICMS) com beneficio fiscal de MG (TTS/Corredor de Importacao); abrir card paralelo com o detalhamento de cada tributo
+
+- [x] Feature 49: Calculadora com cadeia tributaria por NCM (TTS-MG, ICMS importacao zerado, revenda)
+  - [x] Tabela propria de NCM no app (24 NCMs, II e IPI por codigo, busca por nome ou codigo)
+  - [x] Montar tabela propria editavel de NCM no app (II/IPI auto-preenchidos, todos os campos editaveis)
+  - [x] Calcular cadeia (II, IPI, PIS 0,65%, COFINS 3,0%, AFRMM 8%, Siscomex R$ 250) com base CI reduzida em toda cadeia
+  - [x] ICMS importacao = R$ 0 (TTS/Corredor de Importacao MG)
+  - [x] Card paralelo de detalhamento da cadeia tributaria (Resultado + Detalhamento)
+  - [x] Testes + typecheck + validacao no preview (426 testes, calculo conferido manualmente)

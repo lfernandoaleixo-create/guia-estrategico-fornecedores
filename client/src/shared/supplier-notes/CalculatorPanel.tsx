@@ -4,18 +4,34 @@
 // Mesmo padrão visual do NegotiationSummaryPanel (fixed inset-0, backdrop blur,
 // card max-w, animação de entrada). Puramente client-side: nada é persistido.
 //
-// Regra de cálculo (combinada com o usuário):
-//   valorRealTotalUSD = precoRealUnitarioUSD × quantidade
-//   baseCI_USD        = valorRealTotalUSD × (CI% / 100)        // valor declarado (abaixo do real)
-//   impostoUSD        = (baseCI_USD + freteMaritimoUSD) × (aliquota% / 100)
-//   comissaoUSD       = valorRealTotalUSD × (comissaoBety% / 100)
-//   // frete marítimo é pago ao chinês 1x (entra no custo) e também compõe a base do imposto
-//   custoTotalBRL     = (valorRealTotalUSD + freteMaritimoUSD + impostoUSD + comissaoUSD) × cotacao
-//                       + freteTerrestreBRL                    // frete terrestre já em R$
-//   custoUnitarioBRL  = custoTotalBRL / quantidade
+// A cadeia tributária completa (II, IPI, PIS, COFINS, ICMS zerado via TTS,
+// AFRMM e Siscomex) e a tabela de NCMs vivem em ./importTax.ts.
 // =============================================================================
-import { useEffect, useMemo, useState } from "react";
-import { X, Calculator, RotateCcw, Package, Ship, Truck, Percent, DollarSign } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  X,
+  Calculator,
+  RotateCcw,
+  Package,
+  Ship,
+  Truck,
+  Percent,
+  DollarSign,
+  Search,
+  CheckCircle2,
+  Receipt,
+} from "lucide-react";
+import {
+  NCM_TABLE,
+  findNcm,
+  normalizeNcm,
+  computeImportCost,
+  PIS_PCT,
+  COFINS_PCT,
+  AFRMM_PCT,
+  SISCOMEX_DEFAULT,
+  type NcmEntry,
+} from "./importTax";
 
 export interface CalculatorPanelProps {
   open: boolean;
@@ -29,10 +45,8 @@ function parseNum(v: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const BRL = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const USD = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
+const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const USD = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
 
 interface FieldProps {
   label: string;
@@ -119,13 +133,121 @@ function TextField({ label, value, onChange, placeholder, icon }: Omit<FieldProp
   );
 }
 
-function ResultRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+// Campo NCM com busca/autocomplete sobre a tabela interna.
+function NcmField({
+  ncm,
+  onPick,
+  onType,
+}: {
+  ncm: string;
+  onPick: (e: NcmEntry) => void;
+  onType: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const qd = q.replace(/\D/g, "");
+    if (!q) return NCM_TABLE;
+    return NCM_TABLE.filter((e) => {
+      const byName = e.produto.toLowerCase().includes(q);
+      const byNcm = qd.length > 0 && e.ncm.replace(/\D/g, "").includes(qd);
+      return byName || byNcm;
+    });
+  }, [query]);
+
+  return (
+    <div className="flex flex-col gap-1.5" ref={boxRef}>
+      <label
+        className="text-xs font-semibold uppercase tracking-[0.08em] flex items-center gap-1.5"
+        style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+      >
+        <Search className="w-3.5 h-3.5" />
+        NCM (buscar produto ou código)
+      </label>
+      <div className="relative">
+        <div
+          className="flex items-center rounded-lg overflow-hidden"
+          style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.28 0.04 260)" }}
+        >
+          <input
+            value={open ? query : ncm}
+            onFocus={() => {
+              setQuery("");
+              setOpen(true);
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+              onType(normalizeNcm(e.target.value));
+            }}
+            placeholder="Ex.: Tapete higiênico ou 4818.90.90"
+            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none w-full"
+            style={{ color: "oklch(0.95 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+          />
+        </div>
+
+        {open ? (
+          <div
+            className="absolute z-30 mt-1 w-full max-h-64 overflow-y-auto rounded-lg"
+            style={{
+              background: "oklch(0.12 0.02 255)",
+              border: "1px solid oklch(0.3 0.04 260)",
+              boxShadow: "0 18px 40px oklch(0 0 0 / 0.5)",
+            }}
+          >
+            {results.length === 0 ? (
+              <div className="px-3 py-3 text-sm" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                Nenhum NCM encontrado. Você pode digitar as alíquotas manualmente.
+              </div>
+            ) : (
+              results.map((e) => (
+                <button
+                  key={e.ncm}
+                  onClick={() => {
+                    onPick(e);
+                    setOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 transition-colors hover:bg-[oklch(0.18_0.02_258)]"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm truncate" style={{ color: "oklch(0.92 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                      {e.produto}
+                    </div>
+                    <div className="text-[0.7rem]" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                      {e.ncm}
+                    </div>
+                  </div>
+                  <div className="text-[0.7rem] shrink-0 text-right" style={{ color: "oklch(0.72 0.06 75)", fontFamily: "'Inter', sans-serif" }}>
+                    II {e.ii}% · IPI {e.ipi}%
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ResultRow({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
       <span
         className="text-sm"
         style={{
-          color: strong ? "oklch(0.95 0.02 80)" : "oklch(0.72 0.02 80)",
+          color: strong ? "oklch(0.95 0.02 80)" : muted ? "oklch(0.55 0.02 80)" : "oklch(0.72 0.02 80)",
           fontFamily: "'Inter', sans-serif",
           fontWeight: strong ? 600 : 400,
         }}
@@ -134,7 +256,7 @@ function ResultRow({ label, value, strong }: { label: string; value: string; str
       </span>
       <span
         style={{
-          color: strong ? "oklch(0.88 0.12 75)" : "oklch(0.9 0.02 80)",
+          color: strong ? "oklch(0.88 0.12 75)" : muted ? "oklch(0.62 0.02 80)" : "oklch(0.9 0.02 80)",
           fontFamily: strong ? "'Fraunces', serif" : "'Inter', sans-serif",
           fontWeight: strong ? 600 : 500,
           fontSize: strong ? "1.05rem" : "0.875rem",
@@ -149,11 +271,22 @@ function ResultRow({ label, value, strong }: { label: string; value: string; str
 export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps) {
   const [nome, setNome] = useState("");
   const [ncm, setNcm] = useState("");
+  const [ncmObs, setNcmObs] = useState<string | undefined>(undefined);
+  const [matched, setMatched] = useState(false);
+
   const [cotacao, setCotacao] = useState("");
   const [precoUnit, setPrecoUnit] = useState("");
   const [qtd, setQtd] = useState("");
   const [ciPct, setCiPct] = useState("");
-  const [aliquotaPct, setAliquotaPct] = useState("");
+
+  // Campos tributários (todos editáveis para simulação).
+  const [iiPct, setIiPct] = useState("");
+  const [ipiPct, setIpiPct] = useState("");
+  const [pisPct, setPisPct] = useState(String(PIS_PCT).replace(".", ","));
+  const [cofinsPct, setCofinsPct] = useState(String(COFINS_PCT).replace(".", ","));
+  const [afrmmPct, setAfrmmPct] = useState(String(AFRMM_PCT));
+  const [siscomex, setSiscomex] = useState(String(SISCOMEX_DEFAULT));
+
   const [freteMaritimo, setFreteMaritimo] = useState("");
   const [freteTerrestre, setFreteTerrestre] = useState("");
   const [comissaoPct, setComissaoPct] = useState("");
@@ -173,47 +306,69 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     };
   }, [open, onClose]);
 
-  const calc = useMemo(() => {
-    const cot = parseNum(cotacao);
-    const pUnit = parseNum(precoUnit);
-    const q = parseNum(qtd);
-    const ci = parseNum(ciPct) / 100;
-    const aliq = parseNum(aliquotaPct) / 100;
-    const fMar = parseNum(freteMaritimo); // US$
-    const fTer = parseNum(freteTerrestre); // R$
-    const com = parseNum(comissaoPct) / 100;
+  // Ao selecionar um NCM da lista: preenche nome (se vazio), II/IPI e observação.
+  const handlePick = (e: NcmEntry) => {
+    setNcm(e.ncm);
+    setIiPct(String(e.ii).replace(".", ","));
+    setIpiPct(String(e.ipi).replace(".", ","));
+    setNcmObs(e.obs);
+    setMatched(true);
+    if (!nome.trim()) setNome(e.produto);
+  };
 
-    const valorRealTotalUSD = pUnit * q;
-    const baseCI_USD = valorRealTotalUSD * ci;
-    const impostoUSD = (baseCI_USD + fMar) * aliq;
-    const comissaoUSD = valorRealTotalUSD * com;
+  // Ao digitar o NCM manualmente: tenta casar com a tabela.
+  const handleType = (v: string) => {
+    setNcm(v);
+    const hit = findNcm(v);
+    if (hit) {
+      setIiPct(String(hit.ii).replace(".", ","));
+      setIpiPct(String(hit.ipi).replace(".", ","));
+      setNcmObs(hit.obs);
+      setMatched(true);
+      if (!nome.trim()) setNome(hit.produto);
+    } else {
+      setMatched(false);
+      setNcmObs(undefined);
+    }
+  };
 
-    const subtotalUSD = valorRealTotalUSD + fMar + impostoUSD + comissaoUSD;
-    const custoTotalBRL = subtotalUSD * cot + fTer;
-    const custoUnitarioBRL = q > 0 ? custoTotalBRL / q : 0;
+  const calc = useMemo(
+    () =>
+      computeImportCost({
+        cotacao: parseNum(cotacao),
+        precoUnitUSD: parseNum(precoUnit),
+        quantidade: parseNum(qtd),
+        ciPct: parseNum(ciPct),
+        iiPct: parseNum(iiPct),
+        ipiPct: parseNum(ipiPct),
+        pisPct: parseNum(pisPct),
+        cofinsPct: parseNum(cofinsPct),
+        freteMaritimoUSD: parseNum(freteMaritimo),
+        freteTerrestreBRL: parseNum(freteTerrestre),
+        comissaoPct: parseNum(comissaoPct),
+        afrmmPct: parseNum(afrmmPct),
+        siscomexBRL: parseNum(siscomex),
+      }),
+    [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex],
+  );
 
-    return {
-      cot,
-      q,
-      valorRealTotalUSD,
-      baseCI_USD,
-      impostoUSD,
-      comissaoUSD,
-      fMar,
-      fTer,
-      custoTotalBRL,
-      custoUnitarioBRL,
-    };
-  }, [cotacao, precoUnit, qtd, ciPct, aliquotaPct, freteMaritimo, freteTerrestre, comissaoPct]);
+  const qNum = parseNum(qtd);
 
   const reset = () => {
     setNome("");
     setNcm("");
+    setNcmObs(undefined);
+    setMatched(false);
     setCotacao("");
     setPrecoUnit("");
     setQtd("");
     setCiPct("");
-    setAliquotaPct("");
+    setIiPct("");
+    setIpiPct("");
+    setPisPct(String(PIS_PCT).replace(".", ","));
+    setCofinsPct(String(COFINS_PCT).replace(".", ","));
+    setAfrmmPct(String(AFRMM_PCT));
+    setSiscomex(String(SISCOMEX_DEFAULT));
     setFreteMaritimo("");
     setFreteTerrestre("");
     setComissaoPct("");
@@ -235,7 +390,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       />
 
       <div
-        className="relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-2xl overflow-hidden"
+        className="relative w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
         style={{
           background: "oklch(0.13 0.02 255)",
           border: "1px solid oklch(0.28 0.04 260)",
@@ -270,7 +425,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 Calculadora
               </h2>
               <p className="text-xs truncate" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                Custo de importação · simulação
+                Custo de importação · cadeia tributária completa · simulação
               </p>
             </div>
           </div>
@@ -304,13 +459,25 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
             {/* Coluna de entradas */}
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Nome do produto" value={nome} onChange={setNome} placeholder="Ex.: Tapete higiênico 60x90" icon={<Package className="w-3.5 h-3.5" />} />
-                <TextField label="NCM" value={ncm} onChange={setNcm} placeholder="Ex.: 4818.90.90" />
-              </div>
+              <NcmField ncm={ncm} onPick={handlePick} onType={handleType} />
+
+              {matched ? (
+                <div
+                  className="flex items-start gap-2 rounded-lg px-3 py-2 -mt-1"
+                  style={{ background: "oklch(0.6 0.13 150 / 0.12)", border: "1px solid oklch(0.6 0.13 150 / 0.35)" }}
+                >
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
+                  <span className="text-xs leading-relaxed" style={{ color: "oklch(0.8 0.05 150)", fontFamily: "'Inter', sans-serif" }}>
+                    NCM reconhecido — II e IPI preenchidos automaticamente (edite se necessário).
+                    {ncmObs ? ` Obs.: ${ncmObs}` : ""}
+                  </span>
+                </div>
+              ) : null}
+
+              <TextField label="Nome do produto" value={nome} onChange={setNome} placeholder="Ex.: Tapete higiênico 60x90" icon={<Package className="w-3.5 h-3.5" />} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Cotação do dólar" value={cotacao} onChange={setCotacao} placeholder="5,40" prefix="R$" icon={<DollarSign className="w-3.5 h-3.5" />} hint="Quanto vale US$ 1,00 em reais" />
@@ -319,62 +486,117 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Preço real do produto" value={precoUnit} onChange={setPrecoUnit} placeholder="0,85" prefix="US$" hint="Valor real por unidade (em dólar)" />
-                <Field label="Comissão Bety" value={comissaoPct} onChange={setComissaoPct} placeholder="5" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Sobre o valor real do produto" />
+                <Field label="CI (% do valor real)" value={ciPct} onChange={setCiPct} placeholder="60" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Base declarada — reduz toda a cadeia tributária" />
+              </div>
+
+              {/* Bloco de alíquotas tributárias */}
+              <div
+                className="rounded-xl p-4 flex flex-col gap-4"
+                style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.26 0.035 260)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4" style={{ color: "oklch(0.72 0.06 75)" }} />
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                    Tributos (editáveis)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <Field label="II" value={iiPct} onChange={setIiPct} placeholder="14,4" suffix="%" />
+                  <Field label="IPI" value={ipiPct} onChange={setIpiPct} placeholder="3,25" suffix="%" />
+                  <Field label="PIS" value={pisPct} onChange={setPisPct} placeholder="0,65" suffix="%" />
+                  <Field label="COFINS" value={cofinsPct} onChange={setCofinsPct} placeholder="3,0" suffix="%" />
+                  <Field label="AFRMM" value={afrmmPct} onChange={setAfrmmPct} placeholder="8" suffix="%" />
+                  <Field label="Siscomex" value={siscomex} onChange={setSiscomex} placeholder="250" prefix="R$" />
+                </div>
+                <div
+                  className="flex items-center gap-2 rounded-lg px-3 py-2"
+                  style={{ background: "oklch(0.16 0.02 258)", border: "1px solid oklch(0.28 0.04 260)" }}
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
+                  <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                    ICMS de importação: <strong style={{ color: "oklch(0.85 0.02 80)" }}>R$ 0</strong> — benefício TTS (Corredor de Importação MG).
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="CI (% do valor real)" value={ciPct} onChange={setCiPct} placeholder="60" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Percentual do valor real usado como base declarada" />
-                <Field label="Alíquota de imposto" value={aliquotaPct} onChange={setAliquotaPct} placeholder="60" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Incide sobre (base da CI + frete marítimo)" />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Frete marítimo" value={freteMaritimo} onChange={setFreteMaritimo} placeholder="3500" prefix="US$" icon={<Ship className="w-3.5 h-3.5" />} hint="Pago ao fornecedor (entra na base do imposto)" />
+                <Field label="Frete marítimo" value={freteMaritimo} onChange={setFreteMaritimo} placeholder="3500" prefix="US$" icon={<Ship className="w-3.5 h-3.5" />} hint="Pago ao fornecedor + compõe o valor aduaneiro" />
                 <Field label="Frete terrestre" value={freteTerrestre} onChange={setFreteTerrestre} placeholder="2000" prefix="R$" icon={<Truck className="w-3.5 h-3.5" />} hint="Valor fixo em reais" />
               </div>
+
+              <Field label="Comissão Bety" value={comissaoPct} onChange={setComissaoPct} placeholder="5" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Sobre o valor real do produto" />
             </div>
 
-            {/* Coluna de resultado */}
-            <div
-              className="rounded-xl p-5 flex flex-col gap-2 h-fit lg:sticky lg:top-0"
-              style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.28 0.04 260)" }}
-            >
-              <h3
-                className="text-sm font-semibold uppercase tracking-[0.1em] mb-1"
-                style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}
-              >
-                Resultado {nome ? `· ${nome}` : ""}
-              </h3>
-
+            {/* Coluna de resultado + detalhamento tributário */}
+            <div className="flex flex-col gap-4 h-fit lg:sticky lg:top-0">
+              {/* Card de custo */}
               <div
-                className="rounded-lg p-4 mb-2"
-                style={{
-                  background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.16), oklch(0.55 0.18 25 / 0.14))",
-                  border: "1px solid oklch(0.78 0.16 75 / 0.4)",
-                }}
+                className="rounded-xl p-5 flex flex-col gap-2"
+                style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.28 0.04 260)" }}
               >
-                <div className="text-xs uppercase tracking-[0.12em]" style={{ color: "oklch(0.72 0.06 75)", fontFamily: "'Inter', sans-serif" }}>
-                  Custo por unidade
+                <h3
+                  className="text-sm font-semibold uppercase tracking-[0.1em] mb-1"
+                  style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+                >
+                  Resultado {nome ? `· ${nome}` : ""}
+                </h3>
+
+                <div
+                  className="rounded-lg p-4 mb-2"
+                  style={{
+                    background: "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.16), oklch(0.55 0.18 25 / 0.14))",
+                    border: "1px solid oklch(0.78 0.16 75 / 0.4)",
+                  }}
+                >
+                  <div className="text-xs uppercase tracking-[0.12em]" style={{ color: "oklch(0.72 0.06 75)", fontFamily: "'Inter', sans-serif" }}>
+                    Custo por unidade
+                  </div>
+                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.9rem", fontWeight: 600, color: "oklch(0.95 0.08 80)", lineHeight: 1.1 }}>
+                    {BRL(calc.custoUnitarioBRL)}
+                  </div>
                 </div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.9rem", fontWeight: 600, color: "oklch(0.95 0.08 80)", lineHeight: 1.1 }}>
-                  {BRL(calc.custoUnitarioBRL)}
-                </div>
+
+                <ResultRow label="Custo total (container)" value={BRL(calc.custoTotalBRL)} strong />
+                <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
+                <ResultRow label={`Valor real (${qNum || 0} un)`} value={USD(calc.valorRealTotalUSD)} />
+                <ResultRow label="Comissão Bety" value={USD(calc.comissaoUSD)} />
+                <ResultRow label="Frete marítimo" value={USD(calc.freteMaritimoUSD)} />
+                <ResultRow label="AFRMM" value={BRL(calc.afrmmBRL)} />
+                <ResultRow label="Taxa Siscomex" value={BRL(calc.siscomexBRL)} />
+                <ResultRow label="Frete terrestre" value={BRL(calc.freteTerrestreBRL)} />
               </div>
 
-              <ResultRow label="Custo total (container)" value={BRL(calc.custoTotalBRL)} strong />
+              {/* Card paralelo — detalhamento tributário */}
+              <div
+                className="rounded-xl p-5 flex flex-col gap-1"
+                style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.78 0.16 75 / 0.28)" }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Receipt className="w-4 h-4" style={{ color: "oklch(0.82 0.14 75)" }} />
+                  <h3
+                    className="text-sm font-semibold uppercase tracking-[0.1em]"
+                    style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Detalhamento tributário
+                  </h3>
+                </div>
 
-              <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
+                <ResultRow label="Valor real total" value={USD(calc.valorRealTotalUSD)} muted />
+                <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={USD(calc.baseDeclaradaUSD)} muted />
+                <ResultRow label="Valor aduaneiro (+ frete mar.)" value={USD(calc.valorAduaneiroUSD)} />
+                <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
+                <ResultRow label={`II (${parseNum(iiPct) || 0}%)`} value={USD(calc.iiUSD)} />
+                <ResultRow label={`IPI (${parseNum(ipiPct) || 0}%)`} value={USD(calc.ipiUSD)} />
+                <ResultRow label={`PIS (${parseNum(pisPct) || 0}%)`} value={USD(calc.pisUSD)} />
+                <ResultRow label={`COFINS (${parseNum(cofinsPct) || 0}%)`} value={USD(calc.cofinsUSD)} />
+                <ResultRow label="ICMS importação" value="R$ 0 · TTS ✓" muted />
+                <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
+                <ResultRow label="Total de tributos" value={USD(calc.tributosUSD)} strong />
 
-              <ResultRow label={`Valor real (${calc.q || 0} un)`} value={USD(calc.valorRealTotalUSD)} />
-              <ResultRow label="Base da CI (declarado)" value={USD(calc.baseCI_USD)} />
-              <ResultRow label="Imposto" value={USD(calc.impostoUSD)} />
-              <ResultRow label="Comissão Bety" value={USD(calc.comissaoUSD)} />
-              <ResultRow label="Frete marítimo" value={USD(calc.fMar)} />
-              <ResultRow label="Frete terrestre" value={BRL(calc.fTer)} />
-
-              <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-              <p className="text-[0.7rem] leading-relaxed" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                Valores em dólar convertidos pela cotação informada. O frete terrestre (R$) é somado direto. O frete marítimo é pago uma vez e também compõe a base do imposto.
-              </p>
+                <p className="text-[0.7rem] leading-relaxed mt-2" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                  IPI incide sobre (valor aduaneiro + II). PIS/COFINS sobre o valor aduaneiro. AFRMM (8%) e Siscomex são somados em R$ ao custo final. Valores em US$ convertidos pela cotação.
+                </p>
+              </div>
             </div>
           </div>
         </div>
