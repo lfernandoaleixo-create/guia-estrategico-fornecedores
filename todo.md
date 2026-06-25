@@ -944,3 +944,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Remover os inputs editaveis de tributos; mostrar como quadro ReadOnlyTax somente leitura
   - [x] Ajustar required: II/IPI nao sao "campos a preencher" (vem do NCM); usuario so precisa escolher o NCM
   - [x] Atualizar testes (Siscomex 200) + typecheck + 433 testes + validacao no preview
+
+- [x] Feature 53: Gerar PDF baixa direto, sem janela de impressao
+  - [x] Substituir window.print por geracao de PDF vetorial no navegador (jsPDF + autotable; html2pdf descartado por renderizar altura 0)
+  - [x] Botao "Baixar PDF" dispara download automatico do arquivo .pdf (2 paginas, 14 passos)
+  - [x] Remover aviso de popup/janela de impressao da UI (texto: baixa direto sem janela de impressao)
+  - [x] typecheck + 433 testes + validacao no preview (PDF real baixado e conferido)

@@ -266,31 +266,179 @@ export function buildReportHtml(snap: CalcSnapshot): string {
 </html>`;
 }
 
-// Abre o relatório em nova janela e dispara a impressão (Salvar como PDF).
-export function openPdfReport(snap: CalcSnapshot): boolean {
-  const html = buildReportHtml(snap);
-  const w = window.open("", "_blank");
-  if (!w) return false; // popup bloqueado
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  // Aguarda o layout antes de imprimir.
-  w.onload = () => {
-    setTimeout(() => {
-      w.focus();
-      w.print();
-    }, 250);
-  };
-  // Fallback caso onload não dispare (conteúdo já escrito).
-  setTimeout(() => {
-    try {
-      w.focus();
-      w.print();
-    } catch {
-      /* ignore */
+// Nome de arquivo amigável a partir do produto.
+function slugify(nome: string): string {
+  return (nome || "simulacao").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "simulacao";
+}
+
+// Gera o PDF diretamente no navegador e dispara o download — SEM janela de impressão.
+// Usa jsPDF + autotable: desenha o PDF a partir dos dados estruturados (vetorial,
+// confiável, não depende de renderização de DOM/canvas).
+export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
+  try {
+    const { jsPDF } = await import("jspdf");
+    const autoTableMod = await import("jspdf-autotable");
+    const autoTable = (autoTableMod as { default?: unknown }).default as (
+      doc: unknown,
+      opts: unknown,
+    ) => void;
+
+    const i = snap.input;
+    const r = snap.result;
+    const steps = buildSteps(snap);
+    const data = new Date(snap.geradoEm).toLocaleString("pt-BR");
+
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    // Paleta
+    const brown: [number, number, number] = [106, 61, 5];
+    const amber: [number, number, number] = [138, 90, 22];
+    const grey: [number, number, number] = [120, 120, 120];
+
+    // Cabeçalho
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(...brown);
+    doc.text("Simulação de Custo de Importação", margin, y + 4);
+    y += 9;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...grey);
+    const sub1 = `${snap.nome ? snap.nome + " · " : ""}NCM ${snap.ncm || "—"}${snap.ncmObs ? " · " + snap.ncmObs : ""}`;
+    doc.text(sub1, margin, y);
+    y += 5;
+    doc.text(`Guia Estratégico de Fornecedores · gerado em ${data}`, margin, y);
+    y += 8;
+
+    // Cards de destaque
+    const cardH = 18;
+    const cardW = (contentW - 6) / 2;
+    const drawCard = (x: number, label: string, value: string, big: boolean) => {
+      doc.setFillColor(253, 238, 222);
+      doc.setDrawColor(230, 201, 140);
+      doc.roundedRect(x, y, cardW, cardH, 2, 2, "FD");
+      doc.setFontSize(8);
+      doc.setTextColor(...amber);
+      doc.setFont("helvetica", "normal");
+      doc.text(label.toUpperCase(), x + 4, y + 6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(big ? 17 : 13);
+      doc.setTextColor(...brown);
+      doc.text(value, x + 4, y + 14);
+    };
+    drawCard(margin, "Custo por unidade", BRL(r.custoUnitarioBRL), true);
+    drawCard(margin + cardW + 6, "Custo total do container", BRL(r.custoTotalBRL), false);
+    y += cardH + 8;
+
+    const sectionTitle = (t: string) => {
+      if (y > 262) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...amber);
+      doc.text(t.toUpperCase(), margin, y);
+      y += 2;
+      doc.setDrawColor(240, 216, 176);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+    };
+
+    const pairTable = (rows: [string, string][]) => {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        body: rows,
+        theme: "plain",
+        styles: { fontSize: 9, cellPadding: 1.6, textColor: [40, 40, 40] },
+        columnStyles: {
+          0: { cellWidth: contentW * 0.62 },
+          1: { cellWidth: contentW * 0.38, halign: "right" as const },
+        },
+        // linha separadora sutil
+        didDrawCell: () => {},
+      });
+      // @ts-expect-error lastAutoTable é anexado pelo plugin
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
+    };
+
+    const entrada: [string, string][] = [
+      ["Produto", snap.nome || "—"],
+      ["NCM", snap.ncm || "—"],
+      ["Cotação do dólar", `${BRL(i.cotacao)} / US$`],
+      ["Quantidade no container", `${NUM(i.quantidade)} un`],
+      ["Preço real por unidade", USD(i.precoUnitUSD)],
+      ["CI (base declarada)", PCT(i.ciPct)],
+      ["II", PCT(i.iiPct)],
+      ["IPI", PCT(i.ipiPct)],
+      ["PIS", PCT(i.pisPct)],
+      ["COFINS", PCT(i.cofinsPct)],
+      ["AFRMM", PCT(i.afrmmPct)],
+      ["Taxa Siscomex", BRL(i.siscomexBRL)],
+      ["Frete marítimo", USD(i.freteMaritimoUSD)],
+      ["Frete terrestre", BRL(i.freteTerrestreBRL)],
+      ["Comissão", PCT(i.comissaoPct)],
+    ];
+
+    const detalhamento: [string, string][] = [
+      ["Valor real total", USD(r.valorRealTotalUSD)],
+      [`Base declarada (CI ${PCT(i.ciPct)})`, USD(r.baseDeclaradaUSD)],
+      ["Valor aduaneiro (+ frete mar.)", USD(r.valorAduaneiroUSD)],
+      [`II (${PCT(i.iiPct)})`, USD(r.iiUSD)],
+      [`IPI (${PCT(i.ipiPct)})`, USD(r.ipiUSD)],
+      [`PIS (${PCT(i.pisPct)})`, USD(r.pisUSD)],
+      [`COFINS (${PCT(i.cofinsPct)})`, USD(r.cofinsUSD)],
+      ["ICMS importação (TTS)", "R$ 0,00"],
+      ["Total de tributos", USD(r.tributosUSD)],
+      ["Comissão", USD(r.comissaoUSD)],
+      ["AFRMM", BRL(r.afrmmBRL)],
+      ["Taxa Siscomex", BRL(r.siscomexBRL)],
+      ["Frete terrestre", BRL(r.freteTerrestreBRL)],
+    ];
+
+    sectionTitle("Parâmetros usados");
+    pairTable(entrada);
+
+    sectionTitle("Detalhamento tributário");
+    pairTable(detalhamento);
+
+    sectionTitle("Como o cálculo foi feito (passo a passo)");
+    const stepRows = steps.map((s) => [`${s.titulo}\nFórmula: ${s.formula}\n${s.conta} = ${s.resultado}`]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      body: stepRows,
+      theme: "plain",
+      styles: { fontSize: 9, cellPadding: { top: 1.5, bottom: 3, left: 3, right: 2 }, textColor: [40, 40, 40], lineColor: [230, 201, 140], lineWidth: { left: 0.8, top: 0, right: 0, bottom: 0 } },
+      columnStyles: { 0: { cellWidth: contentW } },
+    });
+    // @ts-expect-error lastAutoTable é anexado pelo plugin
+    y = (doc.lastAutoTable?.finalY ?? y) + 6;
+
+    if (y > 250) {
+      doc.addPage();
+      y = margin;
     }
-  }, 600);
-  return true;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(...grey);
+    const nota =
+      "Regime do importador: lucro presumido (PIS 0,65% + COFINS 3,0%). O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais. A CI% é o percentual do valor real declarado como base aduaneira e reduz toda a cadeia (II, IPI, PIS e COFINS). O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o frete marítimo) e a taxa Siscomex são somados diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada. Documento gerado automaticamente para fins de simulação — confirme alíquotas e benefícios vigentes antes de fechar a operação.";
+    const notaLines = doc.splitTextToSize(nota, contentW);
+    doc.text(notaLines, margin, y);
+
+    doc.save(`simulacao-${slugify(snap.nome)}.pdf`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Serializa a simulação para download como arquivo .json (reabrível depois).

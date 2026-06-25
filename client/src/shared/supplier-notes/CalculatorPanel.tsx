@@ -23,6 +23,7 @@ import {
   FileText,
   Save,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import {
   NCM_TABLE,
@@ -35,7 +36,7 @@ import {
   SISCOMEX_DEFAULT,
   type NcmEntry,
 } from "./importTax";
-import { openPdfReport, downloadJson, type CalcSnapshot } from "./calcReport";
+import { downloadPdfReport, downloadJson, type CalcSnapshot } from "./calcReport";
 
 export interface CalculatorPanelProps {
   open: boolean;
@@ -430,12 +431,21 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     result: calc,
   });
 
-  const [popupBloqueado, setPopupBloqueado] = useState(false);
+  const [pdfErro, setPdfErro] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
-  const handlePdf = () => {
-    if (!isComplete) return;
-    const ok = openPdfReport(buildSnapshot());
-    setPopupBloqueado(!ok);
+  const handlePdf = async () => {
+    if (!isComplete || gerandoPdf) return;
+    setPdfErro(false);
+    setGerandoPdf(true);
+    try {
+      const ok = await downloadPdfReport(buildSnapshot());
+      setPdfErro(!ok);
+    } catch {
+      setPdfErro(true);
+    } finally {
+      setGerandoPdf(false);
+    }
   };
 
   const handleSave = () => {
@@ -457,7 +467,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setFreteMaritimo("");
     setFreteTerrestre("");
     setComissaoPct("");
-    setPopupBloqueado(false);
+    setPdfErro(false);
   };
 
   if (!open) return null;
@@ -727,19 +737,19 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     onClick={handlePdf}
-                    disabled={!isComplete}
+                    disabled={!isComplete || gerandoPdf}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
                     style={{
                       background: isComplete ? "linear-gradient(135deg, oklch(0.78 0.16 75 / 0.9), oklch(0.6 0.18 35 / 0.9))" : "oklch(0.2 0.02 258)",
                       color: isComplete ? "oklch(0.16 0.02 60)" : "oklch(0.5 0.02 80)",
                       fontFamily: "'Inter', sans-serif",
-                      cursor: isComplete ? "pointer" : "not-allowed",
-                      opacity: isComplete ? 1 : 0.7,
+                      cursor: isComplete && !gerandoPdf ? "pointer" : "not-allowed",
+                      opacity: isComplete ? (gerandoPdf ? 0.8 : 1) : 0.7,
                     }}
-                    title={isComplete ? "Gerar PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
+                    title={isComplete ? "Baixar o PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
                   >
-                    <FileText className="w-4 h-4" />
-                    Gerar PDF
+                    {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    {gerandoPdf ? "Gerando PDF..." : "Baixar PDF"}
                   </button>
                   <button
                     onClick={handleSave}
@@ -759,19 +769,19 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                     Salvar simulação
                   </button>
                 </div>
-                {popupBloqueado ? (
+                {pdfErro ? (
                   <div
                     className="flex items-start gap-2 rounded-lg px-3 py-2"
                     style={{ background: "oklch(0.6 0.16 50 / 0.12)", border: "1px solid oklch(0.6 0.16 50 / 0.4)" }}
                   >
                     <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.78 0.16 60)" }} />
                     <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.8 0.06 60)", fontFamily: "'Inter', sans-serif" }}>
-                      O navegador bloqueou a janela do PDF. Permita pop-ups deste site e tente novamente.
+                      Não foi possível gerar o PDF. Tente novamente.
                     </span>
                   </div>
                 ) : (
                   <p className="text-[0.7rem] leading-relaxed" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    O PDF abre a janela de impressão (escolha “Salvar como PDF”) e traz todos os dados, o resultado e a explicação passo a passo de cada conta. Salvar gera um arquivo reabrível.
+                    O PDF é baixado direto no seu dispositivo (sem janela de impressão) e traz todos os dados, o resultado e a explicação passo a passo de cada conta. Salvar gera um arquivo reabrível.
                   </p>
                 )}
               </div>
