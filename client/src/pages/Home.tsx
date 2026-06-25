@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import {
   Compass,
   Fish,
@@ -45,8 +45,8 @@ import { MacroManager } from "@/shared/supplier-notes/MacroManager";
 import { DashboardCard, type DashboardCardData } from "@/shared/supplier-notes/DashboardCard";
 import AddSupplierToMacroDialog from "@/shared/supplier-notes/AddSupplierToMacroDialog";
 import PartnerFilterPanel from "@/shared/supplier-notes/PartnerFilterPanel";
-import NegotiationSummaryPanel from "@/shared/supplier-notes/NegotiationSummaryPanel";
-import CalculatorPanel from "@/shared/supplier-notes/CalculatorPanel";
+const NegotiationSummaryPanel = lazy(() => import("@/shared/supplier-notes/NegotiationSummaryPanel"));
+const CalculatorPanel = lazy(() => import("@/shared/supplier-notes/CalculatorPanel"));
 import { moveMacroOrder } from "@shared/macroOrder";
 
 // -----------------------------------------------------------------------------
@@ -1094,8 +1094,10 @@ export default function Home() {
 
       <MacroManager open={managerOpen} onOpenChange={setManagerOpen} promotedGroups={promotedGroupsForManager} />
 
-      <NegotiationSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} />
-      <CalculatorPanel open={calcOpen} onClose={() => setCalcOpen(false)} />
+      <Suspense fallback={null}>
+        {summaryOpen && <NegotiationSummaryPanel open={summaryOpen} onClose={() => setSummaryOpen(false)} />}
+        {calcOpen && <CalculatorPanel open={calcOpen} onClose={() => setCalcOpen(false)} />}
+      </Suspense>
 
       {addToMacro && (
         <AddSupplierToMacroDialog

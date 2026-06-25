@@ -950,3 +950,10 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Botao "Baixar PDF" dispara download automatico do arquivo .pdf (2 paginas, 14 passos)
   - [x] Remover aviso de popup/janela de impressao da UI (texto: baixa direto sem janela de impressao)
   - [x] typecheck + 433 testes + validacao no preview (PDF real baixado e conferido)
+
+- [x] Feature 54: Reduzir tempo de carregamento inicial (performance)
+  - [x] Code splitting das rotas e paineis pesados (App.tsx com React.lazy; Home: Calculadora/Resumo lazy)
+  - [x] manualChunks no vite.config (vendors pesados isolados: react, charts, pdfjs, xlsx, docx)
+  - [x] Tornar pdf.js / xlsx / mammoth / jszip dinamicos no attachmentViewer (so carregam ao abrir anexo)
+  - [x] Rebuild: chunk principal index caiu de 4,46 MB (957 KB gzip) para 274 KB (50 KB gzip)
+  - [x] Typecheck + 433 testes + validacao no preview (Home e Calculadora OK)

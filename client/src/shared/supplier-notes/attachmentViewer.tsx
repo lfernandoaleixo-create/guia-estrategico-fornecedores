@@ -26,17 +26,51 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import * as XLSX from "xlsx";
-import mammoth from "mammoth";
-import JSZip from "jszip";
 import { trpc } from "@/lib/trpc";
 import { isTranslatableText, hasChinese, hasNonLatinScript } from "./translatableText";
 import { collectWordRunTexts, applyWordTranslation } from "./docxTranslate";
 import type { SupplierAttachment } from "./useSupplierNotes";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// -----------------------------------------------------------------------------
+// Loaders DINÂMICOS das bibliotecas pesadas (pdf.js, SheetJS, mammoth, JSZip).
+// Elas só são baixadas quando o usuário realmente abre um anexo, mantendo o
+// carregamento inicial do app leve. Cada loader memoiza o módulo importado.
+// -----------------------------------------------------------------------------
+type PdfjsModule = typeof import("pdfjs-dist");
+type XlsxModule = typeof import("xlsx");
+type MammothModule = typeof import("mammoth");
+type JsZipModule = import("jszip");
+
+let pdfjsPromise: Promise<PdfjsModule> | null = null;
+async function loadPdfjs(): Promise<PdfjsModule> {
+  if (!pdfjsPromise) {
+    pdfjsPromise = (async () => {
+      const lib = await import("pdfjs-dist");
+      const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+      lib.GlobalWorkerOptions.workerSrc = workerUrl;
+      return lib;
+    })();
+  }
+  return pdfjsPromise;
+}
+
+let xlsxPromise: Promise<XlsxModule> | null = null;
+function loadXlsx(): Promise<XlsxModule> {
+  if (!xlsxPromise) xlsxPromise = import("xlsx");
+  return xlsxPromise;
+}
+
+let mammothPromise: Promise<MammothModule> | null = null;
+function loadMammoth(): Promise<MammothModule> {
+  if (!mammothPromise) mammothPromise = import("mammoth");
+  return mammothPromise;
+}
+
+let jszipPromise: Promise<JsZipModule> | null = null;
+function loadJsZip(): Promise<JsZipModule> {
+  if (!jszipPromise) jszipPromise = import("jszip").then((m) => m.default);
+  return jszipPromise;
+}
 
 export type DocLang = "zh" | "pt";
 
@@ -412,10 +446,12 @@ export function PdfCanvas({
     container.innerHTML = "";
     setStatus("loading");
 
-    let task: ReturnType<typeof pdfjsLib.getDocument> | null = null;
+    let task: ReturnType<PdfjsModule["getDocument"]> | null = null;
 
     const load = async () => {
-      let docParams: Parameters<typeof pdfjsLib.getDocument>[0];
+      const pdfjsLib = await loadPdfjs();
+      if (cancelled) return;
+      let docParams: Parameters<PdfjsModule["getDocument"]>[0];
 
       if (src.startsWith("data:")) {
         const bytes = dataURLToBytes(src);
@@ -731,24 +767,29 @@ export function SheetCanvas({
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [activeSheet, setActiveSheet] = useState<string>("");
   const [rows, setRows] = useState<string[][]>([]);
-  const wbRef = useRef<XLSX.WorkBook | null>(null);
+  const wbRef = useRef<import("xlsx").WorkBook | null>(null);
+  const xlsxRef = useRef<XlsxModule | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
     wbRef.current = null;
 
-    const parseBytes = (bytes: Uint8Array) => {
-      const wb = XLSX.read(bytes, { type: "array" });
-      if (cancelled) return;
-      wbRef.current = wb;
-      setSheetNames(wb.SheetNames);
-      setActiveSheet(wb.SheetNames[0] ?? "");
-      setStatus("ready");
-    };
-
     const load = async () => {
       try {
+        const XLSX = await loadXlsx();
+        if (cancelled) return;
+        xlsxRef.current = XLSX;
+
+        const parseBytes = (bytes: Uint8Array) => {
+          const wb = XLSX.read(bytes, { type: "array" });
+          if (cancelled) return;
+          wbRef.current = wb;
+          setSheetNames(wb.SheetNames);
+          setActiveSheet(wb.SheetNames[0] ?? "");
+          setStatus("ready");
+        };
+
         const src = attachmentStreamSrc(att);
         if (src.startsWith("data:")) {
           const bytes = dataURLToBytes(src);
@@ -774,7 +815,8 @@ export function SheetCanvas({
 
   useEffect(() => {
     const wb = wbRef.current;
-    if (!wb || !activeSheet) return;
+    const XLSX = xlsxRef.current;
+    if (!wb || !activeSheet || !XLSX) return;
     const ws = wb.Sheets[activeSheet];
     if (!ws) return;
     const data = XLSX.utils.sheet_to_json<string[]>(ws, {
@@ -960,11 +1002,13 @@ export function WordCanvas({
           return;
         }
         // Preview HTML via mammoth (preserva parágrafos, listas, tabelas, negrito).
+        const mammoth = await loadMammoth();
         const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer as ArrayBuffer });
         if (cancelled) return;
         setHtml(result.value || "");
         // Coleta textos para detecção/tradução a partir do document.xml original.
         try {
+          const JSZip = await loadJsZip();
           const zip = await JSZip.loadAsync(bytes);
           const docFile = zip.file("word/document.xml");
           if (docFile) {
@@ -1082,6 +1126,7 @@ async function downloadWordTranslated(
     await downloadAttachment(att);
     return;
   }
+  const JSZip = await loadJsZip();
   const zip = await JSZip.loadAsync(bytes);
   const docFile = zip.file("word/document.xml");
   if (!docFile) {
@@ -1124,6 +1169,7 @@ async function downloadSheetTranslated(
     await downloadAttachment(att);
     return;
   }
+  const XLSX = await loadXlsx();
   const wb = XLSX.read(bytes, { type: "array" });
 
   // Primeiro garante que todas as células chinesas estejam traduzidas no cache.
