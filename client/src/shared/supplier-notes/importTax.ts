@@ -3,29 +3,42 @@
 //
 // Premissas confirmadas com o usuário (Fernando — empresa em MG com benefício
 // TTS / Corredor de Importação):
-//   - Regime: lucro presumido → PIS 0,65% + COFINS 3,0% (fixos).
 //   - ICMS de importação SEMPRE ZERADO (benefício TTS, mercadoria p/ revenda).
+//     IMPORTANTE: o TTS é benefício ESTADUAL (só ICMS). PIS/COFINS-Importação
+//     são federais e NÃO são afetados pelo TTS — devem ser pagos na DI.
+//   - PIS/COFINS = alíquotas de IMPORTAÇÃO: PIS 2,1% + COFINS 9,65% (Lei
+//     10.865/2004; base = valor aduaneiro desde a Lei 12.865/2013). Aqui a base
+//     usada é a base declarada (valor real × CI%), por opção do usuário.
 //   - A "CI%" é o percentual do valor real usado como base declarada (abaixo do
-//     real). Essa base reduzida aplica em TODA a cadeia (II, IPI, PIS, COFINS).
+//     real). Essa base reduzida aplica em TODA a cadeia (seguro, II, IPI, PIS,
+//     COFINS).
+//   - Seguro internacional: 0,40% sobre a base declarada (valor × CI%). Entra no
+//     valor aduaneiro ANTES do II.
 //   - Frete marítimo (US$): pago 1x ao fornecedor (entra no custo) e também
 //     compõe a base do II/cadeia. Frete terrestre (R$): somado direto.
-//   - AFRMM: 8% sobre o frete marítimo. Taxa Siscomex: valor fixo (R$ 200).
+//   - AFRMM: 8% sobre o frete marítimo. Taxa Siscomex: R$ 200 fixo.
+//   - Despesas portuárias (Santos, container 40 pés): THC + ISPS +
+//     desconsolidação + armazenagem curta (3-4 dias) + liberação. Padrão
+//     R$ 3.500, editável. Somado direto ao custo total (em R$).
 //
 // Cadeia (em cascata), tudo em US$ até converter:
 //   baseDeclarada      = valorRealTotalUSD × (CI%/100)
-//   valorAduaneiro     = baseDeclarada + freteMaritimoUSD     // base do II
+//   seguroUSD          = baseDeclarada × (seguro%/100)
+//   valorAduaneiro     = baseDeclarada + freteMaritimoUSD + seguroUSD  // base II
 //   II                 = valorAduaneiro × (II%/100)
 //   IPI                = (valorAduaneiro + II) × (IPI%/100)
-//   PIS                = valorAduaneiro × (PIS%/100)
-//   COFINS             = valorAduaneiro × (COFINS%/100)
+//   PIS  (importação)  = valorAduaneiro × (PIS%/100)    // 2,1%
+//   COFINS (importação)= valorAduaneiro × (COFINS%/100) // 9,65%
 //   ICMS importação    = 0  (TTS)
 //   tributosUSD        = II + IPI + PIS + COFINS
 //   AFRMM (R$)         = freteMaritimoUSD × cotacao × 8%
-//   Siscomex (R$)      = valor fixo
+//   Siscomex (R$)      = R$ 200 fixo
+//   despesasPorto (R$) = valor editável (padrão R$ 3.500)
 //   comissaoUSD        = valorRealTotalUSD × (comissaoBety%/100)
 //
-//   custoTotalBRL = (valorRealTotalUSD + freteMaritimoUSD + tributosUSD + comissaoUSD) × cotacao
-//                   + freteTerrestreBRL + afrmmBRL + siscomexBRL
+//   custoTotalBRL = (valorRealTotalUSD + freteMaritimoUSD + seguroUSD
+//                    + tributosUSD + comissaoUSD) × cotacao
+//                   + freteTerrestreBRL + afrmmBRL + siscomexBRL + despesasPortoBRL
 //   custoUnitarioBRL = custoTotalBRL / quantidade
 // =============================================================================
 
@@ -37,13 +50,18 @@ export interface NcmEntry {
   obs?: string;
 }
 
-// PIS/COFINS fixos do regime do usuário (lucro presumido / cumulativo).
-export const PIS_PCT = 0.65;
-export const COFINS_PCT = 3.0;
+// PIS/COFINS de IMPORTAÇÃO (Lei 10.865/2004). NÃO são afetados pelo TTS (ICMS).
+export const PIS_PCT = 2.1;
+export const COFINS_PCT = 9.65;
+// Seguro internacional: 0,40% sobre a base declarada (valor × CI%).
+export const SEGURO_PCT = 0.4;
 // AFRMM fixo (8% sobre o frete marítimo internacional).
 export const AFRMM_PCT = 8;
 // Taxa Siscomex fixa (R$ 200).
 export const SISCOMEX_DEFAULT = 200;
+// Despesas portuárias padrão para container de 40 pés em Santos (editável).
+// Inclui THC + ISPS + desconsolidação + armazenagem (3-4 dias) + liberação.
+export const DESPESAS_PORTO_DEFAULT = 3500;
 
 // Tabela base de NCMs usados pela empresa. Editável/expansível na tela.
 // Alíquotas levantadas em jun/2026 (TEC/Gecex + TIPI Decreto 11.158/2022).
@@ -96,19 +114,22 @@ export interface ImportTaxInput {
   ciPct: number; // % do valor real usado como base declarada
   iiPct: number; // %
   ipiPct: number; // %
-  pisPct: number; // %
-  cofinsPct: number; // %
+  pisPct: number; // % (importação)
+  cofinsPct: number; // % (importação)
+  seguroPct: number; // % sobre a base declarada
   freteMaritimoUSD: number;
   freteTerrestreBRL: number;
   comissaoPct: number; // % sobre o valor real
   afrmmPct: number; // % sobre o frete marítimo
   siscomexBRL: number; // taxa fixa
+  despesasPortoBRL: number; // despesas portuárias (Santos, 40 pés)
 }
 
 export interface ImportTaxResult {
   valorRealTotalUSD: number;
   baseDeclaradaUSD: number;
-  valorAduaneiroUSD: number; // base declarada + frete marítimo
+  seguroUSD: number;
+  valorAduaneiroUSD: number; // base declarada + frete marítimo + seguro
   iiUSD: number;
   ipiUSD: number;
   pisUSD: number;
@@ -120,6 +141,7 @@ export interface ImportTaxResult {
   afrmmBRL: number;
   siscomexBRL: number;
   freteTerrestreBRL: number;
+  despesasPortoBRL: number;
   custoTotalBRL: number;
   custoUnitarioBRL: number;
 }
@@ -127,7 +149,8 @@ export interface ImportTaxResult {
 export function computeImportCost(inp: ImportTaxInput): ImportTaxResult {
   const valorRealTotalUSD = inp.precoUnitUSD * inp.quantidade;
   const baseDeclaradaUSD = valorRealTotalUSD * (inp.ciPct / 100);
-  const valorAduaneiroUSD = baseDeclaradaUSD + inp.freteMaritimoUSD;
+  const seguroUSD = baseDeclaradaUSD * (inp.seguroPct / 100);
+  const valorAduaneiroUSD = baseDeclaradaUSD + inp.freteMaritimoUSD + seguroUSD;
 
   const iiUSD = valorAduaneiroUSD * (inp.iiPct / 100);
   const ipiUSD = (valorAduaneiroUSD + iiUSD) * (inp.ipiPct / 100);
@@ -141,14 +164,17 @@ export function computeImportCost(inp: ImportTaxInput): ImportTaxResult {
   const afrmmBRL = inp.freteMaritimoUSD * inp.cotacao * (inp.afrmmPct / 100);
   const siscomexBRL = inp.siscomexBRL;
   const freteTerrestreBRL = inp.freteTerrestreBRL;
+  const despesasPortoBRL = inp.despesasPortoBRL;
 
-  const subtotalUSD = valorRealTotalUSD + inp.freteMaritimoUSD + tributosUSD + comissaoUSD;
-  const custoTotalBRL = subtotalUSD * inp.cotacao + freteTerrestreBRL + afrmmBRL + siscomexBRL;
+  const subtotalUSD = valorRealTotalUSD + inp.freteMaritimoUSD + seguroUSD + tributosUSD + comissaoUSD;
+  const custoTotalBRL =
+    subtotalUSD * inp.cotacao + freteTerrestreBRL + afrmmBRL + siscomexBRL + despesasPortoBRL;
   const custoUnitarioBRL = inp.quantidade > 0 ? custoTotalBRL / inp.quantidade : 0;
 
   return {
     valorRealTotalUSD,
     baseDeclaradaUSD,
+    seguroUSD,
     valorAduaneiroUSD,
     iiUSD,
     ipiUSD,
@@ -161,6 +187,7 @@ export function computeImportCost(inp: ImportTaxInput): ImportTaxResult {
     afrmmBRL,
     siscomexBRL,
     freteTerrestreBRL,
+    despesasPortoBRL,
     custoTotalBRL,
     custoUnitarioBRL,
   };

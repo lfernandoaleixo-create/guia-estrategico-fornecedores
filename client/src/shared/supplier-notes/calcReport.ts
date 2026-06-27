@@ -51,84 +51,91 @@ export function buildSteps(snap: CalcSnapshot): { titulo: string; formula: strin
   });
 
   steps.push({
-    titulo: "3. Valor aduaneiro (base da cadeia tributária)",
-    formula: "base declarada + frete marítimo",
-    conta: `${USD(r.baseDeclaradaUSD)} + ${USD(i.freteMaritimoUSD)}`,
+    titulo: "3. Seguro internacional",
+    formula: "base declarada × seguro%",
+    conta: `${USD(r.baseDeclaradaUSD)} × ${PCT(i.seguroPct)}`,
+    resultado: USD(r.seguroUSD),
+  });
+
+  steps.push({
+    titulo: "4. Valor aduaneiro (base da cadeia tributária)",
+    formula: "base declarada + frete marítimo + seguro",
+    conta: `${USD(r.baseDeclaradaUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.seguroUSD)}`,
     resultado: USD(r.valorAduaneiroUSD),
   });
 
   steps.push({
-    titulo: "4. II — Imposto de Importação",
+    titulo: "5. II — Imposto de Importação",
     formula: "valor aduaneiro × II%",
     conta: `${USD(r.valorAduaneiroUSD)} × ${PCT(i.iiPct)}`,
     resultado: USD(r.iiUSD),
   });
 
   steps.push({
-    titulo: "5. IPI (incide em cascata, sobre valor aduaneiro + II)",
+    titulo: "6. IPI (incide em cascata, sobre valor aduaneiro + II)",
     formula: "(valor aduaneiro + II) × IPI%",
     conta: `(${USD(r.valorAduaneiroUSD)} + ${USD(r.iiUSD)}) × ${PCT(i.ipiPct)}`,
     resultado: USD(r.ipiUSD),
   });
 
   steps.push({
-    titulo: "6. PIS-Importação",
-    formula: "valor aduaneiro × PIS%",
+    titulo: "7. PIS-Importação",
+    formula: "valor aduaneiro × PIS-Importação%",
     conta: `${USD(r.valorAduaneiroUSD)} × ${PCT(i.pisPct)}`,
     resultado: USD(r.pisUSD),
   });
 
   steps.push({
-    titulo: "7. COFINS-Importação",
-    formula: "valor aduaneiro × COFINS%",
+    titulo: "8. COFINS-Importação",
+    formula: "valor aduaneiro × COFINS-Importação%",
     conta: `${USD(r.valorAduaneiroUSD)} × ${PCT(i.cofinsPct)}`,
     resultado: USD(r.cofinsUSD),
   });
 
   steps.push({
-    titulo: "8. ICMS-Importação (benefício TTS / Corredor de Importação MG)",
-    formula: "zerado pelo regime especial",
+    titulo: "9. ICMS-Importação (benefício TTS / Corredor de Importação MG)",
+    formula: "zerado pelo regime especial (estadual)",
     conta: "R$ 0,00 (não compõe o custo)",
     resultado: "R$ 0,00",
   });
 
   steps.push({
-    titulo: "9. Total de tributos (US$)",
-    formula: "II + IPI + PIS + COFINS",
+    titulo: "10. Total de tributos (US$)",
+    formula: "II + IPI + PIS-Imp. + COFINS-Imp.",
     conta: `${USD(r.iiUSD)} + ${USD(r.ipiUSD)} + ${USD(r.pisUSD)} + ${USD(r.cofinsUSD)}`,
     resultado: USD(r.tributosUSD),
   });
 
   steps.push({
-    titulo: "10. Comissão (sobre o valor real)",
+    titulo: "11. Comissão (sobre o valor real)",
     formula: "valor real total × comissão%",
     conta: `${USD(r.valorRealTotalUSD)} × ${PCT(i.comissaoPct)}`,
     resultado: USD(r.comissaoUSD),
   });
 
   steps.push({
-    titulo: "11. AFRMM (sobre o frete marítimo, já em reais)",
+    titulo: "12. AFRMM (sobre o frete marítimo, já em reais)",
     formula: "frete marítimo × cotação × AFRMM%",
     conta: `${USD(i.freteMaritimoUSD)} × ${NUM(i.cotacao)} × ${PCT(i.afrmmPct)}`,
     resultado: BRL(r.afrmmBRL),
   });
 
   steps.push({
-    titulo: "12. Subtotal em dólar convertido para reais",
-    formula: "(valor real + frete marítimo + tributos + comissão) × cotação",
-    conta: `(${USD(r.valorRealTotalUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.tributosUSD)} + ${USD(r.comissaoUSD)}) × ${NUM(i.cotacao)}`,
-    resultado: BRL((r.valorRealTotalUSD + i.freteMaritimoUSD + r.tributosUSD + r.comissaoUSD) * i.cotacao),
+    titulo: "13. Subtotal em dólar convertido para reais",
+    formula: "(valor real + frete marítimo + seguro + tributos + comissão) × cotação",
+    conta: `(${USD(r.valorRealTotalUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.seguroUSD)} + ${USD(r.tributosUSD)} + ${USD(r.comissaoUSD)}) × ${NUM(i.cotacao)}`,
+    resultado: BRL((r.valorRealTotalUSD + i.freteMaritimoUSD + r.seguroUSD + r.tributosUSD + r.comissaoUSD) * i.cotacao),
   });
 
   steps.push({
-    titulo: "13. Custo total do container (R$)",
-    formula: "subtotal em R$ + frete terrestre + AFRMM + Siscomex",
-    conta: `${BRL((r.valorRealTotalUSD + i.freteMaritimoUSD + r.tributosUSD + r.comissaoUSD) * i.cotacao)} + ${BRL(r.freteTerrestreBRL)} + ${BRL(r.afrmmBRL)} + ${BRL(r.siscomexBRL)}`,
+    titulo: "14. Custo total do container (R$)",
+    formula: "subtotal em R$ + frete terrestre + AFRMM + Siscomex + despesas portuárias",
+    conta: `${BRL((r.valorRealTotalUSD + i.freteMaritimoUSD + r.seguroUSD + r.tributosUSD + r.comissaoUSD) * i.cotacao)} + ${BRL(r.freteTerrestreBRL)} + ${BRL(r.afrmmBRL)} + ${BRL(r.siscomexBRL)} + ${BRL(r.despesasPortoBRL)}`,
     resultado: BRL(r.custoTotalBRL),
   });
 
   steps.push({
-    titulo: "14. Custo por unidade (R$)",
+    titulo: "15. Custo por unidade (R$)",
     formula: "custo total ÷ quantidade",
     conta: `${BRL(r.custoTotalBRL)} ÷ ${NUM(i.quantidade)} un`,
     resultado: BRL(r.custoUnitarioBRL),
@@ -153,23 +160,26 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     ["CI (base declarada)", PCT(i.ciPct)],
     ["II", PCT(i.iiPct)],
     ["IPI", PCT(i.ipiPct)],
-    ["PIS", PCT(i.pisPct)],
-    ["COFINS", PCT(i.cofinsPct)],
+    ["Seguro", PCT(i.seguroPct)],
+    ["PIS-Importação", PCT(i.pisPct)],
+    ["COFINS-Importação", PCT(i.cofinsPct)],
     ["AFRMM", PCT(i.afrmmPct)],
     ["Taxa Siscomex", BRL(i.siscomexBRL)],
     ["Frete marítimo", USD(i.freteMaritimoUSD)],
     ["Frete terrestre", BRL(i.freteTerrestreBRL)],
+    ["Despesas portuárias (Santos)", BRL(i.despesasPortoBRL)],
     ["Comissão", PCT(i.comissaoPct)],
   ];
 
   const detalhamento: [string, string][] = [
     ["Valor real total", USD(r.valorRealTotalUSD)],
     [`Base declarada (CI ${PCT(i.ciPct)})`, USD(r.baseDeclaradaUSD)],
-    ["Valor aduaneiro (+ frete mar.)", USD(r.valorAduaneiroUSD)],
+    [`Seguro (${PCT(i.seguroPct)})`, USD(r.seguroUSD)],
+    ["Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
     [`II (${PCT(i.iiPct)})`, USD(r.iiUSD)],
     [`IPI (${PCT(i.ipiPct)})`, USD(r.ipiUSD)],
-    [`PIS (${PCT(i.pisPct)})`, USD(r.pisUSD)],
-    [`COFINS (${PCT(i.cofinsPct)})`, USD(r.cofinsUSD)],
+    [`PIS-Imp. (${PCT(i.pisPct)})`, USD(r.pisUSD)],
+    [`COFINS-Imp. (${PCT(i.cofinsPct)})`, USD(r.cofinsUSD)],
     ["ICMS importação (TTS)", "R$ 0,00"],
     ["Total de tributos", USD(r.tributosUSD)],
   ];
@@ -180,6 +190,7 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     ["AFRMM", BRL(r.afrmmBRL)],
     ["Taxa Siscomex", BRL(r.siscomexBRL)],
     ["Frete terrestre", BRL(r.freteTerrestreBRL)],
+    ["Despesas portuárias (Santos)", BRL(r.despesasPortoBRL)],
   ];
 
   const row = ([k, v]: [string, string]) =>
@@ -254,11 +265,13 @@ export function buildReportHtml(snap: CalcSnapshot): string {
   <h2>Como o cálculo foi feito (passo a passo)</h2>
   ${steps.map(stepRow).join("")}
   <p class="note">
-    Regime do importador: lucro presumido (PIS 0,65% + COFINS 3,0%). O ICMS de importação é zerado pelo
-    benefício TTS / Corredor de Importação de Minas Gerais. A "CI%" é o percentual do valor real declarado
-    como base aduaneira e reduz toda a cadeia (II, IPI, PIS e COFINS). O IPI incide em cascata, sobre
-    (valor aduaneiro + II). AFRMM (sobre o frete marítimo) e a taxa Siscomex são somados diretamente em reais
-    ao custo final. Valores em US$ são convertidos pela cotação informada.
+    PIS-Importação (2,1%) e COFINS-Importação (9,65%) incidem sobre o valor aduaneiro e são pagos na DI para
+    liberar a carga. O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais
+    — que é estadual e não afeta PIS/COFINS (federais). A "CI%" é o percentual do valor real declarado como
+    base aduaneira e reduz toda a cadeia (seguro, II, IPI, PIS e COFINS). O seguro internacional (0,40% da base
+    declarada) compõe o valor aduaneiro. O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o
+    frete marítimo), a taxa Siscomex e as despesas portuárias de Santos (container 40 pés) são somados
+    diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada.
   </p>
 
   <div class="footer">Documento gerado automaticamente para fins de simulação. Confirme alíquotas e benefícios vigentes antes de fechar a operação.</div>
@@ -378,29 +391,33 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
       ["CI (base declarada)", PCT(i.ciPct)],
       ["II", PCT(i.iiPct)],
       ["IPI", PCT(i.ipiPct)],
-      ["PIS", PCT(i.pisPct)],
-      ["COFINS", PCT(i.cofinsPct)],
+      ["Seguro", PCT(i.seguroPct)],
+      ["PIS-Importação", PCT(i.pisPct)],
+      ["COFINS-Importação", PCT(i.cofinsPct)],
       ["AFRMM", PCT(i.afrmmPct)],
       ["Taxa Siscomex", BRL(i.siscomexBRL)],
       ["Frete marítimo", USD(i.freteMaritimoUSD)],
       ["Frete terrestre", BRL(i.freteTerrestreBRL)],
+      ["Despesas portuárias (Santos)", BRL(i.despesasPortoBRL)],
       ["Comissão", PCT(i.comissaoPct)],
     ];
 
     const detalhamento: [string, string][] = [
       ["Valor real total", USD(r.valorRealTotalUSD)],
       [`Base declarada (CI ${PCT(i.ciPct)})`, USD(r.baseDeclaradaUSD)],
-      ["Valor aduaneiro (+ frete mar.)", USD(r.valorAduaneiroUSD)],
+      [`Seguro (${PCT(i.seguroPct)})`, USD(r.seguroUSD)],
+      ["Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
       [`II (${PCT(i.iiPct)})`, USD(r.iiUSD)],
       [`IPI (${PCT(i.ipiPct)})`, USD(r.ipiUSD)],
-      [`PIS (${PCT(i.pisPct)})`, USD(r.pisUSD)],
-      [`COFINS (${PCT(i.cofinsPct)})`, USD(r.cofinsUSD)],
+      [`PIS-Imp. (${PCT(i.pisPct)})`, USD(r.pisUSD)],
+      [`COFINS-Imp. (${PCT(i.cofinsPct)})`, USD(r.cofinsUSD)],
       ["ICMS importação (TTS)", "R$ 0,00"],
       ["Total de tributos", USD(r.tributosUSD)],
       ["Comissão", USD(r.comissaoUSD)],
       ["AFRMM", BRL(r.afrmmBRL)],
       ["Taxa Siscomex", BRL(r.siscomexBRL)],
       ["Frete terrestre", BRL(r.freteTerrestreBRL)],
+      ["Despesas portuárias (Santos)", BRL(r.despesasPortoBRL)],
     ];
 
     sectionTitle("Parâmetros usados");
@@ -430,7 +447,7 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
     doc.setFontSize(8);
     doc.setTextColor(...grey);
     const nota =
-      "Regime do importador: lucro presumido (PIS 0,65% + COFINS 3,0%). O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais. A CI% é o percentual do valor real declarado como base aduaneira e reduz toda a cadeia (II, IPI, PIS e COFINS). O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o frete marítimo) e a taxa Siscomex são somados diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada. Documento gerado automaticamente para fins de simulação — confirme alíquotas e benefícios vigentes antes de fechar a operação.";
+      "PIS-Importação (2,1%) e COFINS-Importação (9,65%) incidem sobre o valor aduaneiro e são pagos na DI para liberar a carga. O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais — que é estadual e não afeta PIS/COFINS (federais). A CI% é o percentual do valor real declarado como base aduaneira e reduz toda a cadeia (seguro, II, IPI, PIS e COFINS). O seguro internacional (0,40% da base declarada) compõe o valor aduaneiro. O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o frete marítimo), a taxa Siscomex e as despesas portuárias de Santos (container 40 pés) são somados diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada. Documento gerado automaticamente para fins de simulação — confirme alíquotas e benefícios vigentes antes de fechar a operação.";
     const notaLines = doc.splitTextToSize(nota, contentW);
     doc.text(notaLines, margin, y);
 

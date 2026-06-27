@@ -957,3 +957,10 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Tornar pdf.js / xlsx / mammoth / jszip dinamicos no attachmentViewer (so carregam ao abrir anexo)
   - [x] Rebuild: chunk principal index caiu de 4,46 MB (957 KB gzip) para 274 KB (50 KB gzip)
   - [x] Typecheck + 433 testes + validacao no preview (Home e Calculadora OK)
+
+- [x] Feature 55: Corrigir e ampliar a cadeia tributaria (parecer do despachante)
+  - [x] Seguro internacional 0,40% sobre a base declarada (valor x CI%), somado ao valor aduaneiro antes do II
+  - [x] Campo "Despesas portuarias (Santos, 40 pes)" preenchido (padrao R$ 3.500, 3-4 dias armazenagem) e editavel; soma ao custo total
+  - [x] PIS-Importacao 2,1% e COFINS-Importacao 9,65% sobre o valor aduaneiro (base CI reduzida) em vez de 0,65/3
+  - [x] Atualizar importTax.ts (logica), CalculatorPanel (UI: campos seguro/despesas, quadro tributos), calcReport (PDF passo a passo)
+  - [x] Atualizar testes (438) + typecheck + validacao no preview (custo unit. R$ 12,01; conferido manualmente)

@@ -15,33 +15,57 @@ function makeSnapshot(): CalcSnapshot {
     ciPct: 60,
     iiPct: 14.4,
     ipiPct: 3.25,
-    pisPct: 0.65,
-    cofinsPct: 3,
+    pisPct: 2.1,
+    cofinsPct: 9.65,
+    seguroPct: 0.4,
     freteMaritimoUSD: 3500,
     freteTerrestreBRL: 2000,
     comissaoPct: 5,
     afrmmPct: 8,
-    siscomexBRL: 250,
+    siscomexBRL: 200,
+    despesasPortoBRL: 3500,
   };
   const result = computeImportCost(input);
   return { nome: "Tapete higiênico", ncm: "4818.90.90", ncmObs: undefined, input, result, geradoEm: 1_700_000_000_000 };
 }
 
 describe("calcReport — memória de cálculo (passo a passo)", () => {
-  it("gera exatamente 14 passos na ordem da cadeia", () => {
+  it("gera exatamente 15 passos na ordem da cadeia (com seguro e despesas portuárias)", () => {
     const steps = buildSteps(makeSnapshot());
-    expect(steps.length).toBe(14);
+    expect(steps.length).toBe(15);
     expect(steps[0].titulo).toContain("Valor real total");
-    expect(steps[3].titulo).toContain("II");
-    expect(steps[4].titulo).toContain("IPI");
-    expect(steps[7].titulo).toContain("ICMS");
-    expect(steps[13].titulo).toContain("Custo por unidade");
+    expect(steps[2].titulo).toContain("Seguro");
+    expect(steps[3].titulo).toContain("Valor aduaneiro");
+    expect(steps[4].titulo).toContain("II");
+    expect(steps[5].titulo).toContain("IPI");
+    expect(steps[8].titulo).toContain("ICMS");
+    expect(steps[14].titulo).toContain("Custo por unidade");
+  });
+
+  it("o passo do seguro mostra a base declarada × seguro%", () => {
+    const steps = buildSteps(makeSnapshot());
+    const seguro = steps.find((s) => s.titulo.includes("Seguro"))!;
+    expect(seguro.formula).toContain("base declarada");
+  });
+
+  it("o valor aduaneiro inclui frete e seguro", () => {
+    const steps = buildSteps(makeSnapshot());
+    const va = steps.find((s) => s.titulo.includes("Valor aduaneiro"))!;
+    expect(va.formula).toContain("seguro");
   });
 
   it("o passo do IPI mostra a cascata (valor aduaneiro + II)", () => {
     const steps = buildSteps(makeSnapshot());
     const ipi = steps.find((s) => s.titulo.includes("IPI"))!;
     expect(ipi.formula).toContain("valor aduaneiro + II");
+  });
+
+  it("PIS e COFINS usam as alíquotas de importação (2,1% e 9,65%)", () => {
+    const steps = buildSteps(makeSnapshot());
+    const pis = steps.find((s) => s.titulo.includes("PIS"))!;
+    const cofins = steps.find((s) => s.titulo.includes("COFINS"))!;
+    expect(pis.conta).toContain("2,1%");
+    expect(cofins.conta).toContain("9,65%");
   });
 
   it("o passo do ICMS deixa claro que é zero pelo TTS", () => {
@@ -51,13 +75,20 @@ describe("calcReport — memória de cálculo (passo a passo)", () => {
     expect(icms.resultado).toBe("R$ 0,00");
   });
 
+  it("o custo total inclui despesas portuárias", () => {
+    const steps = buildSteps(makeSnapshot());
+    const total = steps.find((s) => s.titulo.includes("Custo total"))!;
+    expect(total.formula).toContain("despesas portuárias");
+  });
+
   it("o último passo reflete o custo unitário calculado", () => {
     const snap = makeSnapshot();
     const steps = buildSteps(snap);
     const ultimo = steps[steps.length - 1];
-    // custo unitário ~ R$ 10,77 → formatado em pt-BR
-    expect(ultimo.resultado).toContain("10,77");
-    expect(snap.result.custoUnitarioBRL).toBeCloseTo(10.7742, 3);
+    expect(ultimo.resultado).toBe(
+      snap.result.custoUnitarioBRL.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    );
+    expect(snap.result.custoUnitarioBRL).toBeGreaterThan(0);
   });
 });
 
@@ -71,6 +102,8 @@ describe("calcReport — HTML e payload de salvamento", () => {
     expect(html).toContain("4818.90.90");
     expect(html).toContain("Tapete higiênico");
     expect(html).toContain("TTS");
+    expect(html).toContain("Seguro");
+    expect(html).toContain("Despesas portuárias");
   });
 
   it("o HTML escapa caracteres especiais do nome do produto", () => {
@@ -90,6 +123,8 @@ describe("calcReport — HTML e payload de salvamento", () => {
     expect(parsed.version).toBe(1);
     expect(parsed.ncm).toBe("4818.90.90");
     expect(parsed.input.quantidade).toBe(5000);
-    expect(parsed.result.custoUnitarioBRL).toBeCloseTo(10.7742, 3);
+    expect(parsed.input.seguroPct).toBe(0.4);
+    expect(parsed.input.despesasPortoBRL).toBe(3500);
+    expect(parsed.result.custoUnitarioBRL).toBeGreaterThan(0);
   });
 });

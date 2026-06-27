@@ -32,8 +32,10 @@ import {
   computeImportCost,
   PIS_PCT,
   COFINS_PCT,
+  SEGURO_PCT,
   AFRMM_PCT,
   SISCOMEX_DEFAULT,
+  DESPESAS_PORTO_DEFAULT,
   type NcmEntry,
 } from "./importTax";
 import { downloadPdfReport, downloadJson, type CalcSnapshot } from "./calcReport";
@@ -317,15 +319,18 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   // II e IPI vêm do NCM selecionado (não editáveis). null = nenhum NCM escolhido.
   const [iiPct, setIiPct] = useState<number | null>(null);
   const [ipiPct, setIpiPct] = useState<number | null>(null);
-  // PIS/COFINS/AFRMM/Siscomex são FIXOS do regime — não editáveis.
+  // PIS/COFINS-Importação, seguro e AFRMM são FIXOS do regime — não editáveis.
   const pisPct = PIS_PCT;
   const cofinsPct = COFINS_PCT;
+  const seguroPct = SEGURO_PCT;
   const afrmmPct = AFRMM_PCT;
   const siscomex = SISCOMEX_DEFAULT;
 
   const [freteMaritimo, setFreteMaritimo] = useState("");
   const [freteTerrestre, setFreteTerrestre] = useState("");
   const [comissaoPct, setComissaoPct] = useState("");
+  // Despesas portuárias (Santos, 40 pés) — preenchido com padrão, editável.
+  const [despesasPorto, setDespesasPorto] = useState(String(DESPESAS_PORTO_DEFAULT));
 
   // Fecha com ESC e trava o scroll do body enquanto aberto.
   useEffect(() => {
@@ -381,13 +386,15 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
         ipiPct: ipiPct ?? 0,
         pisPct,
         cofinsPct,
+        seguroPct,
         freteMaritimoUSD: parseNum(freteMaritimo),
         freteTerrestreBRL: parseNum(freteTerrestre),
         comissaoPct: parseNum(comissaoPct),
         afrmmPct,
         siscomexBRL: siscomex,
+        despesasPortoBRL: parseNum(despesasPorto),
       }),
-    [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex],
+    [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, seguroPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex, despesasPorto],
   );
 
   const qNum = parseNum(qtd);
@@ -401,6 +408,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     { label: "Frete marítimo", value: freteMaritimo },
     { label: "Frete terrestre", value: freteTerrestre },
     { label: "Comissão", value: comissaoPct },
+    { label: "Despesas portuárias", value: despesasPorto },
   ];
   const missing = requiredFields.filter((f) => f.value.trim() === "");
   // Precisa de NCM (que define II/IPI) + todos os campos do usuário.
@@ -422,11 +430,13 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       ipiPct: ipiPct ?? 0,
       pisPct,
       cofinsPct,
+      seguroPct,
       freteMaritimoUSD: parseNum(freteMaritimo),
       freteTerrestreBRL: parseNum(freteTerrestre),
       comissaoPct: parseNum(comissaoPct),
       afrmmPct,
       siscomexBRL: siscomex,
+      despesasPortoBRL: parseNum(despesasPorto),
     },
     result: calc,
   });
@@ -467,6 +477,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setFreteMaritimo("");
     setFreteTerrestre("");
     setComissaoPct("");
+    setDespesasPorto(String(DESPESAS_PORTO_DEFAULT));
     setPdfErro(false);
   };
 
@@ -600,13 +611,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   </span>
                 </div>
                 <p className="text-[0.7rem] leading-snug -mt-1" style={{ color: "oklch(0.55 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                  II e IPI vêm do NCM escolhido. PIS, COFINS, AFRMM e Siscomex são fixos — você não precisa preencher nada aqui.
+                  II e IPI vêm do NCM escolhido. Seguro, PIS-Importação, COFINS-Importação, AFRMM e Siscomex são fixos — você não precisa preencher nada aqui.
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   <ReadOnlyTax label="II" value={iiPct !== null ? `${iiPct}%` : "—"} highlight={iiPct !== null} />
                   <ReadOnlyTax label="IPI" value={ipiPct !== null ? `${ipiPct}%` : "—"} highlight={ipiPct !== null} />
-                  <ReadOnlyTax label="PIS" value={`${pisPct}%`} />
-                  <ReadOnlyTax label="COFINS" value={`${cofinsPct}%`} />
+                  <ReadOnlyTax label="Seguro" value={`${seguroPct}%`} />
+                  <ReadOnlyTax label="PIS-Imp." value={`${pisPct}%`} />
+                  <ReadOnlyTax label="COFINS-Imp." value={`${cofinsPct}%`} />
                   <ReadOnlyTax label="AFRMM" value={`${afrmmPct}%`} />
                   <ReadOnlyTax label="Siscomex" value={BRL(siscomex)} />
                 </div>
@@ -627,7 +639,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
                   <span className="text-[0.72rem] leading-snug" style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    ICMS de importação: <strong style={{ color: "oklch(0.85 0.02 80)" }}>R$ 0</strong> — benefício TTS (Corredor de Importação MG).
+                    ICMS de importação: <strong style={{ color: "oklch(0.85 0.02 80)" }}>R$ 0</strong> — benefício TTS (Corredor de Importação MG). O TTS é estadual: PIS e COFINS de importação (federais) continuam sendo pagos na DI.
                   </span>
                 </div>
               </div>
@@ -638,6 +650,8 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
               </div>
 
               <Field label="Comissão Bety" value={comissaoPct} onChange={setComissaoPct} placeholder="Digite o %" suffix="%" icon={<Percent className="w-3.5 h-3.5" />} hint="Sobre o valor real do produto" required />
+
+              <Field label="Despesas portuárias (Santos)" value={despesasPorto} onChange={setDespesasPorto} placeholder="Digite o valor" prefix="R$" icon={<Package className="w-3.5 h-3.5" />} hint="Container 40 pés: THC, ISPS, desconsolidação, armazenagem (3-4 dias) e liberação · já preenchido, ajuste se precisar" required />
             </div>
 
             {/* Coluna de resultado + detalhamento tributário */}
@@ -689,6 +703,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <ResultRow label="AFRMM" value={BRL(calc.afrmmBRL)} />
                 <ResultRow label="Taxa Siscomex" value={BRL(calc.siscomexBRL)} />
                 <ResultRow label="Frete terrestre" value={BRL(calc.freteTerrestreBRL)} />
+                <ResultRow label="Despesas portuárias (Santos)" value={BRL(calc.despesasPortoBRL)} />
               </div>
 
               {/* Card paralelo — detalhamento tributário */}
@@ -708,18 +723,19 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
                 <ResultRow label="Valor real total" value={USD(calc.valorRealTotalUSD)} muted />
                 <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={USD(calc.baseDeclaradaUSD)} muted />
-                <ResultRow label="Valor aduaneiro (+ frete mar.)" value={USD(calc.valorAduaneiroUSD)} />
+                <ResultRow label={`Seguro (${seguroPct}% s/ base)`} value={USD(calc.seguroUSD)} muted />
+                <ResultRow label="Valor aduaneiro (+ frete + seguro)" value={USD(calc.valorAduaneiroUSD)} />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
                 <ResultRow label={`II (${iiPct ?? 0}%)`} value={USD(calc.iiUSD)} />
                 <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={USD(calc.ipiUSD)} />
-                <ResultRow label={`PIS (${pisPct}%)`} value={USD(calc.pisUSD)} />
-                <ResultRow label={`COFINS (${cofinsPct}%)`} value={USD(calc.cofinsUSD)} />
+                <ResultRow label={`PIS-Imp. (${pisPct}%)`} value={USD(calc.pisUSD)} />
+                <ResultRow label={`COFINS-Imp. (${cofinsPct}%)`} value={USD(calc.cofinsUSD)} />
                 <ResultRow label="ICMS importação" value="R$ 0 · TTS ✓" muted />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
                 <ResultRow label="Total de tributos" value={USD(calc.tributosUSD)} strong />
 
                 <p className="text-[0.7rem] leading-relaxed mt-2" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                  IPI incide sobre (valor aduaneiro + II). PIS/COFINS sobre o valor aduaneiro. AFRMM (8%) e Siscomex são somados em R$ ao custo final. Valores em US$ convertidos pela cotação.
+                  Seguro (0,40% da base declarada) entra no valor aduaneiro. IPI incide sobre (valor aduaneiro + II). PIS/COFINS-Importação (2,1% + 9,65%) sobre o valor aduaneiro. AFRMM (8%), Siscomex e despesas portuárias são somados em R$ ao custo final. Valores em US$ convertidos pela cotação.
                 </p>
               </div>
 
