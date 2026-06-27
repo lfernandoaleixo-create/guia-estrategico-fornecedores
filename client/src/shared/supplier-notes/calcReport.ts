@@ -6,7 +6,7 @@
 // O relatório traz os parâmetros de entrada, o resultado, o detalhamento
 // tributário e a EXPLICAÇÃO passo a passo de cada conta com os números reais.
 // =============================================================================
-import type { ImportTaxInput, ImportTaxResult } from "./importTax";
+import { computeImportCost, type ImportTaxInput, type ImportTaxResult } from "./importTax";
 
 export interface CalcSnapshot {
   nome: string;
@@ -475,6 +475,117 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
 // Serializa a simulação para download como arquivo .json (reabrível depois).
 export function buildSavePayload(snap: CalcSnapshot): string {
   return JSON.stringify({ kind: "import-cost-simulation", version: 1, ...snap }, null, 2);
+}
+
+// ---------------------------------------------------------------------------
+// Importacao de simulacao salva (.json) — valida o payload e devolve o snapshot.
+// ---------------------------------------------------------------------------
+const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+function isValidInput(o: unknown): o is ImportTaxInput {
+  if (!o || typeof o !== "object") return false;
+  const i = o as Record<string, unknown>;
+  const required = [
+    "cotacao",
+    "precoUnitUSD",
+    "quantidade",
+    "ciPct",
+    "iiPct",
+    "ipiPct",
+    "pisPct",
+    "cofinsPct",
+    "seguroPct",
+    "freteMaritimoUSD",
+    "freteTerrestreBRL",
+    "comissaoPct",
+    "afrmmPct",
+    "siscomexBRL",
+    "despesasPortoBRL",
+  ];
+  if (!required.every((k) => isFiniteNumber(i[k]))) return false;
+  // freteMaritimoModo é opcional, mas se vier precisa ser um dos valores válidos.
+  if (i.freteMaritimoModo !== undefined && i.freteMaritimoModo !== "ci" && i.freteMaritimoModo !== "chines") {
+    return false;
+  }
+  return true;
+}
+
+export interface ParseResult {
+  ok: boolean;
+  snapshot?: CalcSnapshot;
+  error?: string;
+}
+
+// Recebe o texto cru do arquivo .json e tenta reconstruir um CalcSnapshot válido.
+// Recalcula o resultado a partir do input (fonte da verdade), ignorando o
+// `result` salvo — assim a simulação reaberta reflete sempre a lógica atual.
+export function parseImportedSnapshot(raw: string): ParseResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "Arquivo não é um JSON válido." };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, error: "Conteúdo do arquivo não é reconhecido." };
+  }
+  const p = parsed as Record<string, unknown>;
+  if (p.kind !== "import-cost-simulation") {
+    return { ok: false, error: "Este arquivo não é uma simulação de importação salva por esta calculadora." };
+  }
+  if (!isValidInput(p.input)) {
+    return { ok: false, error: "A simulação está incompleta ou corrompida (parâmetros inválidos)." };
+  }
+  const input = p.input as ImportTaxInput;
+  const snapshot: CalcSnapshot = {
+    nome: typeof p.nome === "string" ? p.nome : "",
+    ncm: typeof p.ncm === "string" ? p.ncm : "",
+    ncmObs: typeof p.ncmObs === "string" ? p.ncmObs : undefined,
+    geradoEm: isFiniteNumber(p.geradoEm) ? (p.geradoEm as number) : Date.now(),
+    input,
+    result: computeImportCost(input),
+  };
+  return { ok: true, snapshot };
+}
+
+// ---------------------------------------------------------------------------
+// Comparacao de dois cenarios — diferenca de imposto e custo final.
+// ---------------------------------------------------------------------------
+export interface ScenarioDiff {
+  custoTotalA: number;
+  custoTotalB: number;
+  custoTotalDelta: number; // B - A
+  custoTotalDeltaPct: number; // (B - A) / A * 100 (0 se A = 0)
+  custoUnitarioA: number;
+  custoUnitarioB: number;
+  custoUnitarioDelta: number;
+  tributosBRL_A: number; // tributos convertidos em R$ pela cotacao do cenario
+  tributosBRL_B: number;
+  tributosDelta: number; // B - A (em R$)
+}
+
+// Converte o total de tributos (US$) em R$ pela cotacao do proprio cenario.
+function tributosEmBRL(snap: CalcSnapshot): number {
+  return snap.result.tributosUSD * snap.input.cotacao;
+}
+
+export function compareScenarios(a: CalcSnapshot, b: CalcSnapshot): ScenarioDiff {
+  const custoTotalA = a.result.custoTotalBRL;
+  const custoTotalB = b.result.custoTotalBRL;
+  const tributosBRL_A = tributosEmBRL(a);
+  const tributosBRL_B = tributosEmBRL(b);
+  return {
+    custoTotalA,
+    custoTotalB,
+    custoTotalDelta: custoTotalB - custoTotalA,
+    custoTotalDeltaPct: custoTotalA !== 0 ? ((custoTotalB - custoTotalA) / custoTotalA) * 100 : 0,
+    custoUnitarioA: a.result.custoUnitarioBRL,
+    custoUnitarioB: b.result.custoUnitarioBRL,
+    custoUnitarioDelta: b.result.custoUnitarioBRL - a.result.custoUnitarioBRL,
+    tributosBRL_A,
+    tributosBRL_B,
+    tributosDelta: tributosBRL_B - tributosBRL_A,
+  };
 }
 
 export function downloadJson(snap: CalcSnapshot): void {

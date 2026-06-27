@@ -988,3 +988,15 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Quando "Dentro da CI": comportamento atual (frete entra no valor aduaneiro e gera tributos)
   - [x] Quando "Pago ao chines": frete NAO entra no valor aduaneiro nem na base tributaria; soma apenas no custo final (convertido em R$); AFRMM 8% continua incidindo (opcao A confirmada pelo usuario)
   - [x] Atualizado importTax.ts (freteMaritimoModo), CalculatorPanel UI, calcReport (PDF/HTML) e testes vitest (447 testes passando, build de producao ok)
+
+- [x] Feature 60: Importar simulacao salva (.json) para reabrir e editar
+  - [x] Botao "Importar" no cabecalho da calculadora (input file oculto, aceita .json)
+  - [x] Valida o payload (kind === "import-cost-simulation"), trata arquivo invalido/corrompido/modo invalido com mensagem
+  - [x] Recarrega todos os campos do estado (nome, ncm, ii/ipi, cotacao, preco, qtd, ci, frete, modo, terrestre, comissao, porto)
+  - [x] parseImportedSnapshot em calcReport.ts (recalcula result a partir do input) + 6 testes vitest
+
+- [x] Feature 61: Comparar dois cenarios lado a lado
+  - [x] Botao "Comparar: frete na CI vs pago ao chines" no card de resultado (toggle)
+  - [x] Mostra imposto (R$), custo unitario e custo total de cada cenario + diferenca (delta R$ e %)
+  - [x] Atalho rapido: compara o cenario atual nos dois modos de frete automaticamente
+  - [x] Layout harmonico (CompareLine, cores good/bad); compareScenarios + 4 testes vitest (457 testes passando, build ok)

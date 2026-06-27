@@ -4,6 +4,8 @@ import {
   buildSteps,
   buildReportHtml,
   buildSavePayload,
+  parseImportedSnapshot,
+  compareScenarios,
   type CalcSnapshot,
 } from "../client/src/shared/supplier-notes/calcReport";
 
@@ -165,5 +167,101 @@ describe("calcReport — modo do frete marítimo (CI vs pago ao chinês)", () =>
     const ci = makeSnapshot();
     const chines = makeSnapshotChines();
     expect(chines.result.tributosUSD).toBeLessThan(ci.result.tributosUSD);
+  });
+});
+
+describe("calcReport — importar simulação salva (.json)", () => {
+  it("reabre um payload válido salvo por buildSavePayload", () => {
+    const snap = makeSnapshot();
+    const raw = buildSavePayload(snap);
+    const res = parseImportedSnapshot(raw);
+    expect(res.ok).toBe(true);
+    expect(res.snapshot?.ncm).toBe("4818.90.90");
+    expect(res.snapshot?.input.quantidade).toBe(5000);
+    // o resultado é recalculado a partir do input (mesmo custo)
+    expect(res.snapshot?.result.custoUnitarioBRL).toBeCloseTo(snap.result.custoUnitarioBRL, 6);
+  });
+
+  it("preserva o modo do frete marítimo ao reabrir", () => {
+    const snap = makeSnapshot();
+    const raw = buildSavePayload({ ...snap, input: { ...snap.input, freteMaritimoModo: "chines" } });
+    const res = parseImportedSnapshot(raw);
+    expect(res.ok).toBe(true);
+    expect(res.snapshot?.input.freteMaritimoModo).toBe("chines");
+    expect(res.snapshot?.result.freteNaBaseUSD).toBe(0);
+  });
+
+  it("rejeita JSON malformado", () => {
+    const res = parseImportedSnapshot("{ isto não é json }");
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("JSON");
+  });
+
+  it("rejeita arquivo de outro tipo (kind diferente)", () => {
+    const res = parseImportedSnapshot(JSON.stringify({ kind: "outra-coisa", input: {} }));
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("não é uma simulação");
+  });
+
+  it("rejeita simulação com parâmetros faltando/inválidos", () => {
+    const res = parseImportedSnapshot(
+      JSON.stringify({ kind: "import-cost-simulation", input: { cotacao: "x", quantidade: 10 } }),
+    );
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("incompleta");
+  });
+
+  it("rejeita freteMaritimoModo inválido", () => {
+    const snap = makeSnapshot();
+    const raw = JSON.stringify({
+      kind: "import-cost-simulation",
+      version: 1,
+      ...snap,
+      input: { ...snap.input, freteMaritimoModo: "aviao" },
+    });
+    const res = parseImportedSnapshot(raw);
+    expect(res.ok).toBe(false);
+  });
+});
+
+describe("calcReport — comparar dois cenários (CI vs pago ao chinês)", () => {
+  function makeBoth(): { a: CalcSnapshot; b: CalcSnapshot } {
+    const base = makeSnapshot();
+    const inputA = { ...base.input, freteMaritimoModo: "ci" as const };
+    const inputB = { ...base.input, freteMaritimoModo: "chines" as const };
+    return {
+      a: { ...base, input: inputA, result: computeImportCost(inputA) },
+      b: { ...base, input: inputB, result: computeImportCost(inputB) },
+    };
+  }
+
+  it("calcula deltas de custo total e imposto entre os cenários", () => {
+    const { a, b } = makeBoth();
+    const diff = compareScenarios(a, b);
+    // pago ao chinês => menos imposto e custo total menor que CI
+    expect(diff.tributosDelta).toBeLessThan(0);
+    expect(diff.custoTotalDelta).toBeLessThan(0);
+    expect(diff.custoTotalDelta).toBeCloseTo(b.result.custoTotalBRL - a.result.custoTotalBRL, 6);
+  });
+
+  it("o percentual de variação reflete (B - A) / A", () => {
+    const { a, b } = makeBoth();
+    const diff = compareScenarios(a, b);
+    const esperado = ((b.result.custoTotalBRL - a.result.custoTotalBRL) / a.result.custoTotalBRL) * 100;
+    expect(diff.custoTotalDeltaPct).toBeCloseTo(esperado, 6);
+  });
+
+  it("cenários idênticos resultam em delta zero", () => {
+    const base = makeSnapshot();
+    const diff = compareScenarios(base, base);
+    expect(diff.custoTotalDelta).toBe(0);
+    expect(diff.tributosDelta).toBe(0);
+    expect(diff.custoTotalDeltaPct).toBe(0);
+  });
+
+  it("converte os tributos de cada cenário em R$ pela cotação", () => {
+    const { a } = makeBoth();
+    const diff = compareScenarios(a, a);
+    expect(diff.tributosBRL_A).toBeCloseTo(a.result.tributosUSD * a.input.cotacao, 6);
   });
 });

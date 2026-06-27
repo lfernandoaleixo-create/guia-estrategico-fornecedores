@@ -24,6 +24,9 @@ import {
   Save,
   AlertTriangle,
   Loader2,
+  Upload,
+  GitCompareArrows,
+  ArrowRight,
 } from "lucide-react";
 import {
   NCM_TABLE,
@@ -38,7 +41,14 @@ import {
   DESPESAS_PORTO_DEFAULT,
   type NcmEntry,
 } from "./importTax";
-import { downloadPdfReport, downloadJson, type CalcSnapshot } from "./calcReport";
+import {
+  downloadPdfReport,
+  downloadJson,
+  parseImportedSnapshot,
+  compareScenarios,
+  type CalcSnapshot,
+} from "./calcReport";
+import type { ImportTaxInput } from "./importTax";
 
 export interface CalculatorPanelProps {
   open: boolean;
@@ -305,6 +315,46 @@ function ResultRow({ label, value, strong, muted }: { label: string; value: stri
   );
 }
 
+// Linha compacta usada nos cartões de comparação de cenários.
+// tone: "good" (verde, economia) ou "bad" (laranja, custo maior).
+function CompareLine({
+  label,
+  value,
+  strong,
+  tone,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  tone?: "good" | "bad";
+}) {
+  const valueColor =
+    tone === "good"
+      ? "oklch(0.78 0.14 150)"
+      : tone === "bad"
+        ? "oklch(0.8 0.14 55)"
+        : strong
+          ? "oklch(0.9 0.02 80)"
+          : "oklch(0.82 0.02 80)";
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[0.72rem]" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+        {label}
+      </span>
+      <span
+        style={{
+          color: valueColor,
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: strong ? 700 : 500,
+          fontSize: strong ? "0.9rem" : "0.8rem",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps) {
   const [nome, setNome] = useState("");
   const [ncm, setNcm] = useState("");
@@ -337,6 +387,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
   // Confirmação ao sair com dados não salvos.
   const [confirmClose, setConfirmClose] = useState(false);
+
+  // Importação de simulação salva (.json).
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importErro, setImportErro] = useState<string | null>(null);
+  const [importOk, setImportOk] = useState(false);
+
+  // Comparação de dois cenários (frete na CI vs pago ao chinês).
+  const [compareOpen, setCompareOpen] = useState(false);
 
   // Fecha com ESC e trava o scroll do body enquanto aberto.
   useEffect(() => {
@@ -406,6 +464,39 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
   // Cotacão atual (numérica) para converter US$ -> R$ nos resumos.
   const cotacaoNum = parseNum(cotacao);
+
+  // Comparação dos dois modos de frete (CI vs pago ao chinês) com o cenário atual.
+  // A = frete na CI (gera imposto); B = pago ao chinês (sem imposto).
+  const compareDiff = useMemo(() => {
+    const snapBase = {
+      nome,
+      ncm,
+      ncmObs,
+      geradoEm: Date.now(),
+    };
+    const inputA: ImportTaxInput = {
+      cotacao: parseNum(cotacao),
+      precoUnitUSD: parseNum(precoUnit),
+      quantidade: parseNum(qtd),
+      ciPct: parseNum(ciPct),
+      iiPct: iiPct ?? 0,
+      ipiPct: ipiPct ?? 0,
+      pisPct,
+      cofinsPct,
+      seguroPct,
+      freteMaritimoUSD: parseNum(freteMaritimo),
+      freteMaritimoModo: "ci",
+      freteTerrestreBRL: parseNum(freteTerrestre),
+      comissaoPct: parseNum(comissaoPct),
+      afrmmPct,
+      siscomexBRL: siscomex,
+      despesasPortoBRL: parseNum(despesasPorto),
+    };
+    const inputB: ImportTaxInput = { ...inputA, freteMaritimoModo: "chines" };
+    const snapA: CalcSnapshot = { ...snapBase, input: inputA, result: computeImportCost(inputA) };
+    const snapB: CalcSnapshot = { ...snapBase, input: inputB, result: computeImportCost(inputB) };
+    return compareScenarios(snapA, snapB);
+  }, [nome, ncm, ncmObs, cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, seguroPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex, despesasPorto]);
   // Mostra o equivalente em R$ entre parênteses ao lado de um valor em US$.
   // Quando a cotação ainda não foi informada (0), não mostra nada (evita R$ 0,00 enganoso).
   const usdComBRL = (usd: number): string =>
@@ -478,6 +569,60 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     downloadJson(buildSnapshot());
   };
 
+  // Converte um número do snapshot importado para string de input (vazio se 0 e opcional).
+  const numToStr = (n: number): string => (Number.isFinite(n) ? String(n).replace(".", ",") : "");
+
+  // Aplica um snapshot importado a todos os campos do formulário.
+  const applySnapshot = (snap: CalcSnapshot) => {
+    const i = snap.input;
+    setNome(snap.nome || "");
+    setNcm(snap.ncm || "");
+    setNcmObs(snap.ncmObs);
+    // Reconhece II/IPI vindos do arquivo (mesmo que o NCM não esteja na tabela).
+    setIiPct(i.iiPct);
+    setIpiPct(i.ipiPct);
+    setMatched(!!findNcm(snap.ncm || ""));
+    setCotacao(numToStr(i.cotacao));
+    setPrecoUnit(numToStr(i.precoUnitUSD));
+    setQtd(numToStr(i.quantidade));
+    setCiPct(numToStr(i.ciPct));
+    setFreteMaritimo(numToStr(i.freteMaritimoUSD));
+    setFreteModo(i.freteMaritimoModo ?? "ci");
+    setFreteTerrestre(numToStr(i.freteTerrestreBRL));
+    setComissaoPct(numToStr(i.comissaoPct));
+    setDespesasPorto(numToStr(i.despesasPortoBRL));
+    setPdfErro(false);
+    setConfirmClose(false);
+  };
+
+  const handleImportClick = () => {
+    setImportErro(null);
+    setImportOk(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Permite reimportar o mesmo arquivo depois (limpa o value).
+    e.target.value = "";
+    if (!file) return;
+    setImportErro(null);
+    setImportOk(false);
+    try {
+      const text = await file.text();
+      const res = parseImportedSnapshot(text);
+      if (!res.ok || !res.snapshot) {
+        setImportErro(res.error ?? "Não foi possível ler o arquivo.");
+        return;
+      }
+      applySnapshot(res.snapshot);
+      setImportOk(true);
+      window.setTimeout(() => setImportOk(false), 4000);
+    } catch {
+      setImportErro("Não foi possível ler o arquivo selecionado.");
+    }
+  };
+
   const reset = () => {
     setNome("");
     setNcm("");
@@ -496,6 +641,9 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setDespesasPorto(String(DESPESAS_PORTO_DEFAULT));
     setPdfErro(false);
     setConfirmClose(false);
+    setImportErro(null);
+    setImportOk(false);
+    setCompareOpen(false);
   };
 
   // "Sujo" = usuário mexeu em algo (ignora despesas portuárias, que já vem com padrão).
@@ -579,6 +727,27 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <button
+              onClick={handleImportClick}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+              style={{
+                background: "oklch(0.18 0.02 258)",
+                border: "1px solid oklch(0.3 0.04 260)",
+                color: "oklch(0.85 0.02 80)",
+                fontFamily: "'Inter', sans-serif",
+              }}
+              title="Importar uma simulação salva (.json) para reabrir e editar"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Importar</span>
+            </button>
             <button
               onClick={reset}
               className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
@@ -645,6 +814,30 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 Sair sem salvar
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Feedback de importação (.json) */}
+        {importErro && (
+          <div
+            className="flex items-center gap-2 px-6 py-3 border-b shrink-0"
+            style={{ background: "oklch(0.45 0.16 25 / 0.18)", borderColor: "oklch(0.55 0.18 25 / 0.45)" }}
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.78 0.16 35)" }} />
+            <span className="text-sm" style={{ color: "oklch(0.85 0.1 35)", fontFamily: "'Inter', sans-serif" }}>
+              {importErro}
+            </span>
+          </div>
+        )}
+        {importOk && (
+          <div
+            className="flex items-center gap-2 px-6 py-3 border-b shrink-0"
+            style={{ background: "oklch(0.6 0.13 150 / 0.14)", borderColor: "oklch(0.6 0.13 150 / 0.4)" }}
+          >
+            <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
+            <span className="text-sm" style={{ color: "oklch(0.8 0.08 150)", fontFamily: "'Inter', sans-serif" }}>
+              Simulação importada — os campos foram preenchidos. Edite o que precisar.
+            </span>
           </div>
         )}
 
@@ -861,8 +1054,100 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 <ResultRow label="AFRMM" value={BRL(calc.afrmmBRL)} />
                 <ResultRow label="Taxa Siscomex" value={BRL(calc.siscomexBRL)} />
                 <ResultRow label="Frete terrestre" value={BRL(calc.freteTerrestreBRL)} />
-                <ResultRow label="Despesas portuárias (Santos)" value={BRL(calc.despesasPortoBRL)} />
+                <ResultRow label="Despesas portúrias (Santos)" value={BRL(calc.despesasPortoBRL)} />
+
+                {isComplete && (
+                  <>
+                    <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
+                    <button
+                      onClick={() => setCompareOpen((v) => !v)}
+                      className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+                      style={{
+                        background: "oklch(0.78 0.16 75 / 0.14)",
+                        border: "1px solid oklch(0.78 0.16 75 / 0.4)",
+                        color: "oklch(0.85 0.13 75)",
+                        fontFamily: "'Inter', sans-serif",
+                      }}
+                      title="Comparar o frete dentro da CI vs pago ao chinês"
+                    >
+                      <GitCompareArrows className="w-4 h-4" />
+                      {compareOpen ? "Ocultar comparação" : "Comparar: frete na CI vs pago ao chinês"}
+                    </button>
+                  </>
+                )}
               </div>
+
+              {/* Painel de comparação de cenários (CI vs chinês) */}
+              {isComplete && compareOpen && (
+                <div
+                  className="rounded-xl p-5 flex flex-col gap-3"
+                  style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.55 0.12 260 / 0.45)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <GitCompareArrows className="w-4 h-4" style={{ color: "oklch(0.78 0.12 280)" }} />
+                    <h3
+                      className="text-sm font-semibold uppercase tracking-[0.1em]"
+                      style={{ color: "oklch(0.75 0.06 280)", fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Frete na CI vs pago ao chinês
+                    </h3>
+                  </div>
+
+                  {/* Dois cenários lado a lado */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      className="rounded-lg p-3 flex flex-col gap-2"
+                      style={{ background: "oklch(0.13 0.02 258)", border: "1px solid oklch(0.3 0.04 260)" }}
+                    >
+                      <span className="text-[0.68rem] uppercase tracking-wide" style={{ color: "oklch(0.62 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                        A · Dentro da CI
+                      </span>
+                      <CompareLine label="Imposto" value={BRL(compareDiff.tributosBRL_A)} />
+                      <CompareLine label="Custo unit." value={BRL(compareDiff.custoUnitarioA)} />
+                      <CompareLine label="Custo total" value={BRL(compareDiff.custoTotalA)} strong />
+                    </div>
+                    <div
+                      className="rounded-lg p-3 flex flex-col gap-2"
+                      style={{ background: "oklch(0.13 0.02 258)", border: "1px solid oklch(0.55 0.12 150 / 0.4)" }}
+                    >
+                      <span className="text-[0.68rem] uppercase tracking-wide" style={{ color: "oklch(0.7 0.1 150)", fontFamily: "'Inter', sans-serif" }}>
+                        B · Pago ao chinês
+                      </span>
+                      <CompareLine label="Imposto" value={BRL(compareDiff.tributosBRL_B)} />
+                      <CompareLine label="Custo unit." value={BRL(compareDiff.custoUnitarioB)} />
+                      <CompareLine label="Custo total" value={BRL(compareDiff.custoTotalB)} strong />
+                    </div>
+                  </div>
+
+                  {/* Diferença (B - A) */}
+                  <div
+                    className="rounded-lg p-3 flex flex-col gap-2"
+                    style={{ background: "oklch(0.16 0.04 75 / 0.4)", border: "1px solid oklch(0.55 0.12 75 / 0.4)" }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <ArrowRight className="w-3.5 h-3.5" style={{ color: "oklch(0.82 0.14 75)" }} />
+                      <span className="text-[0.7rem] uppercase tracking-wide" style={{ color: "oklch(0.8 0.08 75)", fontFamily: "'Inter', sans-serif" }}>
+                        Diferença (pago ao chinês vs CI)
+                      </span>
+                    </div>
+                    <CompareLine
+                      label="Menos imposto"
+                      value={BRL(compareDiff.tributosDelta)}
+                      tone={compareDiff.tributosDelta <= 0 ? "good" : "bad"}
+                    />
+                    <CompareLine
+                      label="Custo total"
+                      value={`${BRL(compareDiff.custoTotalDelta)} (${compareDiff.custoTotalDeltaPct >= 0 ? "+" : ""}${compareDiff.custoTotalDeltaPct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%)`}
+                      tone={compareDiff.custoTotalDelta <= 0 ? "good" : "bad"}
+                      strong
+                    />
+                  </div>
+
+                  <p className="text-[0.68rem] leading-snug" style={{ color: "oklch(0.58 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                    No modo “pago ao chinês” o frete sai da base aduaneira (sem II/IPI/PIS/COFINS), mas continua somando no custo e o AFRMM (8%) permanece. Quando o custo total cai, compensa pagar o frete fora da CI.
+                  </p>
+                </div>
+              )}
 
               {/* Card paralelo — detalhamento tributário */}
               <div
