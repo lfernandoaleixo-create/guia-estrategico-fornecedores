@@ -970,3 +970,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Fechar ao clicar fora/ESC agora pede confirmacao quando ha simulacao nao salva (barra Continuar editando / Sair sem salvar)
   - [x] Botao Voltar claro no topo do cabecalho
   - [x] Typecheck + 438 testes + validacao no preview (confirmacao e preservacao de dados OK)
+
+- [x] Feature 57: BUG CRITICO — site publicado abre tela preta (em branco)
+  - [x] Reproduzir o erro: build de producao quebrava no boot
+  - [x] Causa: manualChunks separava vendor-react de outros vendors, gerando erro de ordem de inicializacao em producao
+  - [x] Correcao: simplificado o manualChunks para isolar APENAS libs pesadas que ja carregam sob demanda (pdfjs, xlsx, docx, jspdf); React/Radix/charts voltaram ao chunking padrao do Vite
+  - [x] Typecheck limpo + 438 testes passando + build de producao validada localmente (Home + Calculadora renderizam corretamente)

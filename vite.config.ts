@@ -175,23 +175,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          // Bibliotecas pesadas isoladas em chunks próprios (carregadas sob demanda)
+          // Isolamos APENAS bibliotecas pesadas que já são carregadas sob demanda
+          // (import dinâmico). NÃO fatiamos React/Radix/charts/vendor genérico:
+          // separar o React de outros vendors causava erro de ordem de
+          // inicialização em produção (tela preta no boot).
           if (id.includes("pdfjs-dist")) return "vendor-pdfjs";
           if (id.includes("/xlsx/") || id.includes("node_modules/xlsx")) return "vendor-xlsx";
           if (id.includes("mammoth") || id.includes("jszip")) return "vendor-docx";
-          if (id.includes("jspdf") || id.includes("html2canvas") || id.includes("canvg") || id.includes("dompurify")) {
-            return "vendor-pdf";
-          }
-          if (id.includes("recharts") || id.includes("d3-") || id.includes("echarts")) {
-            return "vendor-charts";
-          }
-          if (id.includes("react-dom") || id.includes("react/") || id.includes("scheduler")) {
-            return "vendor-react";
-          }
-          if (id.includes("@radix-ui")) {
-            return "vendor-radix";
-          }
-          return "vendor";
+          if (id.includes("jspdf") || id.includes("jspdf-autotable")) return "vendor-pdf";
+          return undefined;
         },
       },
     },
