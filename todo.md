@@ -976,3 +976,15 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Causa: manualChunks separava vendor-react de outros vendors, gerando erro de ordem de inicializacao em producao
   - [x] Correcao: simplificado o manualChunks para isolar APENAS libs pesadas que ja carregam sob demanda (pdfjs, xlsx, docx, jspdf); React/Radix/charts voltaram ao chunking padrao do Vite
   - [x] Typecheck limpo + 438 testes passando + build de producao validada localmente (Home + Calculadora renderizam corretamente)
+
+- [x] Feature 58: Conversao US$ -> R$ entre parenteses nos resumos
+  - [x] No card Resultado, cada valor em US$ exibe tambem o equivalente em R$ entre parenteses (cotacao atual)
+  - [x] No card Detalhamento tributario, idem (valor real, base declarada, seguro, valor aduaneiro, II, IPI, PIS/COFINS-Imp, total de tributos)
+  - [x] Layout harmonico: helper usdComBRL mantem US$ + (R$) na mesma linha
+  - [x] Quando cotacao = 0/vazia, nao mostra parenteses (evita R$ 0,00 enganoso)
+
+- [x] Feature 59: Opcao de frete maritimo dentro da CI vs pago ao chines
+  - [x] Seletor (toggle) no campo Frete maritimo: "Dentro da CI (com imposto)" OU "Pago ao chines (sem imposto)"
+  - [x] Quando "Dentro da CI": comportamento atual (frete entra no valor aduaneiro e gera tributos)
+  - [x] Quando "Pago ao chines": frete NAO entra no valor aduaneiro nem na base tributaria; soma apenas no custo final (convertido em R$); AFRMM 8% continua incidindo (opcao A confirmada pelo usuario)
+  - [x] Atualizado importTax.ts (freteMaritimoModo), CalculatorPanel UI, calcReport (PDF/HTML) e testes vitest (447 testes passando, build de producao ok)

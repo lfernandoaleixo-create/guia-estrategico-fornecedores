@@ -327,6 +327,9 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const siscomex = SISCOMEX_DEFAULT;
 
   const [freteMaritimo, setFreteMaritimo] = useState("");
+  // Como o frete marítimo entra na conta: "ci" (compõe base/imposto) ou "chines"
+  // (pago direto ao fornecedor, soma só no custo, sem imposto).
+  const [freteModo, setFreteModo] = useState<"ci" | "chines">("ci");
   const [freteTerrestre, setFreteTerrestre] = useState("");
   const [comissaoPct, setComissaoPct] = useState("");
   // Despesas portuárias (Santos, 40 pés) — preenchido com padrão, editável.
@@ -391,14 +394,22 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
         cofinsPct,
         seguroPct,
         freteMaritimoUSD: parseNum(freteMaritimo),
+        freteMaritimoModo: freteModo,
         freteTerrestreBRL: parseNum(freteTerrestre),
         comissaoPct: parseNum(comissaoPct),
         afrmmPct,
         siscomexBRL: siscomex,
         despesasPortoBRL: parseNum(despesasPorto),
       }),
-    [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, seguroPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex, despesasPorto],
+    [cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, seguroPct, freteMaritimo, freteModo, freteTerrestre, comissaoPct, afrmmPct, siscomex, despesasPorto],
   );
+
+  // Cotacão atual (numérica) para converter US$ -> R$ nos resumos.
+  const cotacaoNum = parseNum(cotacao);
+  // Mostra o equivalente em R$ entre parênteses ao lado de um valor em US$.
+  // Quando a cotação ainda não foi informada (0), não mostra nada (evita R$ 0,00 enganoso).
+  const usdComBRL = (usd: number): string =>
+    cotacaoNum > 0 ? `${USD(usd)}  (${BRL(usd * cotacaoNum)})` : USD(usd);
 
   const qNum = parseNum(qtd);
 
@@ -435,6 +446,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       cofinsPct,
       seguroPct,
       freteMaritimoUSD: parseNum(freteMaritimo),
+      freteMaritimoModo: freteModo,
       freteTerrestreBRL: parseNum(freteTerrestre),
       comissaoPct: parseNum(comissaoPct),
       afrmmPct,
@@ -478,6 +490,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setIiPct(null);
     setIpiPct(null);
     setFreteMaritimo("");
+    setFreteModo("ci");
     setFreteTerrestre("");
     setComissaoPct("");
     setDespesasPorto(String(DESPESAS_PORTO_DEFAULT));
@@ -716,7 +729,55 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Frete marítimo" value={freteMaritimo} onChange={setFreteMaritimo} placeholder="Digite o frete" prefix="US$" icon={<Ship className="w-3.5 h-3.5" />} hint="Pago ao fornecedor + compõe o valor aduaneiro" required />
+                <div className="flex flex-col gap-2">
+                  <Field
+                    label="Frete marítimo"
+                    value={freteMaritimo}
+                    onChange={setFreteMaritimo}
+                    placeholder="Digite o frete"
+                    prefix="US$"
+                    icon={<Ship className="w-3.5 h-3.5" />}
+                    hint={
+                      freteModo === "ci"
+                        ? "Compõe o valor aduaneiro — gera imposto (II/IPI/PIS/COFINS)"
+                        : "Pago direto ao chinês — entra só no custo, SEM imposto"
+                    }
+                    required
+                  />
+                  {/* Toggle: como o frete entra na conta */}
+                  <div
+                    className="flex rounded-lg overflow-hidden"
+                    style={{ border: "1px solid oklch(0.28 0.04 260)", background: "oklch(0.1 0.018 255)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setFreteModo("ci")}
+                      className="flex-1 px-3 py-2 text-[0.72rem] font-semibold transition-colors"
+                      style={{
+                        background: freteModo === "ci" ? "oklch(0.78 0.16 75 / 0.9)" : "transparent",
+                        color: freteModo === "ci" ? "oklch(0.16 0.03 60)" : "oklch(0.7 0.02 80)",
+                        fontFamily: "'Inter', sans-serif",
+                      }}
+                      title="O frete compõe o valor aduaneiro e gera imposto"
+                    >
+                      Dentro da CI (com imposto)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFreteModo("chines")}
+                      className="flex-1 px-3 py-2 text-[0.72rem] font-semibold transition-colors"
+                      style={{
+                        background: freteModo === "chines" ? "oklch(0.78 0.16 75 / 0.9)" : "transparent",
+                        color: freteModo === "chines" ? "oklch(0.16 0.03 60)" : "oklch(0.7 0.02 80)",
+                        fontFamily: "'Inter', sans-serif",
+                        borderLeft: "1px solid oklch(0.28 0.04 260)",
+                      }}
+                      title="Frete pago direto ao chinês: entra só no custo, sem imposto"
+                    >
+                      Pago ao chinês (sem imposto)
+                    </button>
+                  </div>
+                </div>
                 <Field label="Frete terrestre" value={freteTerrestre} onChange={setFreteTerrestre} placeholder="Digite o frete" prefix="R$" icon={<Truck className="w-3.5 h-3.5" />} hint="Valor fixo em reais" required />
               </div>
 
@@ -791,9 +852,12 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
                 <ResultRow label="Custo total (container)" value={BRL(calc.custoTotalBRL)} strong />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label={`Valor real (${qNum || 0} un)`} value={USD(calc.valorRealTotalUSD)} />
-                <ResultRow label="Comissão Bety" value={USD(calc.comissaoUSD)} />
-                <ResultRow label="Frete marítimo" value={USD(calc.freteMaritimoUSD)} />
+                <ResultRow label={`Valor real (${qNum || 0} un)`} value={usdComBRL(calc.valorRealTotalUSD)} />
+                <ResultRow label="Comissão Bety" value={usdComBRL(calc.comissaoUSD)} />
+                <ResultRow
+                  label={freteModo === "chines" ? "Frete marítimo (pago ao chinês)" : "Frete marítimo (na CI)"}
+                  value={usdComBRL(calc.freteMaritimoUSD)}
+                />
                 <ResultRow label="AFRMM" value={BRL(calc.afrmmBRL)} />
                 <ResultRow label="Taxa Siscomex" value={BRL(calc.siscomexBRL)} />
                 <ResultRow label="Frete terrestre" value={BRL(calc.freteTerrestreBRL)} />
@@ -815,21 +879,27 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   </h3>
                 </div>
 
-                <ResultRow label="Valor real total" value={USD(calc.valorRealTotalUSD)} muted />
-                <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={USD(calc.baseDeclaradaUSD)} muted />
-                <ResultRow label={`Seguro (${seguroPct}% s/ base)`} value={USD(calc.seguroUSD)} muted />
-                <ResultRow label="Valor aduaneiro (+ frete + seguro)" value={USD(calc.valorAduaneiroUSD)} />
+                <ResultRow label="Valor real total" value={usdComBRL(calc.valorRealTotalUSD)} muted />
+                <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={usdComBRL(calc.baseDeclaradaUSD)} muted />
+                <ResultRow label={`Seguro (${seguroPct}% s/ base)`} value={usdComBRL(calc.seguroUSD)} muted />
+                <ResultRow
+                  label={freteModo === "chines" ? "Valor aduaneiro (frete fora — sem imposto)" : "Valor aduaneiro (+ frete + seguro)"}
+                  value={usdComBRL(calc.valorAduaneiroUSD)}
+                />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label={`II (${iiPct ?? 0}%)`} value={USD(calc.iiUSD)} />
-                <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={USD(calc.ipiUSD)} />
-                <ResultRow label={`PIS-Imp. (${pisPct}%)`} value={USD(calc.pisUSD)} />
-                <ResultRow label={`COFINS-Imp. (${cofinsPct}%)`} value={USD(calc.cofinsUSD)} />
+                <ResultRow label={`II (${iiPct ?? 0}%)`} value={usdComBRL(calc.iiUSD)} />
+                <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={usdComBRL(calc.ipiUSD)} />
+                <ResultRow label={`PIS-Imp. (${pisPct}%)`} value={usdComBRL(calc.pisUSD)} />
+                <ResultRow label={`COFINS-Imp. (${cofinsPct}%)`} value={usdComBRL(calc.cofinsUSD)} />
                 <ResultRow label="ICMS importação" value="R$ 0 · TTS ✓" muted />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label="Total de tributos" value={USD(calc.tributosUSD)} strong />
+                <ResultRow label="Total de tributos" value={usdComBRL(calc.tributosUSD)} strong />
 
                 <p className="text-[0.7rem] leading-relaxed mt-2" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                  Seguro (0,40% da base declarada) entra no valor aduaneiro. IPI incide sobre (valor aduaneiro + II). PIS/COFINS-Importação (2,1% + 9,65%) sobre o valor aduaneiro. AFRMM (8%), Siscomex e despesas portuárias são somados em R$ ao custo final. Valores em US$ convertidos pela cotação.
+                  {freteModo === "chines"
+                    ? "Frete marítimo PAGO AO CHINÊS: não entra no valor aduaneiro nem gera II/IPI/PIS/COFINS — soma apenas no custo final (em R$). "
+                    : "Frete marítimo DENTRO DA CI: compõe o valor aduaneiro e gera imposto. "}
+                  Seguro (0,40% da base declarada) entra no valor aduaneiro. IPI incide sobre (valor aduaneiro + II). PIS/COFINS-Importação (2,1% + 9,65%) sobre o valor aduaneiro. AFRMM (8%), Siscomex e despesas portuárias são somados em R$ ao custo final. Valores em US$ com o equivalente em R$ entre parênteses (pela cotação informada).
                 </p>
               </div>
 

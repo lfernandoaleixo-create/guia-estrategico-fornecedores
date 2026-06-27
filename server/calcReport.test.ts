@@ -128,3 +128,42 @@ describe("calcReport — HTML e payload de salvamento", () => {
     expect(parsed.result.custoUnitarioBRL).toBeGreaterThan(0);
   });
 });
+
+describe("calcReport — modo do frete marítimo (CI vs pago ao chinês)", () => {
+  function makeSnapshotChines(): CalcSnapshot {
+    const base = makeSnapshot();
+    const input = { ...base.input, freteMaritimoModo: "chines" as const };
+    return { ...base, input, result: computeImportCost(input) };
+  }
+
+  it("o passo do valor aduaneiro indica que o frete fica fora quando pago ao chinês", () => {
+    const steps = buildSteps(makeSnapshotChines());
+    const va = steps.find((s) => s.titulo.includes("Valor aduaneiro"))!;
+    expect(va.titulo).toContain("chinês");
+    expect(va.formula).toContain("frete fora");
+  });
+
+  it("no modo CI o passo do valor aduaneiro mantém frete + seguro", () => {
+    const steps = buildSteps(makeSnapshot());
+    const va = steps.find((s) => s.titulo.includes("Valor aduaneiro"))!;
+    expect(va.formula).toContain("frete marítimo");
+    expect(va.formula).toContain("seguro");
+  });
+
+  it("o HTML mostra a entrada do frete (Pago ao chinês) e o valor aduaneiro sem imposto", () => {
+    const html = buildReportHtml(makeSnapshotChines());
+    expect(html).toContain("Pago ao chinês (sem imposto)");
+    expect(html).toContain("frete fora");
+  });
+
+  it("o HTML no modo CI mostra a entrada do frete (Dentro da CI)", () => {
+    const html = buildReportHtml(makeSnapshot());
+    expect(html).toContain("Dentro da CI (com imposto)");
+  });
+
+  it("frete pago ao chinês reduz os tributos no relatório (vs CI)", () => {
+    const ci = makeSnapshot();
+    const chines = makeSnapshotChines();
+    expect(chines.result.tributosUSD).toBeLessThan(ci.result.tributosUSD);
+  });
+});

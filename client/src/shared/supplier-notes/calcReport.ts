@@ -58,9 +58,18 @@ export function buildSteps(snap: CalcSnapshot): { titulo: string; formula: strin
   });
 
   steps.push({
-    titulo: "4. Valor aduaneiro (base da cadeia tributária)",
-    formula: "base declarada + frete marítimo + seguro",
-    conta: `${USD(r.baseDeclaradaUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.seguroUSD)}`,
+    titulo:
+      r.freteMaritimoModo === "chines"
+        ? "4. Valor aduaneiro (frete pago ao chinês NÃO entra na base)"
+        : "4. Valor aduaneiro (base da cadeia tributária)",
+    formula:
+      r.freteMaritimoModo === "chines"
+        ? "base declarada + seguro (frete fora, sem imposto)"
+        : "base declarada + frete marítimo + seguro",
+    conta:
+      r.freteMaritimoModo === "chines"
+        ? `${USD(r.baseDeclaradaUSD)} + ${USD(r.seguroUSD)}`
+        : `${USD(r.baseDeclaradaUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.seguroUSD)}`,
     resultado: USD(r.valorAduaneiroUSD),
   });
 
@@ -121,7 +130,10 @@ export function buildSteps(snap: CalcSnapshot): { titulo: string; formula: strin
   });
 
   steps.push({
-    titulo: "13. Subtotal em dólar convertido para reais",
+    titulo:
+      r.freteMaritimoModo === "chines"
+        ? "13. Subtotal em dólar convertido para reais (frete pago ao chinês entra só no custo)"
+        : "13. Subtotal em dólar convertido para reais",
     formula: "(valor real + frete marítimo + seguro + tributos + comissão) × cotação",
     conta: `(${USD(r.valorRealTotalUSD)} + ${USD(i.freteMaritimoUSD)} + ${USD(r.seguroUSD)} + ${USD(r.tributosUSD)} + ${USD(r.comissaoUSD)}) × ${NUM(i.cotacao)}`,
     resultado: BRL((r.valorRealTotalUSD + i.freteMaritimoUSD + r.seguroUSD + r.tributosUSD + r.comissaoUSD) * i.cotacao),
@@ -166,6 +178,7 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     ["AFRMM", PCT(i.afrmmPct)],
     ["Taxa Siscomex", BRL(i.siscomexBRL)],
     ["Frete marítimo", USD(i.freteMaritimoUSD)],
+    ["Frete marítimo (entrada)", r.freteMaritimoModo === "chines" ? "Pago ao chinês (sem imposto)" : "Dentro da CI (com imposto)"],
     ["Frete terrestre", BRL(i.freteTerrestreBRL)],
     ["Despesas portuárias (Santos)", BRL(i.despesasPortoBRL)],
     ["Comissão", PCT(i.comissaoPct)],
@@ -175,7 +188,7 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     ["Valor real total", USD(r.valorRealTotalUSD)],
     [`Base declarada (CI ${PCT(i.ciPct)})`, USD(r.baseDeclaradaUSD)],
     [`Seguro (${PCT(i.seguroPct)})`, USD(r.seguroUSD)],
-    ["Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
+    [r.freteMaritimoModo === "chines" ? "Valor aduaneiro (frete fora — sem imposto)" : "Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
     [`II (${PCT(i.iiPct)})`, USD(r.iiUSD)],
     [`IPI (${PCT(i.ipiPct)})`, USD(r.ipiUSD)],
     [`PIS-Imp. (${PCT(i.pisPct)})`, USD(r.pisUSD)],
@@ -397,6 +410,7 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
       ["AFRMM", PCT(i.afrmmPct)],
       ["Taxa Siscomex", BRL(i.siscomexBRL)],
       ["Frete marítimo", USD(i.freteMaritimoUSD)],
+      ["Frete marítimo (entrada)", r.freteMaritimoModo === "chines" ? "Pago ao chinês (sem imposto)" : "Dentro da CI (com imposto)"],
       ["Frete terrestre", BRL(i.freteTerrestreBRL)],
       ["Despesas portuárias (Santos)", BRL(i.despesasPortoBRL)],
       ["Comissão", PCT(i.comissaoPct)],
@@ -406,7 +420,7 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
       ["Valor real total", USD(r.valorRealTotalUSD)],
       [`Base declarada (CI ${PCT(i.ciPct)})`, USD(r.baseDeclaradaUSD)],
       [`Seguro (${PCT(i.seguroPct)})`, USD(r.seguroUSD)],
-      ["Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
+      [r.freteMaritimoModo === "chines" ? "Valor aduaneiro (frete fora — sem imposto)" : "Valor aduaneiro (+ frete + seguro)", USD(r.valorAduaneiroUSD)],
       [`II (${PCT(i.iiPct)})`, USD(r.iiUSD)],
       [`IPI (${PCT(i.ipiPct)})`, USD(r.ipiUSD)],
       [`PIS-Imp. (${PCT(i.pisPct)})`, USD(r.pisUSD)],

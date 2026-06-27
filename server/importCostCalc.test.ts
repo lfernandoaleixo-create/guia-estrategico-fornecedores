@@ -143,6 +143,41 @@ describe("Calculadora de custo de importação — cadeia tributária", () => {
     const r = computeImportCost({ ...baseInput, quantidade: 0, iiPct: 10, freteMaritimoUSD: 100 });
     expect(r.custoUnitarioBRL).toBe(0);
   });
+
+  it("modo padrão do frete é 'ci' e compõe o valor aduaneiro", () => {
+    const r = computeImportCost({ ...baseInput, cotacao: 1, ciPct: 100, iiPct: 50, freteMaritimoUSD: 200 });
+    expect(r.freteMaritimoModo).toBe("ci");
+    expect(r.freteNaBaseUSD).toBe(200);
+    // base 1000 + frete 200 = 1200 (seguro 0)
+    expect(r.valorAduaneiroUSD).toBeCloseTo(1200, 6);
+  });
+
+  it("frete 'pago ao chinês' NÃO entra no valor aduaneiro nem gera imposto", () => {
+    const ci = computeImportCost({ ...baseInput, cotacao: 1, ciPct: 100, iiPct: 50, ipiPct: 10, pisPct: 2.1, cofinsPct: 9.65, freteMaritimoUSD: 200, freteMaritimoModo: "ci" });
+    const chines = computeImportCost({ ...baseInput, cotacao: 1, ciPct: 100, iiPct: 50, ipiPct: 10, pisPct: 2.1, cofinsPct: 9.65, freteMaritimoUSD: 200, freteMaritimoModo: "chines" });
+    // no modo chines o frete sai da base aduaneira
+    expect(chines.freteNaBaseUSD).toBe(0);
+    expect(chines.valorAduaneiroUSD).toBeCloseTo(ci.valorAduaneiroUSD - 200, 6);
+    // logo, todos os tributos são menores que no modo CI
+    expect(chines.tributosUSD).toBeLessThan(ci.tributosUSD);
+    expect(chines.iiUSD).toBeLessThan(ci.iiUSD);
+  });
+
+  it("frete 'pago ao chinês' continua somando no custo final (só sem imposto)", () => {
+    // II/IPI/PIS/COFINS = 0 para isolar o efeito do frete no custo
+    const ci = computeImportCost({ ...baseInput, cotacao: 5, ciPct: 100, freteMaritimoUSD: 200, freteMaritimoModo: "ci" });
+    const chines = computeImportCost({ ...baseInput, cotacao: 5, ciPct: 100, freteMaritimoUSD: 200, freteMaritimoModo: "chines" });
+    // sem tributos, o frete (200 USD) entra no custo nos dois modos => mesmo custo total
+    expect(chines.custoTotalBRL).toBeCloseTo(ci.custoTotalBRL, 6);
+    // o frete em USD reportado é o mesmo (valor cheio pago ao fornecedor)
+    expect(chines.freteMaritimoUSD).toBe(200);
+  });
+
+  it("AFRMM continua incidindo sobre o frete mesmo no modo 'pago ao chinês' (opcão A)", () => {
+    const chines = computeImportCost({ ...baseInput, cotacao: 5, freteMaritimoUSD: 1000, afrmmPct: 8, freteMaritimoModo: "chines" });
+    // 1000 * 5 * 0,08 = 400 (independe do modo do frete)
+    expect(chines.afrmmBRL).toBeCloseTo(400, 6);
+  });
 });
 
 describe("NCM — tabela e helpers", () => {

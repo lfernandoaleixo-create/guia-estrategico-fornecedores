@@ -118,6 +118,10 @@ export interface ImportTaxInput {
   cofinsPct: number; // % (importação)
   seguroPct: number; // % sobre a base declarada
   freteMaritimoUSD: number;
+  // Como o frete marítimo entra na conta:
+  //  - "ci"    : compõe o valor aduaneiro (gera imposto) — comportamento padrão.
+  //  - "chines": pago direto ao fornecedor; soma apenas no custo final, SEM imposto.
+  freteMaritimoModo?: "ci" | "chines";
   freteTerrestreBRL: number;
   comissaoPct: number; // % sobre o valor real
   afrmmPct: number; // % sobre o frete marítimo
@@ -129,7 +133,9 @@ export interface ImportTaxResult {
   valorRealTotalUSD: number;
   baseDeclaradaUSD: number;
   seguroUSD: number;
-  valorAduaneiroUSD: number; // base declarada + frete marítimo + seguro
+  valorAduaneiroUSD: number; // base declarada + frete marítimo (se modo "ci") + seguro
+  freteMaritimoModo: "ci" | "chines";
+  freteNaBaseUSD: number; // parcela do frete que compôs o valor aduaneiro (0 se modo "chines")
   iiUSD: number;
   ipiUSD: number;
   pisUSD: number;
@@ -147,10 +153,13 @@ export interface ImportTaxResult {
 }
 
 export function computeImportCost(inp: ImportTaxInput): ImportTaxResult {
+  const freteMaritimoModo: "ci" | "chines" = inp.freteMaritimoModo ?? "ci";
   const valorRealTotalUSD = inp.precoUnitUSD * inp.quantidade;
   const baseDeclaradaUSD = valorRealTotalUSD * (inp.ciPct / 100);
   const seguroUSD = baseDeclaradaUSD * (inp.seguroPct / 100);
-  const valorAduaneiroUSD = baseDeclaradaUSD + inp.freteMaritimoUSD + seguroUSD;
+  // Quando o frete é pago ao chinês, ele NÃO entra no valor aduaneiro (sem imposto).
+  const freteNaBaseUSD = freteMaritimoModo === "ci" ? inp.freteMaritimoUSD : 0;
+  const valorAduaneiroUSD = baseDeclaradaUSD + freteNaBaseUSD + seguroUSD;
 
   const iiUSD = valorAduaneiroUSD * (inp.iiPct / 100);
   const ipiUSD = (valorAduaneiroUSD + iiUSD) * (inp.ipiPct / 100);
@@ -176,6 +185,8 @@ export function computeImportCost(inp: ImportTaxInput): ImportTaxResult {
     baseDeclaradaUSD,
     seguroUSD,
     valorAduaneiroUSD,
+    freteMaritimoModo,
+    freteNaBaseUSD,
     iiUSD,
     ipiUSD,
     pisUSD,
