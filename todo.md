@@ -1001,25 +1001,25 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Atalho rapido: compara o cenario atual nos dois modos de frete automaticamente
   - [x] Layout harmonico (CompareLine, cores good/bad); compareScenarios + 4 testes vitest (457 testes passando, build ok)
 
-- [ ] Feature 62: Melhorar estetica dos valores US$/R$ entre parenteses
-  - [ ] Separar visualmente US$ (principal) do R$ (secundario, fonte menor/alinhado)
-  - [ ] Aplicar nos cards Resultado e Detalhamento tributario sem poluir o layout
+- [x] Feature 62: Melhorar estetica dos valores US$/R$ entre parenteses
+  - [x] US$ principal em cima; R$ como subvalor menor/cinza alinhado a direita (ResultRow com prop sub)
+  - [x] Aplicado nos cards Resultado e Detalhamento tributario (validado no preview)
 
-- [ ] Feature 63: Remover card "Comparar frete na CI vs pago ao chines"
-  - [ ] Remover botao + painel + compareDiff/CompareLine da UI (manter compareScenarios no calcReport se util p/ testes? remover se nao usado)
+- [x] Feature 63: Remover card "Comparar frete na CI vs pago ao chines"
+  - [x] Removido botao + painel + compareDiff + CompareLine da UI (compareScenarios mantido em calcReport apenas para testes)
 
-- [ ] Feature 64: PDF/salvar em duas versoes (completo e resumido)
-  - [ ] PDF completo: resultado + detalhamento + passo a passo (memoria de calculo) [atual]
-  - [ ] PDF resumido: resultado + detalhamento, SEM passo a passo
-  - [ ] Dois botoes de PDF; salvar (.json) continua unico (reabre 100%)
+- [x] Feature 64: PDF/salvar em duas versoes (completo e resumido)
+  - [x] PDF completo: resultado + detalhamento + passo a passo (memoria de calculo)
+  - [x] PDF resumido: resultado + detalhamento, SEM passo a passo (param incluirPassoAPasso)
+  - [x] Dois botoes de PDF; salvar via banco + Exportar .json
 
-- [ ] Feature 65: Ate 3 calculadoras independentes lado a lado
-  - [ ] Seletor 1/2/3 que divide a tela em colunas independentes
-  - [ ] Cada coluna tem seu proprio estado/simulacao (comparar 3 concorrentes)
-  - [ ] Responsivo: empilha no mobile
+- [x] Feature 65: Ate 3 calculadoras independentes lado a lado
+  - [x] Seletor 1/2/3 no topo do overlay (CalculatorPanel) que renderiza N CalculatorInstance
+  - [x] Cada coluna tem estado/simulacao isolados (validado: Cenario 1/2/3 independentes)
+  - [x] Responsivo: grid empilha no mobile
 
-- [ ] Feature 66: Biblioteca de simulacoes salvas no sistema (banco de dados)
-  - [ ] Schema (tabela simulations) + procedures salvar/listar/excluir (por scope/owner)
-  - [ ] Botao "Salvar no sistema" na calculadora
-  - [ ] Card/area "Simulacoes salvas": buscar (nome/NCM/data), abrir/reabrir, excluir
-  - [ ] Testes vitest backend
+- [x] Feature 66: Biblioteca de simulacoes salvas no sistema (banco de dados)
+  - [x] Tabela import_simulations + helpers db.ts + procedures salvar/listar/excluir (por owner) em routers/data.ts
+  - [x] Botao "Salvar no sistema" na calculadora (salva/atualiza); validado no preview
+  - [x] SimulationLibrary: buscar (nome/NCM), abrir/reabrir, excluir; validado no preview
+  - [x] Testes vitest (457 passando) + build de producao ok

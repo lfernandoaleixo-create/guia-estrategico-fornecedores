@@ -519,22 +519,15 @@ export interface ParseResult {
   error?: string;
 }
 
-// Recebe o texto cru do arquivo .json e tenta reconstruir um CalcSnapshot válido.
-// Recalcula o resultado a partir do input (fonte da verdade), ignorando o
-// `result` salvo — assim a simulação reaberta reflete sempre a lógica atual.
-export function parseImportedSnapshot(raw: string): ParseResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { ok: false, error: "Arquivo não é um JSON válido." };
-  }
+// Reconstrói um CalcSnapshot a partir de um objeto já parseado (sem JSON.parse).
+// Usado tanto pela importação de arquivo quanto pela biblioteca salva no banco.
+export function parseSnapshotObject(parsed: unknown): ParseResult {
   if (!parsed || typeof parsed !== "object") {
-    return { ok: false, error: "Conteúdo do arquivo não é reconhecido." };
+    return { ok: false, error: "Conteúdo não reconhecido." };
   }
   const p = parsed as Record<string, unknown>;
   if (p.kind !== "import-cost-simulation") {
-    return { ok: false, error: "Este arquivo não é uma simulação de importação salva por esta calculadora." };
+    return { ok: false, error: "Este registro não é uma simulação de importação válida." };
   }
   if (!isValidInput(p.input)) {
     return { ok: false, error: "A simulação está incompleta ou corrompida (parâmetros inválidos)." };
@@ -549,6 +542,25 @@ export function parseImportedSnapshot(raw: string): ParseResult {
     result: computeImportCost(input),
   };
   return { ok: true, snapshot };
+}
+
+// Recebe o texto cru do arquivo .json e tenta reconstruir um CalcSnapshot válido.
+// Recalcula o resultado a partir do input (fonte da verdade), ignorando o
+// `result` salvo — assim a simulação reaberta reflete sempre a lógica atual.
+export function parseImportedSnapshot(raw: string): ParseResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "Arquivo não é um JSON válido." };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, error: "Conteúdo do arquivo não é reconhecido." };
+  }
+  if ((parsed as Record<string, unknown>).kind !== "import-cost-simulation") {
+    return { ok: false, error: "Este arquivo não é uma simulação de importação salva por esta calculadora." };
+  }
+  return parseSnapshotObject(parsed);
 }
 
 // ---------------------------------------------------------------------------

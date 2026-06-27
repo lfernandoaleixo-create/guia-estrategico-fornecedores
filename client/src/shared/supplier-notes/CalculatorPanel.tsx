@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   Loader2,
   Upload,
+  FolderOpen,
+  CheckCircle,
 } from "lucide-react";
 import {
   NCM_TABLE,
@@ -46,10 +48,20 @@ import {
   type CalcSnapshot,
 } from "./calcReport";
 import type { ImportTaxInput } from "./importTax";
+import { useImportSimulations } from "./useImportSimulations";
+import SimulationLibrary from "./SimulationLibrary";
 
 export interface CalculatorPanelProps {
   open: boolean;
   onClose: () => void;
+}
+
+interface CalculatorInstanceProps {
+  // Posição (1-based) e total de colunas, usados no cabeçalho.
+  index: number;
+  total: number;
+  // Callback para remover esta coluna (undefined quando há só uma).
+  onRemove?: () => void;
 }
 
 // Converte string digitada (aceita vírgula) para número; vazio/invalido => 0.
@@ -345,7 +357,13 @@ function ResultRow({
   );
 }
 
-export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps) {
+function CalculatorInstance({ index, total, onRemove }: CalculatorInstanceProps) {
+  // Id da simulação salva no banco (quando aberta da biblioteca ou já salva).
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const { save: saveToLibrary, isSaving } = useImportSimulations();
+  const [saveOk, setSaveOk] = useState(false);
+  const [saveErro, setSaveErro] = useState(false);
+
   const [nome, setNome] = useState("");
   const [ncm, setNcm] = useState("");
   const [ncmObs, setNcmObs] = useState<string | undefined>(undefined);
@@ -382,21 +400,6 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importErro, setImportErro] = useState<string | null>(null);
   const [importOk, setImportOk] = useState(false);
-
-  // Fecha com ESC e trava o scroll do body enquanto aberto.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") requestCloseRef.current();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   // Ao selecionar um NCM da lista: preenche nome (se vazio), II/IPI e observação.
   const handlePick = (e: NcmEntry) => {
@@ -520,7 +523,24 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     }
   };
 
-  const handleSave = () => {
+  // Salva a simulação na biblioteca do sistema (banco). Reutiliza o id se
+  // a simulação foi aberta da biblioteca (atualiza em vez de duplicar).
+  const handleSave = async () => {
+    if (!isComplete || isSaving) return;
+    setSaveOk(false);
+    setSaveErro(false);
+    try {
+      const id = await saveToLibrary(buildSnapshot(), savedId ?? undefined);
+      setSavedId(id);
+      setSaveOk(true);
+      window.setTimeout(() => setSaveOk(false), 3500);
+    } catch {
+      setSaveErro(true);
+    }
+  };
+
+  // Exporta a simulação como arquivo .json (download local).
+  const handleExportJson = () => {
     if (!isComplete) return;
     downloadJson(buildSnapshot());
   };
@@ -549,6 +569,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setDespesasPorto(numToStr(i.despesasPortoBRL));
     setPdfErro(false);
     setConfirmClose(false);
+  };
+
+  // Abre uma simulação vinda da biblioteca: aplica os campos e guarda o id
+  // (para que "Salvar" atualize o mesmo registro).
+  const openFromLibrary = (snap: CalcSnapshot, id: string) => {
+    applySnapshot(snap);
+    setSavedId(id);
+    setLibraryOpen(false);
   };
 
   const handleImportClick = () => {
@@ -599,7 +627,13 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setConfirmClose(false);
     setImportErro(null);
     setImportOk(false);
+    setSavedId(null);
+    setSaveOk(false);
+    setSaveErro(false);
   };
+
+  // Biblioteca de simulações salvas (overlay).
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   // "Sujo" = usuário mexeu em algo (ignora despesas portuárias, que já vem com padrão).
   const isDirty =
@@ -613,48 +647,26 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     freteTerrestre.trim() !== "" ||
     comissaoPct.trim() !== "";
 
-  // Fechar com segurança: se houver dados, pede confirmação; senão fecha direto.
-  const requestClose = () => {
+  // "Limpar" pede confirmação quando há dados; senão limpa direto.
+  const requestClear = () => {
     if (isDirty) {
       setConfirmClose(true);
     } else {
-      onClose();
+      reset();
     }
   };
-  // Ref para o listener de ESC sempre enxergar a versão atual.
-  const requestCloseRef = useRef(requestClose);
-  requestCloseRef.current = requestClose;
-
-  if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Calculadora de custo de importação"
-    >
+    <>
+      <SimulationLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} onOpen={openFromLibrary} />
       <div
-        className="absolute inset-0"
-        style={{ background: "oklch(0.08 0.02 250 / 0.78)", backdropFilter: "blur(6px)" }}
-        onClick={requestClose}
-      />
-
-      <div
-        className="relative w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
+        className="relative flex flex-col rounded-2xl overflow-hidden h-full"
         style={{
           background: "oklch(0.13 0.02 255)",
           border: "1px solid oklch(0.28 0.04 260)",
-          boxShadow: "0 30px 80px oklch(0 0 0 / 0.55), 0 0 0 1px oklch(0.78 0.16 75 / 0.12)",
-          animation: "calc-pop 200ms cubic-bezier(0.23, 1, 0.32, 1)",
+          boxShadow: "0 30px 80px oklch(0 0 0 / 0.45)",
         }}
       >
-        <style>{`
-          @keyframes calc-pop {
-            from { opacity: 0; transform: scale(0.97) translateY(8px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-          }
-        `}</style>
 
         {/* Cabeçalho */}
         <div
@@ -670,18 +682,18 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
             </div>
             <div className="min-w-0">
               <h2
-                className="text-lg font-semibold truncate"
+                className="text-base font-semibold truncate"
                 style={{ color: "oklch(0.96 0.02 80)", fontFamily: "'Fraunces', serif" }}
               >
-                Calculadora
+                {total > 1 ? `Cenário ${index}` : "Calculadora"}
               </h2>
-              <p className="text-xs truncate" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                Custo de importação · cadeia tributária completa · simulação
+              <p className="text-[0.7rem] truncate" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+                {nome ? nome : "Custo de importação · simulação"}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -690,43 +702,55 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
               onChange={handleImportFile}
             />
             <button
-              onClick={handleImportClick}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+              onClick={() => setLibraryOpen(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-transform active:scale-95"
               style={{
                 background: "oklch(0.18 0.02 258)",
                 border: "1px solid oklch(0.3 0.04 260)",
                 color: "oklch(0.85 0.02 80)",
-                fontFamily: "'Inter', sans-serif",
               }}
-              title="Importar uma simulação salva (.json) para reabrir e editar"
+              title="Abrir a biblioteca de simulações salvas"
+              aria-label="Simulações salvas"
+            >
+              <FolderOpen className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleImportClick}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-transform active:scale-95"
+              style={{
+                background: "oklch(0.18 0.02 258)",
+                border: "1px solid oklch(0.3 0.04 260)",
+                color: "oklch(0.85 0.02 80)",
+              }}
+              title="Importar uma simulação salva (.json)"
+              aria-label="Importar .json"
             >
               <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Importar</span>
             </button>
             <button
-              onClick={reset}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+              onClick={requestClear}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-transform active:scale-95"
               style={{
                 background: "oklch(0.18 0.02 258)",
                 border: "1px solid oklch(0.3 0.04 260)",
                 color: "oklch(0.85 0.02 80)",
-                fontFamily: "'Inter', sans-serif",
               }}
               title="Limpar campos"
+              aria-label="Limpar"
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Limpar</span>
             </button>
-            <button
-              onClick={requestClose}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
-              style={{ background: "oklch(0.18 0.02 258)", border: "1px solid oklch(0.3 0.04 260)", color: "oklch(0.85 0.02 80)", fontFamily: "'Inter', sans-serif" }}
-              aria-label="Voltar"
-              title="Voltar"
-            >
-              <X className="w-4 h-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </button>
+            {onRemove ? (
+              <button
+                onClick={onRemove}
+                className="flex items-center justify-center w-9 h-9 rounded-lg transition-transform active:scale-95"
+                style={{ background: "oklch(0.45 0.16 25 / 0.2)", border: "1px solid oklch(0.55 0.18 25 / 0.45)", color: "oklch(0.82 0.12 30)" }}
+                aria-label="Remover este cenário"
+                title="Remover este cenário"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -739,34 +763,26 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
             <div className="flex items-center gap-2 min-w-0">
               <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.82 0.14 75)" }} />
               <span className="text-sm" style={{ color: "oklch(0.92 0.04 80)", fontFamily: "'Inter', sans-serif" }}>
-                Você tem uma simulação não salva. Deseja sair mesmo assim?
+                Limpar todos os campos deste cenário? Os dados não salvos serão perdidos.
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {isComplete && (
-                <button
-                  onClick={async () => {
-                    await handlePdf();
-                  }}
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium transition-transform active:scale-95"
-                  style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.16 0.03 60)", fontFamily: "'Inter', sans-serif" }}
-                >
-                  <FileText className="w-4 h-4" /> Salvar em PDF
-                </button>
-              )}
               <button
                 onClick={() => setConfirmClose(false)}
                 className="px-3 h-8 rounded-lg text-sm transition-transform active:scale-95"
                 style={{ background: "oklch(0.22 0.02 258)", border: "1px solid oklch(0.32 0.04 260)", color: "oklch(0.9 0.02 80)", fontFamily: "'Inter', sans-serif" }}
               >
-                Continuar editando
+                Cancelar
               </button>
               <button
-                onClick={onClose}
+                onClick={() => {
+                  reset();
+                  setConfirmClose(false);
+                }}
                 className="px-3 h-8 rounded-lg text-sm transition-transform active:scale-95"
                 style={{ background: "oklch(0.45 0.16 25 / 0.25)", border: "1px solid oklch(0.55 0.18 25 / 0.5)", color: "oklch(0.85 0.12 30)", fontFamily: "'Inter', sans-serif" }}
               >
-                Sair sem salvar
+                Limpar tudo
               </button>
             </div>
           </div>
@@ -975,26 +991,17 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   </div>
                 </div>
 
-                {/* Ações rápidas (visíveis junto ao resultado) */}
-                <div className="grid grid-cols-2 gap-2 mb-1">
-                  <button
-                    onClick={() => handlePdf(true)}
-                    disabled={!isComplete || gerandoPdf}
-                    className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.16 0.03 60)", fontFamily: "'Inter', sans-serif" }}
-                    title={isComplete ? "Baixar o PDF completo (com a explicação do cálculo)" : "Preencha todos os campos obrigatórios primeiro"}
-                  >
-                    {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                    {gerandoPdf ? "Gerando..." : "PDF completo"}
-                  </button>
+                {/* Ação rápida (visível junto ao resultado) */}
+                <div className="grid grid-cols-1 gap-2 mb-1">
                   <button
                     onClick={handleSave}
-                    disabled={!isComplete}
+                    disabled={!isComplete || isSaving}
                     className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: "oklch(0.2 0.02 258)", border: "1px solid oklch(0.32 0.04 260)", color: "oklch(0.9 0.02 80)", fontFamily: "'Inter', sans-serif" }}
-                    title={isComplete ? "Salvar a simulação (arquivo .json) para reabrir depois" : "Preencha todos os campos obrigatórios primeiro"}
+                    style={{ background: "oklch(0.6 0.13 150 / 0.9)", color: "oklch(0.16 0.04 150)", fontFamily: "'Inter', sans-serif" }}
+                    title={isComplete ? "Salvar a simulação na biblioteca do sistema" : "Preencha todos os campos obrigatórios primeiro"}
                   >
-                    <Save className="w-4 h-4" /> Salvar
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {isSaving ? "Salvando..." : savedId ? "Atualizar simulação salva" : "Salvar no sistema"}
                   </button>
                 </div>
 
@@ -1063,8 +1070,64 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   className="text-xs font-semibold uppercase tracking-[0.1em]"
                   style={{ color: "oklch(0.7 0.02 80)", fontFamily: "'Inter', sans-serif" }}
                 >
-                  Exportar simulação
+                  Salvar e exportar
                 </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={handleSave}
+                    disabled={!isComplete || isSaving}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+                    style={{
+                      background: isComplete ? "oklch(0.6 0.13 150 / 0.9)" : "oklch(0.2 0.02 258)",
+                      color: isComplete ? "oklch(0.16 0.04 150)" : "oklch(0.5 0.02 80)",
+                      fontFamily: "'Inter', sans-serif",
+                      cursor: isComplete && !isSaving ? "pointer" : "not-allowed",
+                      opacity: isComplete ? (isSaving ? 0.8 : 1) : 0.7,
+                    }}
+                    title={isComplete ? "Salvar a simulação na biblioteca do sistema (reabre depois com 1 clique)" : "Preencha todos os campos obrigatórios primeiro"}
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {isSaving ? "Salvando..." : savedId ? "Atualizar salvo" : "Salvar no sistema"}
+                  </button>
+                  <button
+                    onClick={handleExportJson}
+                    disabled={!isComplete}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
+                    style={{
+                      background: "oklch(0.18 0.02 258)",
+                      border: "1px solid oklch(0.32 0.04 260)",
+                      color: isComplete ? "oklch(0.85 0.02 80)" : "oklch(0.5 0.02 80)",
+                      fontFamily: "'Inter', sans-serif",
+                      cursor: isComplete ? "pointer" : "not-allowed",
+                      opacity: isComplete ? 1 : 0.7,
+                    }}
+                    title={isComplete ? "Baixar a simulação como arquivo .json" : "Preencha todos os campos obrigatórios primeiro"}
+                  >
+                    <Upload className="w-4 h-4" /> Exportar .json
+                  </button>
+                </div>
+                {saveOk ? (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2"
+                    style={{ background: "oklch(0.6 0.13 150 / 0.14)", border: "1px solid oklch(0.6 0.13 150 / 0.4)" }}
+                  >
+                    <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.75 0.15 150)" }} />
+                    <span className="text-[0.72rem]" style={{ color: "oklch(0.8 0.08 150)", fontFamily: "'Inter', sans-serif" }}>
+                      Simulação salva na biblioteca. Abra pelo ícone de pasta no topo.
+                    </span>
+                  </div>
+                ) : null}
+                {saveErro ? (
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2"
+                    style={{ background: "oklch(0.6 0.16 50 / 0.12)", border: "1px solid oklch(0.6 0.16 50 / 0.4)" }}
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.78 0.16 60)" }} />
+                    <span className="text-[0.72rem]" style={{ color: "oklch(0.8 0.06 60)", fontFamily: "'Inter', sans-serif" }}>
+                      Não foi possível salvar. Tente novamente.
+                    </span>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     onClick={() => handlePdf(true)}
@@ -1112,13 +1175,142 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   </div>
                 ) : (
                   <p className="text-[0.7rem] leading-relaxed" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    O PDF é baixado direto no seu dispositivo (sem janela de impressão) e traz todos os dados, o resultado e a explicação passo a passo de cada conta. Salvar gera um arquivo reabrível.
+                    <strong style={{ color: "oklch(0.7 0.06 80)" }}>PDF completo</strong>: resultado + detalhamento + passo a passo do cálculo. <strong style={{ color: "oklch(0.7 0.06 80)" }}>PDF resumido</strong>: só o resultado e o detalhamento. “Salvar no sistema” guarda a simulação na biblioteca para reabrir depois.
                   </p>
                 )}
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </>
+  );
+}
+
+// Workspace: overlay que abre de 1 a 3 calculadoras independentes lado a lado,
+// para comparar concorrentes em paralelo.
+export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps) {
+  // Quantidade de colunas (1-3) e ids estáveis para o key de cada instância.
+  const [columns, setColumns] = useState<number[]>([1]);
+
+  // Fecha com ESC e trava o scroll do body enquanto aberto.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const total = columns.length;
+
+  const removeColumn = (id: number) => {
+    setColumns((c) => (c.length <= 1 ? c : c.filter((x) => x !== id)));
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Calculadora de custo de importação"
+    >
+      <div
+        className="absolute inset-0"
+        style={{ background: "oklch(0.08 0.02 250 / 0.82)", backdropFilter: "blur(6px)" }}
+        onClick={onClose}
+      />
+
+      {/* Barra superior do workspace: seletor de colunas + fechar */}
+      <div
+        className="relative flex items-center justify-between gap-3 px-4 sm:px-6 py-3 shrink-0"
+        style={{ background: "oklch(0.1 0.02 255)", borderBottom: "1px solid oklch(0.24 0.03 258)" }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold truncate" style={{ color: "oklch(0.92 0.03 80)", fontFamily: "'Fraunces', serif" }}>
+            Comparar concorrentes
+          </span>
+          <span className="hidden sm:inline text-[0.72rem]" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
+            · até 3 cálculos independentes lado a lado
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            className="flex items-center rounded-lg overflow-hidden"
+            style={{ border: "1px solid oklch(0.3 0.04 260)" }}
+          >
+            {[1, 2, 3].map((n) => {
+              const active = total === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setColumns((prev) => {
+                      if (prev.length === n) return prev;
+                      if (prev.length < n) {
+                        const out = [...prev];
+                        let id = prev.length ? Math.max(...prev) : 0;
+                        while (out.length < n) out.push(++id);
+                        return out;
+                      }
+                      return prev.slice(0, n);
+                    });
+                  }}
+                  className="px-3 h-9 text-sm font-semibold transition-transform active:scale-95"
+                  style={{
+                    background: active ? "oklch(0.78 0.16 75)" : "oklch(0.16 0.02 258)",
+                    color: active ? "oklch(0.16 0.03 60)" : "oklch(0.8 0.02 80)",
+                    fontFamily: "'Inter', sans-serif",
+                  }}
+                  title={`${n} ${n === 1 ? "calculadora" : "calculadoras"} lado a lado`}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+            style={{ background: "oklch(0.18 0.02 258)", border: "1px solid oklch(0.3 0.04 260)", color: "oklch(0.85 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+            title="Fechar a calculadora"
+          >
+            <X className="w-4 h-4" />
+            <span className="hidden sm:inline">Fechar</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Grade de calculadoras */}
+      <div className="relative flex-1 overflow-y-auto p-3 sm:p-4">
+        <div
+          className="grid gap-4 h-full items-start"
+          style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
+        >
+          {columns.map((id, i) => (
+            <div key={id} className="min-w-0 h-full" style={{ animation: "calc-pop 200ms cubic-bezier(0.23, 1, 0.32, 1)" }}>
+              <CalculatorInstance
+                index={i + 1}
+                total={total}
+                onRemove={total > 1 ? () => removeColumn(id) : undefined}
+              />
+            </div>
+          ))}
+        </div>
+        <style>{`
+          @keyframes calc-pop {
+            from { opacity: 0; transform: scale(0.97) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+          }
+        `}</style>
       </div>
     </div>
   );
