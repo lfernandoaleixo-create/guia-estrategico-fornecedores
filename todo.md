@@ -964,3 +964,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] PIS-Importacao 2,1% e COFINS-Importacao 9,65% sobre o valor aduaneiro (base CI reduzida) em vez de 0,65/3
   - [x] Atualizar importTax.ts (logica), CalculatorPanel (UI: campos seguro/despesas, quadro tributos), calcReport (PDF passo a passo)
   - [x] Atualizar testes (438) + typecheck + validacao no preview (custo unit. R$ 12,01; conferido manualmente)
+
+- [x] Feature 56: Ajustes esteticos/UX da calculadora
+  - [x] Botoes Baixar PDF / Salvar adicionados no topo do card de Resultado (visiveis logo apos a simulacao); card detalhado mantido embaixo
+  - [x] Fechar ao clicar fora/ESC agora pede confirmacao quando ha simulacao nao salva (barra Continuar editando / Sair sem salvar)
+  - [x] Botao Voltar claro no topo do cabecalho
+  - [x] Typecheck + 438 testes + validacao no preview (confirmacao e preservacao de dados OK)

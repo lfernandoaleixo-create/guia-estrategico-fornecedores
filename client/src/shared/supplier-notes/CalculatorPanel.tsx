@@ -332,11 +332,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   // Despesas portuárias (Santos, 40 pés) — preenchido com padrão, editável.
   const [despesasPorto, setDespesasPorto] = useState(String(DESPESAS_PORTO_DEFAULT));
 
+  // Confirmação ao sair com dados não salvos.
+  const [confirmClose, setConfirmClose] = useState(false);
+
   // Fecha com ESC e trava o scroll do body enquanto aberto.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -345,7 +348,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   // Ao selecionar um NCM da lista: preenche nome (se vazio), II/IPI e observação.
   const handlePick = (e: NcmEntry) => {
@@ -479,7 +482,32 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setComissaoPct("");
     setDespesasPorto(String(DESPESAS_PORTO_DEFAULT));
     setPdfErro(false);
+    setConfirmClose(false);
   };
+
+  // "Sujo" = usuário mexeu em algo (ignora despesas portuárias, que já vem com padrão).
+  const isDirty =
+    nome.trim() !== "" ||
+    ncm.trim() !== "" ||
+    cotacao.trim() !== "" ||
+    precoUnit.trim() !== "" ||
+    qtd.trim() !== "" ||
+    ciPct.trim() !== "" ||
+    freteMaritimo.trim() !== "" ||
+    freteTerrestre.trim() !== "" ||
+    comissaoPct.trim() !== "";
+
+  // Fechar com segurança: se houver dados, pede confirmação; senão fecha direto.
+  const requestClose = () => {
+    if (isDirty) {
+      setConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
+  // Ref para o listener de ESC sempre enxergar a versão atual.
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
 
   if (!open) return null;
 
@@ -493,7 +521,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
       <div
         className="absolute inset-0"
         style={{ background: "oklch(0.08 0.02 250 / 0.78)", backdropFilter: "blur(6px)" }}
-        onClick={onClose}
+        onClick={requestClose}
       />
 
       <div
@@ -553,16 +581,59 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
               <span className="hidden sm:inline">Limpar</span>
             </button>
             <button
-              onClick={onClose}
-              className="flex items-center justify-center w-9 h-9 rounded-lg transition-transform active:scale-95"
-              style={{ background: "oklch(0.18 0.02 258)", border: "1px solid oklch(0.3 0.04 260)", color: "oklch(0.85 0.02 80)" }}
-              aria-label="Fechar"
-              title="Fechar"
+              onClick={requestClose}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
+              style={{ background: "oklch(0.18 0.02 258)", border: "1px solid oklch(0.3 0.04 260)", color: "oklch(0.85 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+              aria-label="Voltar"
+              title="Voltar"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
+              <span className="hidden sm:inline">Voltar</span>
             </button>
           </div>
         </div>
+
+        {/* Barra de confirmação de saída (dados não salvos) */}
+        {confirmClose && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b shrink-0"
+            style={{ background: "oklch(0.2 0.06 70 / 0.25)", borderColor: "oklch(0.5 0.12 70 / 0.4)" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.82 0.14 75)" }} />
+              <span className="text-sm" style={{ color: "oklch(0.92 0.04 80)", fontFamily: "'Inter', sans-serif" }}>
+                Você tem uma simulação não salva. Deseja sair mesmo assim?
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {isComplete && (
+                <button
+                  onClick={async () => {
+                    await handlePdf();
+                  }}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium transition-transform active:scale-95"
+                  style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.16 0.03 60)", fontFamily: "'Inter', sans-serif" }}
+                >
+                  <FileText className="w-4 h-4" /> Salvar em PDF
+                </button>
+              )}
+              <button
+                onClick={() => setConfirmClose(false)}
+                className="px-3 h-8 rounded-lg text-sm transition-transform active:scale-95"
+                style={{ background: "oklch(0.22 0.02 258)", border: "1px solid oklch(0.32 0.04 260)", color: "oklch(0.9 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+              >
+                Continuar editando
+              </button>
+              <button
+                onClick={onClose}
+                className="px-3 h-8 rounded-lg text-sm transition-transform active:scale-95"
+                style={{ background: "oklch(0.45 0.16 25 / 0.25)", border: "1px solid oklch(0.55 0.18 25 / 0.5)", color: "oklch(0.85 0.12 30)", fontFamily: "'Inter', sans-serif" }}
+              >
+                Sair sem salvar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -693,6 +764,29 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.9rem", fontWeight: 600, color: "oklch(0.95 0.08 80)", lineHeight: 1.1 }}>
                     {BRL(calc.custoUnitarioBRL)}
                   </div>
+                </div>
+
+                {/* Ações rápidas (visíveis junto ao resultado) */}
+                <div className="grid grid-cols-2 gap-2 mb-1">
+                  <button
+                    onClick={handlePdf}
+                    disabled={!isComplete || gerandoPdf}
+                    className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.16 0.03 60)", fontFamily: "'Inter', sans-serif" }}
+                    title={isComplete ? "Baixar o PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
+                  >
+                    {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    {gerandoPdf ? "Gerando..." : "Baixar PDF"}
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={!isComplete}
+                    className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: "oklch(0.2 0.02 258)", border: "1px solid oklch(0.32 0.04 260)", color: "oklch(0.9 0.02 80)", fontFamily: "'Inter', sans-serif" }}
+                    title={isComplete ? "Salvar a simulação (arquivo .json) para reabrir depois" : "Preencha todos os campos obrigatórios primeiro"}
+                  >
+                    <Save className="w-4 h-4" /> Salvar
+                  </button>
                 </div>
 
                 <ResultRow label="Custo total (container)" value={BRL(calc.custoTotalBRL)} strong />
