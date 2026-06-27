@@ -25,8 +25,6 @@ import {
   AlertTriangle,
   Loader2,
   Upload,
-  GitCompareArrows,
-  ArrowRight,
 } from "lucide-react";
 import {
   NCM_TABLE,
@@ -45,7 +43,6 @@ import {
   downloadPdfReport,
   downloadJson,
   parseImportedSnapshot,
-  compareScenarios,
   type CalcSnapshot,
 } from "./calcReport";
 import type { ImportTaxInput } from "./importTax";
@@ -288,68 +285,61 @@ function NcmField({
   );
 }
 
-function ResultRow({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+function ResultRow({
+  label,
+  value,
+  sub,
+  strong,
+  muted,
+}: {
+  label: string;
+  value: string;
+  /** Valor secundário (ex.: equivalente em R$) mostrado abaixo, alinhado à direita. */
+  sub?: string;
+  strong?: boolean;
+  muted?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between gap-4 py-1.5">
+    <div className="flex items-start justify-between gap-4 py-1.5">
       <span
         className="text-sm"
         style={{
           color: strong ? "oklch(0.95 0.02 80)" : muted ? "oklch(0.55 0.02 80)" : "oklch(0.72 0.02 80)",
           fontFamily: "'Inter', sans-serif",
           fontWeight: strong ? 600 : 400,
+          lineHeight: 1.35,
         }}
       >
         {label}
       </span>
-      <span
-        style={{
-          color: strong ? "oklch(0.88 0.12 75)" : muted ? "oklch(0.62 0.02 80)" : "oklch(0.9 0.02 80)",
-          fontFamily: strong ? "'Fraunces', serif" : "'Inter', sans-serif",
-          fontWeight: strong ? 600 : 500,
-          fontSize: strong ? "1.05rem" : "0.875rem",
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-// Linha compacta usada nos cartões de comparação de cenários.
-// tone: "good" (verde, economia) ou "bad" (laranja, custo maior).
-function CompareLine({
-  label,
-  value,
-  strong,
-  tone,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  tone?: "good" | "bad";
-}) {
-  const valueColor =
-    tone === "good"
-      ? "oklch(0.78 0.14 150)"
-      : tone === "bad"
-        ? "oklch(0.8 0.14 55)"
-        : strong
-          ? "oklch(0.9 0.02 80)"
-          : "oklch(0.82 0.02 80)";
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[0.72rem]" style={{ color: "oklch(0.6 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-        {label}
-      </span>
-      <span
-        style={{
-          color: valueColor,
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: strong ? 700 : 500,
-          fontSize: strong ? "0.9rem" : "0.8rem",
-        }}
-      >
-        {value}
+      <span className="flex flex-col items-end shrink-0" style={{ lineHeight: 1.2 }}>
+        <span
+          style={{
+            color: strong ? "oklch(0.88 0.12 75)" : muted ? "oklch(0.62 0.02 80)" : "oklch(0.9 0.02 80)",
+            fontFamily: strong ? "'Fraunces', serif" : "'Inter', sans-serif",
+            fontWeight: strong ? 600 : 500,
+            fontSize: strong ? "1.05rem" : "0.875rem",
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {value}
+        </span>
+        {sub ? (
+          <span
+            style={{
+              color: "oklch(0.55 0.02 80)",
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 400,
+              fontSize: "0.72rem",
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap",
+              marginTop: "1px",
+            }}
+          >
+            {sub}
+          </span>
+        ) : null}
       </span>
     </div>
   );
@@ -392,9 +382,6 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importErro, setImportErro] = useState<string | null>(null);
   const [importOk, setImportOk] = useState(false);
-
-  // Comparação de dois cenários (frete na CI vs pago ao chinês).
-  const [compareOpen, setCompareOpen] = useState(false);
 
   // Fecha com ESC e trava o scroll do body enquanto aberto.
   useEffect(() => {
@@ -465,42 +452,11 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   // Cotacão atual (numérica) para converter US$ -> R$ nos resumos.
   const cotacaoNum = parseNum(cotacao);
 
-  // Comparação dos dois modos de frete (CI vs pago ao chinês) com o cenário atual.
-  // A = frete na CI (gera imposto); B = pago ao chinês (sem imposto).
-  const compareDiff = useMemo(() => {
-    const snapBase = {
-      nome,
-      ncm,
-      ncmObs,
-      geradoEm: Date.now(),
-    };
-    const inputA: ImportTaxInput = {
-      cotacao: parseNum(cotacao),
-      precoUnitUSD: parseNum(precoUnit),
-      quantidade: parseNum(qtd),
-      ciPct: parseNum(ciPct),
-      iiPct: iiPct ?? 0,
-      ipiPct: ipiPct ?? 0,
-      pisPct,
-      cofinsPct,
-      seguroPct,
-      freteMaritimoUSD: parseNum(freteMaritimo),
-      freteMaritimoModo: "ci",
-      freteTerrestreBRL: parseNum(freteTerrestre),
-      comissaoPct: parseNum(comissaoPct),
-      afrmmPct,
-      siscomexBRL: siscomex,
-      despesasPortoBRL: parseNum(despesasPorto),
-    };
-    const inputB: ImportTaxInput = { ...inputA, freteMaritimoModo: "chines" };
-    const snapA: CalcSnapshot = { ...snapBase, input: inputA, result: computeImportCost(inputA) };
-    const snapB: CalcSnapshot = { ...snapBase, input: inputB, result: computeImportCost(inputB) };
-    return compareScenarios(snapA, snapB);
-  }, [nome, ncm, ncmObs, cotacao, precoUnit, qtd, ciPct, iiPct, ipiPct, pisPct, cofinsPct, seguroPct, freteMaritimo, freteTerrestre, comissaoPct, afrmmPct, siscomex, despesasPorto]);
-  // Mostra o equivalente em R$ entre parênteses ao lado de um valor em US$.
-  // Quando a cotação ainda não foi informada (0), não mostra nada (evita R$ 0,00 enganoso).
-  const usdComBRL = (usd: number): string =>
-    cotacaoNum > 0 ? `${USD(usd)}  (${BRL(usd * cotacaoNum)})` : USD(usd);
+  // Devolve o equivalente em R$ de um valor em US$, para exibir como SUBVALOR
+  // (linha de baixo, fonte menor) ao lado do valor em dólar. Quando a cotação
+  // ainda não foi informada (0), devolve undefined (evita "R$ 0,00" enganoso).
+  const usdSub = (usd: number): string | undefined =>
+    cotacaoNum > 0 ? `≈ ${BRL(usd * cotacaoNum)}` : undefined;
 
   const qNum = parseNum(qtd);
 
@@ -550,12 +506,12 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
   const [pdfErro, setPdfErro] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
-  const handlePdf = async () => {
+  const handlePdf = async (incluirPassoAPasso = true) => {
     if (!isComplete || gerandoPdf) return;
     setPdfErro(false);
     setGerandoPdf(true);
     try {
-      const ok = await downloadPdfReport(buildSnapshot());
+      const ok = await downloadPdfReport(buildSnapshot(), incluirPassoAPasso);
       setPdfErro(!ok);
     } catch {
       setPdfErro(true);
@@ -643,7 +599,6 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
     setConfirmClose(false);
     setImportErro(null);
     setImportOk(false);
-    setCompareOpen(false);
   };
 
   // "Sujo" = usuário mexeu em algo (ignora despesas portuárias, que já vem com padrão).
@@ -1023,14 +978,14 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 {/* Ações rápidas (visíveis junto ao resultado) */}
                 <div className="grid grid-cols-2 gap-2 mb-1">
                   <button
-                    onClick={handlePdf}
+                    onClick={() => handlePdf(true)}
                     disabled={!isComplete || gerandoPdf}
                     className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ background: "oklch(0.78 0.16 75)", color: "oklch(0.16 0.03 60)", fontFamily: "'Inter', sans-serif" }}
-                    title={isComplete ? "Baixar o PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
+                    title={isComplete ? "Baixar o PDF completo (com a explicação do cálculo)" : "Preencha todos os campos obrigatórios primeiro"}
                   >
                     {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                    {gerandoPdf ? "Gerando..." : "Baixar PDF"}
+                    {gerandoPdf ? "Gerando..." : "PDF completo"}
                   </button>
                   <button
                     onClick={handleSave}
@@ -1045,109 +1000,19 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
 
                 <ResultRow label="Custo total (container)" value={BRL(calc.custoTotalBRL)} strong />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label={`Valor real (${qNum || 0} un)`} value={usdComBRL(calc.valorRealTotalUSD)} />
-                <ResultRow label="Comissão Bety" value={usdComBRL(calc.comissaoUSD)} />
+                <ResultRow label={`Valor real (${qNum || 0} un)`} value={USD(calc.valorRealTotalUSD)} sub={usdSub(calc.valorRealTotalUSD)} />
+                <ResultRow label="Comissão Bety" value={USD(calc.comissaoUSD)} sub={usdSub(calc.comissaoUSD)} />
                 <ResultRow
                   label={freteModo === "chines" ? "Frete marítimo (pago ao chinês)" : "Frete marítimo (na CI)"}
-                  value={usdComBRL(calc.freteMaritimoUSD)}
+                  value={USD(calc.freteMaritimoUSD)}
+                  sub={usdSub(calc.freteMaritimoUSD)}
                 />
                 <ResultRow label="AFRMM" value={BRL(calc.afrmmBRL)} />
                 <ResultRow label="Taxa Siscomex" value={BRL(calc.siscomexBRL)} />
                 <ResultRow label="Frete terrestre" value={BRL(calc.freteTerrestreBRL)} />
                 <ResultRow label="Despesas portúrias (Santos)" value={BRL(calc.despesasPortoBRL)} />
 
-                {isComplete && (
-                  <>
-                    <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                    <button
-                      onClick={() => setCompareOpen((v) => !v)}
-                      className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-lg text-sm transition-transform active:scale-95"
-                      style={{
-                        background: "oklch(0.78 0.16 75 / 0.14)",
-                        border: "1px solid oklch(0.78 0.16 75 / 0.4)",
-                        color: "oklch(0.85 0.13 75)",
-                        fontFamily: "'Inter', sans-serif",
-                      }}
-                      title="Comparar o frete dentro da CI vs pago ao chinês"
-                    >
-                      <GitCompareArrows className="w-4 h-4" />
-                      {compareOpen ? "Ocultar comparação" : "Comparar: frete na CI vs pago ao chinês"}
-                    </button>
-                  </>
-                )}
               </div>
-
-              {/* Painel de comparação de cenários (CI vs chinês) */}
-              {isComplete && compareOpen && (
-                <div
-                  className="rounded-xl p-5 flex flex-col gap-3"
-                  style={{ background: "oklch(0.1 0.018 255)", border: "1px solid oklch(0.55 0.12 260 / 0.45)" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <GitCompareArrows className="w-4 h-4" style={{ color: "oklch(0.78 0.12 280)" }} />
-                    <h3
-                      className="text-sm font-semibold uppercase tracking-[0.1em]"
-                      style={{ color: "oklch(0.75 0.06 280)", fontFamily: "'Inter', sans-serif" }}
-                    >
-                      Frete na CI vs pago ao chinês
-                    </h3>
-                  </div>
-
-                  {/* Dois cenários lado a lado */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div
-                      className="rounded-lg p-3 flex flex-col gap-2"
-                      style={{ background: "oklch(0.13 0.02 258)", border: "1px solid oklch(0.3 0.04 260)" }}
-                    >
-                      <span className="text-[0.68rem] uppercase tracking-wide" style={{ color: "oklch(0.62 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                        A · Dentro da CI
-                      </span>
-                      <CompareLine label="Imposto" value={BRL(compareDiff.tributosBRL_A)} />
-                      <CompareLine label="Custo unit." value={BRL(compareDiff.custoUnitarioA)} />
-                      <CompareLine label="Custo total" value={BRL(compareDiff.custoTotalA)} strong />
-                    </div>
-                    <div
-                      className="rounded-lg p-3 flex flex-col gap-2"
-                      style={{ background: "oklch(0.13 0.02 258)", border: "1px solid oklch(0.55 0.12 150 / 0.4)" }}
-                    >
-                      <span className="text-[0.68rem] uppercase tracking-wide" style={{ color: "oklch(0.7 0.1 150)", fontFamily: "'Inter', sans-serif" }}>
-                        B · Pago ao chinês
-                      </span>
-                      <CompareLine label="Imposto" value={BRL(compareDiff.tributosBRL_B)} />
-                      <CompareLine label="Custo unit." value={BRL(compareDiff.custoUnitarioB)} />
-                      <CompareLine label="Custo total" value={BRL(compareDiff.custoTotalB)} strong />
-                    </div>
-                  </div>
-
-                  {/* Diferença (B - A) */}
-                  <div
-                    className="rounded-lg p-3 flex flex-col gap-2"
-                    style={{ background: "oklch(0.16 0.04 75 / 0.4)", border: "1px solid oklch(0.55 0.12 75 / 0.4)" }}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <ArrowRight className="w-3.5 h-3.5" style={{ color: "oklch(0.82 0.14 75)" }} />
-                      <span className="text-[0.7rem] uppercase tracking-wide" style={{ color: "oklch(0.8 0.08 75)", fontFamily: "'Inter', sans-serif" }}>
-                        Diferença (pago ao chinês vs CI)
-                      </span>
-                    </div>
-                    <CompareLine
-                      label="Menos imposto"
-                      value={BRL(compareDiff.tributosDelta)}
-                      tone={compareDiff.tributosDelta <= 0 ? "good" : "bad"}
-                    />
-                    <CompareLine
-                      label="Custo total"
-                      value={`${BRL(compareDiff.custoTotalDelta)} (${compareDiff.custoTotalDeltaPct >= 0 ? "+" : ""}${compareDiff.custoTotalDeltaPct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%)`}
-                      tone={compareDiff.custoTotalDelta <= 0 ? "good" : "bad"}
-                      strong
-                    />
-                  </div>
-
-                  <p className="text-[0.68rem] leading-snug" style={{ color: "oklch(0.58 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
-                    No modo “pago ao chinês” o frete sai da base aduaneira (sem II/IPI/PIS/COFINS), mas continua somando no custo e o AFRMM (8%) permanece. Quando o custo total cai, compensa pagar o frete fora da CI.
-                  </p>
-                </div>
-              )}
 
               {/* Card paralelo — detalhamento tributário */}
               <div
@@ -1164,21 +1029,22 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                   </h3>
                 </div>
 
-                <ResultRow label="Valor real total" value={usdComBRL(calc.valorRealTotalUSD)} muted />
-                <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={usdComBRL(calc.baseDeclaradaUSD)} muted />
-                <ResultRow label={`Seguro (${seguroPct}% s/ base)`} value={usdComBRL(calc.seguroUSD)} muted />
+                <ResultRow label="Valor real total" value={USD(calc.valorRealTotalUSD)} sub={usdSub(calc.valorRealTotalUSD)} muted />
+                <ResultRow label={`Base declarada (CI ${parseNum(ciPct) || 0}%)`} value={USD(calc.baseDeclaradaUSD)} sub={usdSub(calc.baseDeclaradaUSD)} muted />
+                <ResultRow label={`Seguro (${seguroPct}% s/ base)`} value={USD(calc.seguroUSD)} sub={usdSub(calc.seguroUSD)} muted />
                 <ResultRow
                   label={freteModo === "chines" ? "Valor aduaneiro (frete fora — sem imposto)" : "Valor aduaneiro (+ frete + seguro)"}
-                  value={usdComBRL(calc.valorAduaneiroUSD)}
+                  value={USD(calc.valorAduaneiroUSD)}
+                  sub={usdSub(calc.valorAduaneiroUSD)}
                 />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label={`II (${iiPct ?? 0}%)`} value={usdComBRL(calc.iiUSD)} />
-                <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={usdComBRL(calc.ipiUSD)} />
-                <ResultRow label={`PIS-Imp. (${pisPct}%)`} value={usdComBRL(calc.pisUSD)} />
-                <ResultRow label={`COFINS-Imp. (${cofinsPct}%)`} value={usdComBRL(calc.cofinsUSD)} />
+                <ResultRow label={`II (${iiPct ?? 0}%)`} value={USD(calc.iiUSD)} sub={usdSub(calc.iiUSD)} />
+                <ResultRow label={`IPI (${ipiPct ?? 0}%)`} value={USD(calc.ipiUSD)} sub={usdSub(calc.ipiUSD)} />
+                <ResultRow label={`PIS-Imp. (${pisPct}%)`} value={USD(calc.pisUSD)} sub={usdSub(calc.pisUSD)} />
+                <ResultRow label={`COFINS-Imp. (${cofinsPct}%)`} value={USD(calc.cofinsUSD)} sub={usdSub(calc.cofinsUSD)} />
                 <ResultRow label="ICMS importação" value="R$ 0 · TTS ✓" muted />
                 <div className="h-px my-2" style={{ background: "oklch(0.24 0.03 258)" }} />
-                <ResultRow label="Total de tributos" value={usdComBRL(calc.tributosUSD)} strong />
+                <ResultRow label="Total de tributos" value={USD(calc.tributosUSD)} sub={usdSub(calc.tributosUSD)} strong />
 
                 <p className="text-[0.7rem] leading-relaxed mt-2" style={{ color: "oklch(0.5 0.02 80)", fontFamily: "'Inter', sans-serif" }}>
                   {freteModo === "chines"
@@ -1201,7 +1067,7 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
-                    onClick={handlePdf}
+                    onClick={() => handlePdf(true)}
                     disabled={!isComplete || gerandoPdf}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
                     style={{
@@ -1211,27 +1077,27 @@ export default function CalculatorPanel({ open, onClose }: CalculatorPanelProps)
                       cursor: isComplete && !gerandoPdf ? "pointer" : "not-allowed",
                       opacity: isComplete ? (gerandoPdf ? 0.8 : 1) : 0.7,
                     }}
-                    title={isComplete ? "Baixar o PDF com o detalhamento e a explicação do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
+                    title={isComplete ? "PDF completo: resultado + detalhamento + passo a passo do cálculo" : "Preencha todos os campos obrigatórios primeiro"}
                   >
                     {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                    {gerandoPdf ? "Gerando PDF..." : "Baixar PDF"}
+                    {gerandoPdf ? "Gerando PDF..." : "PDF completo"}
                   </button>
                   <button
-                    onClick={handleSave}
-                    disabled={!isComplete}
+                    onClick={() => handlePdf(false)}
+                    disabled={!isComplete || gerandoPdf}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-transform active:scale-[0.97]"
                     style={{
                       background: "oklch(0.18 0.02 258)",
-                      border: "1px solid oklch(0.3 0.04 260)",
-                      color: isComplete ? "oklch(0.88 0.02 80)" : "oklch(0.5 0.02 80)",
+                      border: "1px solid oklch(0.55 0.12 75 / 0.5)",
+                      color: isComplete ? "oklch(0.85 0.1 75)" : "oklch(0.5 0.02 80)",
                       fontFamily: "'Inter', sans-serif",
-                      cursor: isComplete ? "pointer" : "not-allowed",
+                      cursor: isComplete && !gerandoPdf ? "pointer" : "not-allowed",
                       opacity: isComplete ? 1 : 0.7,
                     }}
-                    title={isComplete ? "Salvar a simulação (arquivo .json) para reabrir depois" : "Preencha todos os campos obrigatórios primeiro"}
+                    title={isComplete ? "PDF resumido: apenas resultado + detalhamento (sem o passo a passo)" : "Preencha todos os campos obrigatórios primeiro"}
                   >
-                    <Save className="w-4 h-4" />
-                    Salvar simulação
+                    {gerandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    {gerandoPdf ? "Gerando PDF..." : "PDF resumido"}
                   </button>
                 </div>
                 {pdfErro ? (

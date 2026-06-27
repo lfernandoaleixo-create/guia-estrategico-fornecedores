@@ -534,3 +534,28 @@ export async function setAppSetting(key: string, value: string) {
     .values(row)
     .onDuplicateKeyUpdate({ set: { value, updatedAt: row.updatedAt } });
 }
+
+import { desc } from "drizzle-orm";
+import { importSimulations, type InsertImportSimulationRow } from "../drizzle/schema";
+
+/** Lista todas as simulações salvas, mais recentes primeiro. */
+export async function listImportSimulations() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(importSimulations).orderBy(desc(importSimulations.updatedAt));
+}
+
+/** Insere ou atualiza uma simulação salva (upsert por id). */
+export async function upsertImportSimulation(row: InsertImportSimulationRow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const { id, ...rest } = row;
+  await db.insert(importSimulations).values(row).onDuplicateKeyUpdate({ set: rest });
+}
+
+/** Remove uma simulação salva pelo id. */
+export async function deleteImportSimulation(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.delete(importSimulations).where(eq(importSimulations.id, id));
+}

@@ -157,7 +157,8 @@ export function buildSteps(snap: CalcSnapshot): { titulo: string; formula: strin
 }
 
 // Gera o HTML completo e autossuficiente do relatório.
-export function buildReportHtml(snap: CalcSnapshot): string {
+// incluirPassoAPasso=false produz a versão RESUMIDA (sem a memória de cálculo).
+export function buildReportHtml(snap: CalcSnapshot, incluirPassoAPasso = true): string {
   const i = snap.input;
   const r = snap.result;
   const steps = buildSteps(snap);
@@ -275,7 +276,7 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     <div><table>${resumo.map(row).join("")}</table></div>
   </div>
 
-  <h2>Como o cálculo foi feito (passo a passo)</h2>
+  ${incluirPassoAPasso ? `<h2>Como o cálculo foi feito (passo a passo)</h2>
   ${steps.map(stepRow).join("")}
   <p class="note">
     PIS-Importação (2,1%) e COFINS-Importação (9,65%) incidem sobre o valor aduaneiro e são pagos na DI para
@@ -285,7 +286,7 @@ export function buildReportHtml(snap: CalcSnapshot): string {
     declarada) compõe o valor aduaneiro. O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o
     frete marítimo), a taxa Siscomex e as despesas portuárias de Santos (container 40 pés) são somados
     diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada.
-  </p>
+  </p>` : ""}
 
   <div class="footer">Documento gerado automaticamente para fins de simulação. Confirme alíquotas e benefícios vigentes antes de fechar a operação.</div>
 </body>
@@ -300,7 +301,7 @@ function slugify(nome: string): string {
 // Gera o PDF diretamente no navegador e dispara o download — SEM janela de impressão.
 // Usa jsPDF + autotable: desenha o PDF a partir dos dados estruturados (vetorial,
 // confiável, não depende de renderização de DOM/canvas).
-export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
+export async function downloadPdfReport(snap: CalcSnapshot, incluirPassoAPasso = true): Promise<boolean> {
   try {
     const { jsPDF } = await import("jspdf");
     const autoTableMod = await import("jspdf-autotable");
@@ -440,32 +441,34 @@ export async function downloadPdfReport(snap: CalcSnapshot): Promise<boolean> {
     sectionTitle("Detalhamento tributário");
     pairTable(detalhamento);
 
-    sectionTitle("Como o cálculo foi feito (passo a passo)");
-    const stepRows = steps.map((s) => [`${s.titulo}\nFórmula: ${s.formula}\n${s.conta} = ${s.resultado}`]);
-    autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      body: stepRows,
-      theme: "plain",
-      styles: { fontSize: 9, cellPadding: { top: 1.5, bottom: 3, left: 3, right: 2 }, textColor: [40, 40, 40], lineColor: [230, 201, 140], lineWidth: { left: 0.8, top: 0, right: 0, bottom: 0 } },
-      columnStyles: { 0: { cellWidth: contentW } },
-    });
-    // @ts-expect-error lastAutoTable é anexado pelo plugin
-    y = (doc.lastAutoTable?.finalY ?? y) + 6;
+    if (incluirPassoAPasso) {
+      sectionTitle("Como o cálculo foi feito (passo a passo)");
+      const stepRows = steps.map((s) => [`${s.titulo}\nFórmula: ${s.formula}\n${s.conta} = ${s.resultado}`]);
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        body: stepRows,
+        theme: "plain",
+        styles: { fontSize: 9, cellPadding: { top: 1.5, bottom: 3, left: 3, right: 2 }, textColor: [40, 40, 40], lineColor: [230, 201, 140], lineWidth: { left: 0.8, top: 0, right: 0, bottom: 0 } },
+        columnStyles: { 0: { cellWidth: contentW } },
+      });
+      // @ts-expect-error lastAutoTable é anexado pelo plugin
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
 
-    if (y > 250) {
-      doc.addPage();
-      y = margin;
+      if (y > 250) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(...grey);
+      const nota =
+        "PIS-Importação (2,1%) e COFINS-Importação (9,65%) incidem sobre o valor aduaneiro e são pagos na DI para liberar a carga. O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais — que é estadual e não afeta PIS/COFINS (federais). A CI% é o percentual do valor real declarado como base aduaneira e reduz toda a cadeia (seguro, II, IPI, PIS e COFINS). O seguro internacional (0,40% da base declarada) compõe o valor aduaneiro. O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o frete marítimo), a taxa Siscomex e as despesas portuárias de Santos (container 40 pés) são somados diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada. Documento gerado automaticamente para fins de simulação — confirme alíquotas e benefícios vigentes antes de fechar a operação.";
+      const notaLines = doc.splitTextToSize(nota, contentW);
+      doc.text(notaLines, margin, y);
     }
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(...grey);
-    const nota =
-      "PIS-Importação (2,1%) e COFINS-Importação (9,65%) incidem sobre o valor aduaneiro e são pagos na DI para liberar a carga. O ICMS de importação é zerado pelo benefício TTS / Corredor de Importação de Minas Gerais — que é estadual e não afeta PIS/COFINS (federais). A CI% é o percentual do valor real declarado como base aduaneira e reduz toda a cadeia (seguro, II, IPI, PIS e COFINS). O seguro internacional (0,40% da base declarada) compõe o valor aduaneiro. O IPI incide em cascata, sobre (valor aduaneiro + II). AFRMM (sobre o frete marítimo), a taxa Siscomex e as despesas portuárias de Santos (container 40 pés) são somados diretamente em reais ao custo final. Valores em US$ são convertidos pela cotação informada. Documento gerado automaticamente para fins de simulação — confirme alíquotas e benefícios vigentes antes de fechar a operação.";
-    const notaLines = doc.splitTextToSize(nota, contentW);
-    doc.text(notaLines, margin, y);
 
-    doc.save(`simulacao-${slugify(snap.nome)}.pdf`);
+    doc.save(`simulacao-${slugify(snap.nome)}${incluirPassoAPasso ? "" : "-resumo"}.pdf`);
     return true;
   } catch {
     return false;

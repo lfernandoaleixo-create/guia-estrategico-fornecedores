@@ -285,3 +285,31 @@ export const appSettings = mysqlTable("app_settings", {
 
 export type AppSettingRow = typeof appSettings.$inferSelect;
 export type InsertAppSettingRow = typeof appSettings.$inferInsert;
+
+/**
+ * Simulações de custo de importação salvas DENTRO do sistema (biblioteca).
+ * Cada registro guarda o payload completo da simulação (mesmo formato do .json
+ * exportado, kind="import-cost-simulation") em `data` (JSON serializado), além
+ * de campos denormalizados (nome, ncm) para busca rápida e ordenação.
+ * Compartilhado entre todos os acessos (sem login por usuário), como os demais
+ * dados do guia.
+ */
+export const importSimulations = mysqlTable("import_simulations", {
+  /** ID textual gerado no cliente (ex.: "sim_xxx"). Chave primária. */
+  id: varchar("id", { length: 96 }).primaryKey(),
+  /** Nome do produto/simulação (para exibição e busca). */
+  name: varchar("name", { length: 255 }).notNull().default(""),
+  /** NCM associado (para busca). */
+  ncm: varchar("ncm", { length: 64 }).notNull().default(""),
+  /** Custo unitário em R$ no momento do salvamento (para exibir no card). */
+  custoUnitarioBRL: varchar("custoUnitarioBRL", { length: 40 }).notNull().default("0"),
+  /** Custo total em R$ no momento do salvamento (para exibir no card). */
+  custoTotalBRL: varchar("custoTotalBRL", { length: 40 }).notNull().default("0"),
+  /** Payload completo da simulação serializado (kind="import-cost-simulation"). */
+  data: longtext("data").notNull(),
+  createdAt: varchar("createdAt", { length: 40 }).notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type ImportSimulationRow = typeof importSimulations.$inferSelect;
+export type InsertImportSimulationRow = typeof importSimulations.$inferInsert;

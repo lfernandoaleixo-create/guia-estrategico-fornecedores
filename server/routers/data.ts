@@ -36,6 +36,9 @@ import {
   deleteSubgroup,
   getAppSetting,
   setAppSetting,
+  listImportSimulations,
+  upsertImportSimulation,
+  deleteImportSimulation,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -376,6 +379,34 @@ export const dataRouter = router({
       .input(z.object({ imageUrl: z.string().min(1), cacheKey: z.string().optional() }))
       .mutation(async ({ input }) => {
         return await ocrTranslateImage(input);
+      }),
+  }),
+
+  // ---------- Simulações de custo de importação salvas (biblioteca) ----------
+  importSimulations: router({
+    list: publicProcedure.query(() => listImportSimulations()),
+    upsert: publicProcedure
+      .input(
+        z.object({
+          id: z.string().min(1),
+          name: z.string().default(""),
+          ncm: z.string().default(""),
+          custoUnitarioBRL: z.string().default("0"),
+          custoTotalBRL: z.string().default("0"),
+          data: z.string().min(1),
+          createdAt: z.string(),
+          updatedAt: z.string(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await upsertImportSimulation(input);
+        return { success: true } as const;
+      }),
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        await deleteImportSimulation(input.id);
+        return { success: true } as const;
       }),
   }),
 

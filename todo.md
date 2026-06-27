@@ -1000,3 +1000,26 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Mostra imposto (R$), custo unitario e custo total de cada cenario + diferenca (delta R$ e %)
   - [x] Atalho rapido: compara o cenario atual nos dois modos de frete automaticamente
   - [x] Layout harmonico (CompareLine, cores good/bad); compareScenarios + 4 testes vitest (457 testes passando, build ok)
+
+- [ ] Feature 62: Melhorar estetica dos valores US$/R$ entre parenteses
+  - [ ] Separar visualmente US$ (principal) do R$ (secundario, fonte menor/alinhado)
+  - [ ] Aplicar nos cards Resultado e Detalhamento tributario sem poluir o layout
+
+- [ ] Feature 63: Remover card "Comparar frete na CI vs pago ao chines"
+  - [ ] Remover botao + painel + compareDiff/CompareLine da UI (manter compareScenarios no calcReport se util p/ testes? remover se nao usado)
+
+- [ ] Feature 64: PDF/salvar em duas versoes (completo e resumido)
+  - [ ] PDF completo: resultado + detalhamento + passo a passo (memoria de calculo) [atual]
+  - [ ] PDF resumido: resultado + detalhamento, SEM passo a passo
+  - [ ] Dois botoes de PDF; salvar (.json) continua unico (reabre 100%)
+
+- [ ] Feature 65: Ate 3 calculadoras independentes lado a lado
+  - [ ] Seletor 1/2/3 que divide a tela em colunas independentes
+  - [ ] Cada coluna tem seu proprio estado/simulacao (comparar 3 concorrentes)
+  - [ ] Responsivo: empilha no mobile
+
+- [ ] Feature 66: Biblioteca de simulacoes salvas no sistema (banco de dados)
+  - [ ] Schema (tabela simulations) + procedures salvar/listar/excluir (por scope/owner)
+  - [ ] Botao "Salvar no sistema" na calculadora
+  - [ ] Card/area "Simulacoes salvas": buscar (nome/NCM/data), abrir/reabrir, excluir
+  - [ ] Testes vitest backend
