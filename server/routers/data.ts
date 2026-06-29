@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { translateTexts, ocrTranslateImage } from "../translate";
 import { publicProcedure, router } from "../_core/trpc";
 import {
@@ -39,6 +40,7 @@ import {
   listImportSimulations,
   upsertImportSimulation,
   deleteImportSimulation,
+  findImportSimulationByName,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -399,6 +401,16 @@ export const dataRouter = router({
         }),
       )
       .mutation(async ({ input }) => {
+        const nome = input.name.trim();
+        if (nome) {
+          const conflictId = await findImportSimulationByName(nome, input.id);
+          if (conflictId) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe uma simulação salva com o nome "${nome}". Use um nome diferente.`,
+            });
+          }
+        }
         await upsertImportSimulation(input);
         return { success: true } as const;
       }),

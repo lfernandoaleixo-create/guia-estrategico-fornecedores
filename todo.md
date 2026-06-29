@@ -1023,3 +1023,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Botao "Salvar no sistema" na calculadora (salva/atualiza); validado no preview
   - [x] SimulationLibrary: buscar (nome/NCM), abrir/reabrir, excluir; validado no preview
   - [x] Testes vitest (457 passando) + build de producao ok
+
+- [x] Feature 67: Bloquear nome de produto duplicado ao salvar simulacao no sistema
+  - [x] Backend: findImportSimulationByName (case-insensitive, trim) + TRPCError CONFLICT na procedure upsert
+  - [x] Frontend: refetch da lista antes de salvar + aviso claro; trata CONFLICT do servidor como rede de seguranca
+  - [x] Atualizar a mesma simulacao salva (mesmo id) continua permitido (savedId)
+  - [x] Testes vitest do caso duplicado (3 novos, 460 passando) + validado no preview (aviso exibido, sem duplicar)

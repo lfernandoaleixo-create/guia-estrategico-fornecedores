@@ -42,6 +42,12 @@ export function useImportSimulations() {
 
   const reload = useCallback(() => utils.data.importSimulations.list.invalidate(), [utils]);
 
+  // Busca a lista mais recente diretamente do servidor e a retorna (para checagens).
+  const refetch = useCallback(async (): Promise<SavedSimulation[]> => {
+    const data = await utils.data.importSimulations.list.fetch();
+    return (data ?? []) as SavedSimulation[];
+  }, [utils]);
+
   // Salva (cria ou atualiza) uma simulação a partir de um snapshot da calculadora.
   // Se `existingId` for informado, atualiza o registro; senão cria um novo.
   const save = useCallback(
@@ -90,6 +96,7 @@ export function useImportSimulations() {
     isSaving: upsertMutation.isPending,
     isDeleting: deleteMutation.isPending,
     reload,
+    refetch,
     save,
     remove,
     openSnapshot,

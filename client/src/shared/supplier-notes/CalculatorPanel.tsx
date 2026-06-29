@@ -360,9 +360,10 @@ function ResultRow({
 function CalculatorInstance({ index, total, onRemove }: CalculatorInstanceProps) {
   // Id da simulação salva no banco (quando aberta da biblioteca ou já salva).
   const [savedId, setSavedId] = useState<string | null>(null);
-  const { save: saveToLibrary, isSaving } = useImportSimulations();
+  const { save: saveToLibrary, isSaving, simulations, refetch: refetchSimulations } = useImportSimulations();
   const [saveOk, setSaveOk] = useState(false);
   const [saveErro, setSaveErro] = useState(false);
+  const [saveErroMsg, setSaveErroMsg] = useState("");
 
   const [nome, setNome] = useState("");
   const [ncm, setNcm] = useState("");
@@ -529,12 +530,36 @@ function CalculatorInstance({ index, total, onRemove }: CalculatorInstanceProps)
     if (!isComplete || isSaving) return;
     setSaveOk(false);
     setSaveErro(false);
+    setSaveErroMsg("");
+    // Aviso instantâneo no cliente: nome já usado por outra simulação salva.
+    // Recarrega a lista para checar contra dados frescos (evita corrida).
+    const nomeNorm = nome.trim().toLowerCase();
+    let lista = simulations;
+    try {
+      lista = await refetchSimulations();
+    } catch {
+      // Se a revalidação falhar, usa a lista em memória; o servidor ainda valida.
+    }
+    const dup = nomeNorm
+      ? lista.find((s) => (s.name ?? "").trim().toLowerCase() === nomeNorm && s.id !== savedId)
+      : undefined;
+    if (dup) {
+      setSaveErroMsg(`Já existe uma simulação salva com o nome "${nome.trim()}". Use um nome diferente.`);
+      setSaveErro(true);
+      return;
+    }
     try {
       const id = await saveToLibrary(buildSnapshot(), savedId ?? undefined);
       setSavedId(id);
       setSaveOk(true);
       window.setTimeout(() => setSaveOk(false), 3500);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setSaveErroMsg(
+        msg && /já existe|existe uma simula/i.test(msg)
+          ? msg
+          : "Não foi possível salvar. Tente novamente.",
+      );
       setSaveErro(true);
     }
   };
@@ -1124,7 +1149,7 @@ function CalculatorInstance({ index, total, onRemove }: CalculatorInstanceProps)
                   >
                     <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "oklch(0.78 0.16 60)" }} />
                     <span className="text-[0.72rem]" style={{ color: "oklch(0.8 0.06 60)", fontFamily: "'Inter', sans-serif" }}>
-                      Não foi possível salvar. Tente novamente.
+                      {saveErroMsg || "Não foi possível salvar. Tente novamente."}
                     </span>
                   </div>
                 ) : null}

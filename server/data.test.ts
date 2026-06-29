@@ -793,3 +793,50 @@ describe("classificação de preço ao aprovar fornecedor (fields.precoClassific
     expect(fields?.contato).toBe("Mr. Lee");
   });
 });
+
+describe("data.importSimulations (bloqueio de nome duplicado)", () => {
+  const SIM_A = "sim_dup_vitest_a";
+  const SIM_B = "sim_dup_vitest_b";
+  const NOME = "Tapete Vitest Duplicado";
+
+  afterAll(async () => {
+    await caller.data.importSimulations.delete({ id: SIM_A }).catch(() => {});
+    await caller.data.importSimulations.delete({ id: SIM_B }).catch(() => {});
+  });
+
+  const baseInput = (id: string, name: string) => ({
+    id,
+    name,
+    ncm: "4818.90.90",
+    custoUnitarioBRL: "R$ 30,00",
+    custoTotalBRL: "R$ 30.000,00",
+    data: JSON.stringify({ kind: "import-cost-simulation", nome: name }),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  it("salva a primeira simulação normalmente", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const res = await caller.data.importSimulations.upsert(baseInput(SIM_A, NOME));
+    expect(res.success).toBe(true);
+  });
+
+  it("recusa salvar outra simulação com o mesmo nome (ignorando caixa e espaços)", async () => {
+    const db = await getDb();
+    if (!db) return;
+    await expect(
+      caller.data.importSimulations.upsert(baseInput(SIM_B, `  ${NOME.toUpperCase()}  `)),
+    ).rejects.toThrow(/já existe uma simulação/i);
+  });
+
+  it("permite atualizar a MESMA simulação (mesmo id, mesmo nome)", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const res = await caller.data.importSimulations.upsert({
+      ...baseInput(SIM_A, NOME),
+      custoTotalBRL: "R$ 31.000,00",
+    });
+    expect(res.success).toBe(true);
+  });
+});

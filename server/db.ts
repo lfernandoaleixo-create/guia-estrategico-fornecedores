@@ -545,6 +545,28 @@ export async function listImportSimulations() {
   return db.select().from(importSimulations).orderBy(desc(importSimulations.updatedAt));
 }
 
+/**
+ * Verifica se já existe outra simulação (id diferente) com o mesmo nome,
+ * comparando de forma case-insensitive e ignorando espaços nas pontas.
+ * Retorna o id da simulação conflitante, ou null se não houver conflito.
+ */
+export async function findImportSimulationByName(
+  name: string,
+  excludeId?: string,
+): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const norm = name.trim().toLowerCase();
+  if (!norm) return null;
+  const rows = await db
+    .select({ id: importSimulations.id, name: importSimulations.name })
+    .from(importSimulations);
+  const conflict = rows.find(
+    (r) => (r.name ?? "").trim().toLowerCase() === norm && r.id !== excludeId,
+  );
+  return conflict ? conflict.id : null;
+}
+
 /** Insere ou atualiza uma simulação salva (upsert por id). */
 export async function upsertImportSimulation(row: InsertImportSimulationRow) {
   const db = await getDb();
