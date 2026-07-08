@@ -75,13 +75,29 @@ export interface QuoteRow {
  *
  * Função pura para permitir teste de regressão.
  */
+/**
+ * Campos "estruturais" que NUNCA devem ser apagados por replaceFields: true.
+ * Eles definem o vínculo do fornecedor com subgrupos/macros e não são editáveis
+ * pelo painel de anotações — apenas pelo SubgroupDashboard.
+ */
+const PROTECTED_FIELD_KEYS = ["subgroupId", "subtipoAquario"] as const;
+
 export function resolveNextFields(
   base: Record<string, string>,
   patchFields: Record<string, string> | undefined,
   replaceFields: boolean | undefined,
 ): Record<string, string> {
   if (!patchFields) return base;
-  return replaceFields ? patchFields : { ...base, ...patchFields };
+  if (!replaceFields) return { ...base, ...patchFields };
+  // replaceFields: true → substitui, mas PRESERVA campos estruturais da base
+  // que não foram explicitamente incluídos no patch (evita apagar subgroupId).
+  const result = { ...patchFields };
+  for (const key of PROTECTED_FIELD_KEYS) {
+    if (!(key in result) && key in base && base[key]) {
+      result[key] = base[key];
+    }
+  }
+  return result;
 }
 
 /**

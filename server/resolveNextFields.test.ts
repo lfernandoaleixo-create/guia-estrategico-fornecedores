@@ -42,9 +42,35 @@ describe("resolveNextFields", () => {
     expect(result).toEqual(base);
   });
 
-  it("replaceFields com objeto vazio limpa TODOS os fields", () => {
-    const base = { potencial: "alto", precoClassificacao: "ruim", statusLivre: "x" };
+  it("replaceFields com objeto vazio limpa fields NÃO-estruturais, preserva subgroupId", () => {
+    const base = { potencial: "alto", precoClassificacao: "ruim", statusLivre: "x", subgroupId: "sg99" };
     const result = resolveNextFields(base, {}, true);
-    expect(result).toEqual({});
+    // Campos não-estruturais foram removidos; subgroupId preservado.
+    expect(result.potencial).toBeUndefined();
+    expect(result.subgroupId).toBe("sg99");
+  });
+
+  it("PROTEGE subgroupId: replaceFields=true sem subgroupId no patch preserva o da base", () => {
+    const base = { potencial: "alto", subgroupId: "sg_abc", subtipoAquario: "terrario" };
+    const patch = { potencial: "medio", resumoNegociacao: "teste" };
+    const result = resolveNextFields(base, patch, true);
+    expect(result.potencial).toBe("medio");
+    expect(result.subgroupId).toBe("sg_abc");
+    expect(result.subtipoAquario).toBe("terrario");
+    expect(result.resumoNegociacao).toBe("teste");
+  });
+
+  it("PROTEGE subgroupId: se o patch INCLUI subgroupId explicitamente, usa o do patch", () => {
+    const base = { subgroupId: "sg_old" };
+    const patch = { subgroupId: "sg_new", potencial: "alto" };
+    const result = resolveNextFields(base, patch, true);
+    expect(result.subgroupId).toBe("sg_new");
+  });
+
+  it("NÃO protege subgroupId vazio na base", () => {
+    const base = { potencial: "alto", subgroupId: "" };
+    const patch = { potencial: "medio" };
+    const result = resolveNextFields(base, patch, true);
+    expect(result.subgroupId).toBeUndefined();
   });
 });

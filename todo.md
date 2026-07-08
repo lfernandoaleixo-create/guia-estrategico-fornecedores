@@ -1029,3 +1029,9 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Frontend: refetch da lista antes de salvar + aviso claro; trata CONFLICT do servidor como rede de seguranca
   - [x] Atualizar a mesma simulacao salva (mesmo id) continua permitido (savedId)
   - [x] Testes vitest do caso duplicado (3 novos, 460 passando) + validado no preview (aviso exibido, sem duplicar)
+
+- [x] Feature 68: BUG — Fornecedores somem do Macro 4 (e de qualquer subgrupo)
+  - [x] Causa raiz: race condition no handleCreate (upsertEntry fire-and-forget) + resolveNextFields com replaceFields:true apagava subgroupId
+  - [x] Correção 1: SubgroupDashboard.handleCreate/handleDuplicate agora usa upsertEntryAsync (await) para garantir persistência do subgroupId ANTES de qualquer edição
+  - [x] Correção 2: resolveNextFields preserva campos estruturais (subgroupId, subtipoAquario) mesmo com replaceFields:true — nunca mais apaga o vínculo
+  - [x] 9 testes de resolveNextFields (incluindo 4 novos de proteção) + 463 testes totais passando + build ok

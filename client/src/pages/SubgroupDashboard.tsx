@@ -122,8 +122,10 @@ export default function SubgroupDashboard() {
   ) {
     const created = await create(data);
     // Vincula o fornecedor recém-criado a ESTE subgrupo (gravado na nota).
+    // DEVE ser async para garantir persistência ANTES de qualquer edição
+    // subsequente que use replaceFields:true (evita race condition que apaga subgroupId).
     if (created) {
-      notes.upsertEntry(created.id, { fields: { subgroupId } });
+      await notes.upsertEntryAsync(created.id, { fields: { subgroupId } });
     }
     setCreating(false);
     toast.success("Fornecedor cadastrado neste subgrupo.");
@@ -143,7 +145,8 @@ export default function SubgroupDashboard() {
     const created = await create(rest as Omit<CustomSupplier, "id" | "scope" | "createdAt" | "updatedAt">);
     if (created) {
       // Mantém o vínculo de subgrupo e registra a especialidade escolhida.
-      notes.upsertEntry(created.id, {
+      // Async para garantir persistência antes de qualquer edição com replaceFields.
+      await notes.upsertEntryAsync(created.id, {
         fields: { subgroupId, subtipoAquario: subtipo },
       });
     }
