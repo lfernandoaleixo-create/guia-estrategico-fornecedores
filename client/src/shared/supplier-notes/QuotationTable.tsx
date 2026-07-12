@@ -72,6 +72,95 @@ interface Props {
   tone?: "light" | "dark";
 }
 
+// ─── FilterInput (campo de filtro com dropdown de sugestões) ─────────────────
+interface FilterInputProps {
+  colId: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows: Row[];
+  isDark: boolean;
+}
+
+function FilterInput({ colId, value, onChange, rows, isDark }: FilterInputProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Valores únicos já preenchidos nesta coluna (sem vazios)
+  const suggestions = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of rows) {
+      const v = (row.cells[colId] ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [rows, colId]);
+
+  // Filtra sugestões pelo que o usuário digitou
+  const filtered = useMemo(() => {
+    if (!value.trim()) return suggestions;
+    const t = value.trim().toLowerCase();
+    return suggestions.filter((s) => s.toLowerCase().includes(t));
+  }, [suggestions, value]);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const inputCls = isDark
+    ? "w-full bg-white/5 border border-white/15 rounded px-1.5 py-0.5 text-[11px] text-white/80 placeholder:text-white/30 outline-none focus:border-white/40"
+    : "w-full bg-zinc-50 border border-zinc-200 rounded px-1.5 py-0.5 text-[11px] text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-zinc-400";
+
+  const dropdownCls = isDark
+    ? "absolute z-50 top-full left-0 right-0 mt-0.5 max-h-40 overflow-y-auto rounded border border-white/20 bg-zinc-900 shadow-lg"
+    : "absolute z-50 top-full left-0 right-0 mt-0.5 max-h-40 overflow-y-auto rounded border border-zinc-200 bg-white shadow-lg";
+
+  const itemCls = isDark
+    ? "px-2 py-1 text-[11px] text-white/80 hover:bg-white/10 cursor-pointer truncate"
+    : "px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-100 cursor-pointer truncate";
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        className={inputCls}
+        placeholder="Buscar…"
+        value={value}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <div className={dropdownCls}>
+          {filtered.map((s) => (
+            <div
+              key={s}
+              className={itemCls}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(s);
+                setOpen(false);
+              }}
+            >
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Componente ──────────────────────────────────────────────────────────────
 export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Props) {
   const isDark = tone === "dark";
@@ -407,11 +496,12 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                 <th className={thClass} />
                 {columns.map((col) => (
                   <th key={`filter-${col.id}`} className="px-1 py-1">
-                    <input
-                      className={filterInputClass}
-                      placeholder="Buscar…"
+                    <FilterInput
+                      colId={col.id}
                       value={filters[col.id] ?? ""}
-                      onChange={(e) => setFilter(col.id, e.target.value)}
+                      onChange={(v) => setFilter(col.id, v)}
+                      rows={rows}
+                      isDark={isDark}
                     />
                   </th>
                 ))}

@@ -1047,3 +1047,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Colunas padrão: Item, Variação, Peso, Especificação, Qualidade, Unidades por Pacotes, Pacotes por Caixa, Caixa em 40HQ, Preço Unitário, Preço do Pacote
   - [x] Integrar em todos os dashboards (abaixo de Métricas de Upload)
   - [x] Testes vitest
+
+- [x] Feature 69b: Filtro da Tabela de Cotações com dropdown de sugestões (valores já preenchidos na coluna)
