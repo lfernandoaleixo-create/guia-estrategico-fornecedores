@@ -22,6 +22,7 @@ import SupplierNotesPanel, { type PrefilledField } from "@/shared/supplier-notes
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
+import { QuotationTable } from "@/shared/supplier-notes/QuotationTable";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { useSupplierGroups } from "@/shared/supplier-notes/useSupplierGroups";
 import { SubgroupBadge } from "@/shared/supplier-notes/SubgroupBadge";
@@ -237,6 +238,11 @@ export default function YiwuAnotacoes() {
         {/* Métricas de uploads */}
         <div className="mb-5">
           <UploadMetrics scope="yiwu" tone="dark" accent="#0891b2" />
+        </div>
+
+        {/* Tabela de Cotações (editável, persistente) */}
+        <div className="mb-5">
+          <QuotationTable scope="yiwu" tone="dark" accent="#0891b2" />
         </div>
 
                 {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário. */}

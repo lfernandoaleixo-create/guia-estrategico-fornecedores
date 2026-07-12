@@ -14,6 +14,7 @@ import { useDiary } from "@aquario/hooks/useDiary";
 import DiaryCard from "@aquario/components/DiaryCard";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
+import { QuotationTable } from "@/shared/supplier-notes/QuotationTable";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import MigrateSubtipoButton from "@/shared/supplier-notes/MigrateSubtipoButton";
 import ClassifiedCustomList from "@/shared/supplier-notes/ClassifiedCustomList";
@@ -907,6 +908,11 @@ export default function Home() {
                   categoryById={categoryById}
                   initialSpecialty={initialSpecialty}
                 />
+              </div>
+
+              {/* Tabela de Cotações (editável, persistente) */}
+              <div className="mb-5">
+                <QuotationTable scope="aquario" tone="light" accent="#dc2626" />
               </div>
 
               {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário.

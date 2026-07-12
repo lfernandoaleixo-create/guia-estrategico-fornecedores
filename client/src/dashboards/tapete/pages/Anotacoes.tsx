@@ -22,6 +22,7 @@ import { useCustomSuppliers } from "@/shared/supplier-notes/useCustomSuppliers";
 import { DEFAULT_EDITABLE_FIELDS } from "@/shared/supplier-notes/field-presets";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
+import { QuotationTable } from "@/shared/supplier-notes/QuotationTable";
 import CustomSuppliersSection from "@/shared/supplier-notes/CustomSuppliersSection";
 import { GroupSummaryCards } from "@/shared/supplier-notes/GroupSummaryCards";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
@@ -623,6 +624,11 @@ export default function Anotacoes() {
       {/* Métricas de uploads */}
       <div className="mb-4">
         <UploadMetrics scope="tapete" tone="light" accent="#0891b2" />
+      </div>
+
+      {/* Tabela de Cotações (editável, persistente) */}
+      <div className="mb-4">
+        <QuotationTable scope="tapete" tone="light" accent="#0891b2" />
       </div>
 
             {/* Gerenciar subgrupos (macro.sub) — ocultado nos dashboards a pedido do usuário. */}
