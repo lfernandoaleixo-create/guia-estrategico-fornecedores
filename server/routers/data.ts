@@ -41,6 +41,8 @@ import {
   upsertImportSimulation,
   deleteImportSimulation,
   findImportSimulationByName,
+  getQuotationTable,
+  upsertQuotationTable,
 } from "../db";
 
 // ---------- Schemas ----------
@@ -438,6 +440,38 @@ export const dataRouter = router({
       .input(z.object({ id: z.string() }))
       .mutation(async ({ input }) => {
         await deletePartnerTopic(input.id);
+        return { success: true } as const;
+      }),
+  }),
+
+  // ---------- Quotation Tables — tabelas de cotações editáveis por dashboard ----------
+  quotationTables: router({
+    get: publicProcedure
+      .input(z.object({ scope: z.string() }))
+      .query(async ({ input }) => {
+        const row = await getQuotationTable(input.scope);
+        if (!row) return null;
+        return {
+          scope: row.scope,
+          columns: JSON.parse(row.columns as string) as { id: string; title: string }[],
+          rows: JSON.parse(row.rows as string) as { id: string; cells: Record<string, string> }[],
+          updatedAt: row.updatedAt,
+        };
+      }),
+    upsert: publicProcedure
+      .input(
+        z.object({
+          scope: z.string(),
+          columns: z.array(z.object({ id: z.string(), title: z.string() })),
+          rows: z.array(z.object({ id: z.string(), cells: z.record(z.string(), z.string()) })),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await upsertQuotationTable(
+          input.scope,
+          JSON.stringify(input.columns),
+          JSON.stringify(input.rows),
+        );
         return { success: true } as const;
       }),
   }),

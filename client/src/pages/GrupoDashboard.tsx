@@ -44,6 +44,7 @@ import { TipoBadge } from "@/shared/supplier-notes/TipoBadge";
 import { PotentialBadge } from "@/shared/supplier-notes/PotentialBadge";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import { QuotationTable } from "@/shared/supplier-notes/QuotationTable";
 import { BackupPanel } from "@/shared/supplier-notes/BackupPanel";
 import PartnerTopicsPanel from "@/shared/supplier-notes/PartnerTopicsPanel";
 import { PartnerChips } from "@/shared/supplier-notes/PartnerChips";
@@ -1010,6 +1011,9 @@ export default function GrupoDashboard() {
 
         {/* Métricas de uploads (TOPO) */}
         <UploadMetrics scope={scope} tone="dark" accent={accent} />
+
+        {/* Tabela de Cotações (editável, persistente) */}
+        <QuotationTable scope={scope} tone="dark" accent={accent} />
 
         {/* Relatório de Atividades (status + detalhamento + PDF) — TOPO */}
         <div

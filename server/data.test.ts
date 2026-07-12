@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { getDb } from "./db";
-import { customGroups, extraSuppliers, supplierNotes } from "../drizzle/schema";
+import { customGroups, extraSuppliers, supplierNotes, quotationTables } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
 // Contexto público (sem usuário) — os dados são compartilhados.
@@ -838,5 +838,103 @@ describe("data.importSimulations (bloqueio de nome duplicado)", () => {
       custoTotalBRL: "R$ 31.000,00",
     });
     expect(res.success).toBe(true);
+  });
+});
+
+describe("data.quotationTables (tabela de cotações editável)", () => {
+  const QT_SCOPE = "vitest-quotation-scope";
+
+  afterAll(async () => {
+    const db = await getDb();
+    if (!db) return;
+    await db.delete(quotationTables).where(eq(quotationTables.scope, QT_SCOPE));
+  });
+
+  it("retorna null para scope inexistente", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const result = await caller.data.quotationTables.get({ scope: QT_SCOPE });
+    expect(result).toBeNull();
+  });
+
+  it("cria uma tabela de cotações via upsert", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const cols = [
+      { id: "c1", title: "Item" },
+      { id: "c2", title: "Preço" },
+    ];
+    const rows = [
+      { id: "r1", cells: { c1: "Aquário 50L", c2: "US$ 12.00" } },
+      { id: "r2", cells: { c1: "Filtro UV", c2: "US$ 5.50" } },
+    ];
+    const res = await caller.data.quotationTables.upsert({
+      scope: QT_SCOPE,
+      columns: cols,
+      rows,
+    });
+    expect(res.success).toBe(true);
+  });
+
+  it("lê a tabela criada e retorna colunas e linhas corretas", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const result = await caller.data.quotationTables.get({ scope: QT_SCOPE });
+    expect(result).not.toBeNull();
+    expect(result!.scope).toBe(QT_SCOPE);
+    expect(result!.columns).toHaveLength(2);
+    expect(result!.columns[0].title).toBe("Item");
+    expect(result!.rows).toHaveLength(2);
+    expect(result!.rows[0].cells.c1).toBe("Aquário 50L");
+    expect(result!.rows[1].cells.c2).toBe("US$ 5.50");
+  });
+
+  it("atualiza a tabela (upsert) com novos dados", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const newCols = [
+      { id: "c1", title: "Produto" },
+      { id: "c2", title: "Valor" },
+      { id: "c3", title: "Peso" },
+    ];
+    const newRows = [
+      { id: "r1", cells: { c1: "Aquário 80L", c2: "US$ 18.00", c3: "3kg" } },
+    ];
+    const res = await caller.data.quotationTables.upsert({
+      scope: QT_SCOPE,
+      columns: newCols,
+      rows: newRows,
+    });
+    expect(res.success).toBe(true);
+
+    const result = await caller.data.quotationTables.get({ scope: QT_SCOPE });
+    expect(result!.columns).toHaveLength(3);
+    expect(result!.columns[0].title).toBe("Produto");
+    expect(result!.rows).toHaveLength(1);
+    expect(result!.rows[0].cells.c3).toBe("3kg");
+  });
+
+  it("suporta linhas com cells vazias (parcialmente preenchidas)", async () => {
+    const db = await getDb();
+    if (!db) return;
+    const cols = [
+      { id: "c1", title: "Item" },
+      { id: "c2", title: "Preço" },
+    ];
+    const rows = [
+      { id: "r1", cells: { c1: "Tapete M" } },
+      { id: "r2", cells: {} },
+    ];
+    const res = await caller.data.quotationTables.upsert({
+      scope: QT_SCOPE,
+      columns: cols,
+      rows,
+    });
+    expect(res.success).toBe(true);
+
+    const result = await caller.data.quotationTables.get({ scope: QT_SCOPE });
+    expect(result!.rows[0].cells.c1).toBe("Tapete M");
+    expect(result!.rows[0].cells.c2).toBeUndefined();
+    expect(result!.rows[1].cells).toEqual({});
   });
 });

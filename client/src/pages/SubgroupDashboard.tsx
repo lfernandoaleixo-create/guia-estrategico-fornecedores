@@ -28,6 +28,7 @@ import { subgroupEmoji } from "@/shared/supplier-notes/subgroupEmoji";
 import { suppliersForSubgroup, searchSuppliers } from "@/shared/supplier-notes/subgroupFilter";
 import { UploadMetrics } from "@/shared/supplier-notes/UploadMetrics";
 import ReportPanel from "@/shared/supplier-notes/ReportPanel";
+import { QuotationTable } from "@/shared/supplier-notes/QuotationTable";
 import type { SupplierNoteEntry } from "@/shared/supplier-notes/useSupplierNotes";
 
 const TEXT_PRIMARY = "oklch(0.97 0.01 80)";
@@ -319,6 +320,9 @@ export default function SubgroupDashboard() {
               accent={accent}
               supplierIds={subgroupSupplierIds}
             />
+
+            {/* Tabela de Cotações (editável, persistente) */}
+            <QuotationTable scope={`subgroup:${subgroupId}`} tone="dark" accent={accent} />
 
             {/* Relatório de Atividades (status + detalhamento + PDF) */}
             <div

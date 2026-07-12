@@ -581,3 +581,28 @@ export async function deleteImportSimulation(id: string) {
   if (!db) throw new Error("Database unavailable");
   await db.delete(importSimulations).where(eq(importSimulations.id, id));
 }
+
+// =============================================================================
+// Quotation Tables — tabelas de cotações editáveis por dashboard/scope.
+// =============================================================================
+import { quotationTables, type InsertQuotationTableRow } from "../drizzle/schema";
+
+/** Busca a tabela de cotações de um scope (dashboard). Retorna null se não existir. */
+export async function getQuotationTable(scope: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(quotationTables).where(eq(quotationTables.scope, scope));
+  return rows[0] ?? null;
+}
+
+/** Insere ou atualiza a tabela de cotações de um scope. */
+export async function upsertQuotationTable(scope: string, columns: string, rows: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const now = new Date().toISOString();
+  const row: InsertQuotationTableRow = { scope, columns, rows, updatedAt: now };
+  await db
+    .insert(quotationTables)
+    .values(row)
+    .onDuplicateKeyUpdate({ set: { columns, rows, updatedAt: now } });
+}

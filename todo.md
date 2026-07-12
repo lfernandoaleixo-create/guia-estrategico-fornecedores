@@ -1035,3 +1035,15 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
   - [x] Correção 1: SubgroupDashboard.handleCreate/handleDuplicate agora usa upsertEntryAsync (await) para garantir persistência do subgroupId ANTES de qualquer edição
   - [x] Correção 2: resolveNextFields preserva campos estruturais (subgroupId, subtipoAquario) mesmo com replaceFields:true — nunca mais apaga o vínculo
   - [x] 9 testes de resolveNextFields (incluindo 4 novos de proteção) + 463 testes totais passando + build ok
+
+- [x] Feature 69: Card "Tabela de Cotações" editável e persistente em todos os dashboards
+  - [x] Schema: tabela quotation_tables (scope, rows JSON, columns JSON) no banco
+  - [x] Procedures tRPC: get/upsert por scope (dashboard + subtipo)
+  - [x] Componente QuotationTable: tabela editável inline, títulos de coluna editáveis
+  - [x] Colunas movimentáveis horizontalmente (drag & drop)
+  - [x] Filtro classificatório por coluna (asc/desc + busca textual); filtros não se anulam
+  - [x] Botão "Limpar todos os filtros"
+  - [x] Dados salvos no banco (persistente, auto-save)
+  - [x] Colunas padrão: Item, Variação, Peso, Especificação, Qualidade, Unidades por Pacotes, Pacotes por Caixa, Caixa em 40HQ, Preço Unitário, Preço do Pacote
+  - [x] Integrar em todos os dashboards (abaixo de Métricas de Upload)
+  - [x] Testes vitest

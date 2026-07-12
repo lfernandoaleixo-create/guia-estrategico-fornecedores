@@ -78,6 +78,13 @@
       "when": 1782589857589,
       "tag": "0010_skinny_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1783885006036,
+      "tag": "0011_hard_metal_master",
+      "breakpoints": true
     }
   ]
 }

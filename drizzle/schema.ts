@@ -313,3 +313,29 @@ export const importSimulations = mysqlTable("import_simulations", {
 
 export type ImportSimulationRow = typeof importSimulations.$inferSelect;
 export type InsertImportSimulationRow = typeof importSimulations.$inferInsert;
+
+/**
+ * Tabelas de cotações editáveis — uma por dashboard/subtipo.
+ * Cada registro guarda as colunas (nomes editáveis + ordem) e as linhas (dados
+ * editáveis) em JSON. O `scope` identifica o dashboard (ex.: "aquario",
+ * "aquario:terrario", "tapete", "yiwu", "grupo-xxx", "subgroup:sg_xxx").
+ * Compartilhado entre todos os acessos (sem login por usuário).
+ */
+export const quotationTables = mysqlTable("quotation_tables", {
+  /** Scope único que identifica o dashboard/subtipo. Chave primária. */
+  scope: varchar("scope", { length: 128 }).primaryKey(),
+  /**
+   * Definição das colunas (ordem + títulos editáveis). JSON array:
+   * [{ id: string, title: string }]
+   */
+  columns: longtext("columns").notNull(),
+  /**
+   * Linhas da tabela. JSON array:
+   * [{ id: string, cells: Record<columnId, string> }]
+   */
+  rows: longtext("rows").notNull(),
+  updatedAt: varchar("updatedAt", { length: 40 }).notNull(),
+});
+
+export type QuotationTableRow = typeof quotationTables.$inferSelect;
+export type InsertQuotationTableRow = typeof quotationTables.$inferInsert;
