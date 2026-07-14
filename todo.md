@@ -1057,3 +1057,4 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69g: Setinha para expandir/retrair a tabela (começa retraída por padrão)
 - [x] Feature 69h: Congelar cabeçalho da tabela (títulos + filtros) ao rolar — sticky header
 - [x] Feature 69i: Fórmula oculta vinculando Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes (calcula a terceira ao preencher 2)
+- [x] Feature 69j: Filtros cascateados — sugestões de busca mostram apenas valores das linhas já filtradas pelas outras colunas

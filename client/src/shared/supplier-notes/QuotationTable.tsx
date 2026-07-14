@@ -419,11 +419,26 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     setFilters((prev) => ({ ...prev, [colId]: value }));
   };
 
+  // Linhas filtradas por TODAS as colunas exceto uma específica (para sugestões cascateadas)
+  const getRowsFilteredExcluding = useCallback(
+    (excludeColId: string): Row[] => {
+      let result = [...rows];
+      for (const [colId, term] of Object.entries(filters)) {
+        if (colId === excludeColId) continue; // pula o filtro da coluna atual
+        const t = term.trim().toLowerCase();
+        if (!t) continue;
+        result = result.filter((r) => (r.cells[colId] ?? "").toLowerCase().includes(t));
+      }
+      return result;
+    },
+    [rows, filters],
+  );
+
   // Aplica filtros e ordenação
   const displayRows = useMemo(() => {
     let result = [...rows];
 
-    // Filtros textuais (independentes entre si)
+    // Filtros textuais (cumulativos / AND)
     for (const [colId, term] of Object.entries(filters)) {
       const t = term.trim().toLowerCase();
       if (!t) continue;
@@ -642,7 +657,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                       colId={col.id}
                       value={filters[col.id] ?? ""}
                       onChange={(v) => setFilter(col.id, v)}
-                      rows={rows}
+                      rows={getRowsFilteredExcluding(col.id)}
                       isDark={isDark}
                     />
                   </th>
