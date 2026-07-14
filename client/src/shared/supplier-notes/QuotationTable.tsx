@@ -285,13 +285,14 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     }
   };
 
-  // ── Fórmulas ocultas vinculadas (A × B = C) ─────────────────────────────
-  // Fórmula 1: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes
-  // Fórmula 2: Preço Unitário × Unidades por Pacote = Preço do Pacote
-  const FORMULAS: Array<{ a: string; b: string; c: string; decimals: number }> = [
-    { a: "col_pac_caixa", b: "col_caixa_40hq", c: "col_unid_pacote", decimals: 0 },
-    { a: "col_preco_unit", b: "col_unid_pacote", c: "col_preco_pacote", decimals: 4 },
-  ];
+  // ── Fórmulas ocultas vinculadas ─────────────────────────────────────
+  // Fórmula 1: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes (col_unid_pacote)
+  // Fórmula 2: Preço Unitário × Qtde Pacotes (col_unid_pacote) = Preço do Pacote
+  //
+  // col_unid_pacote participa das duas fórmulas:
+  //   - Na fórmula 1 é o RESULTADO (C)
+  //   - Na fórmula 2 é um FATOR (B)
+  // Quando col_unid_pacote muda, aplicamos as duas fórmulas em cascata.
 
   const applyLinkedFormula = (_rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
     const parseNum = (v: string | undefined) => {
@@ -305,27 +306,48 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
 
     let updated = { ...cells };
 
-    for (const formula of FORMULAS) {
-      const { a: colA, b: colB, c: colC, decimals } = formula;
-      if (changedColId !== colA && changedColId !== colB && changedColId !== colC) continue;
+    // === Fórmula 1: col_pac_caixa × col_caixa_40hq = col_unid_pacote ===
+    const F1_A = "col_pac_caixa";
+    const F1_B = "col_caixa_40hq";
+    const F1_C = "col_unid_pacote";
 
-      const valA = parseNum(updated[colA]);
-      const valB = parseNum(updated[colB]);
-      const valC = parseNum(updated[colC]);
+    if (changedColId === F1_A || changedColId === F1_B || changedColId === F1_C) {
+      const a = parseNum(updated[F1_A]);
+      const b = parseNum(updated[F1_B]);
+      const c = parseNum(updated[F1_C]);
 
-      const fmt = (n: number) => decimals === 0 ? String(Math.round(n)) : n.toFixed(decimals);
-
-      // A × B = C
-      if ((changedColId === colA || changedColId === colB) && !isNaN(valA) && !isNaN(valB)) {
-        updated[colC] = fmt(valA * valB);
+      if ((changedColId === F1_A || changedColId === F1_B) && !isNaN(a) && !isNaN(b)) {
+        updated[F1_C] = String(Math.round(a * b));
+      } else if (changedColId === F1_C && !isNaN(c) && !isNaN(a) && a !== 0) {
+        updated[F1_B] = String(Math.round(c / a));
+      } else if (changedColId === F1_C && !isNaN(c) && !isNaN(b) && b !== 0) {
+        updated[F1_A] = String(Math.round(c / b));
       }
-      // C / A = B
-      else if (changedColId === colC && !isNaN(valC) && !isNaN(valA) && valA !== 0) {
-        updated[colB] = fmt(valC / valA);
+    }
+
+    // === Fórmula 2: col_preco_unit × col_unid_pacote = col_preco_pacote ===
+    // Sempre recalcula se qualquer das 3 colunas mudou (inclusive col_unid_pacote vindo da fórmula 1)
+    const F2_A = "col_preco_unit";
+    const F2_B = "col_unid_pacote";
+    const F2_C = "col_preco_pacote";
+
+    if (changedColId === F2_A || changedColId === F2_B || changedColId === F2_C ||
+        changedColId === F1_A || changedColId === F1_B) {
+      const a2 = parseNum(updated[F2_A]);
+      const b2 = parseNum(updated[F2_B]);
+      const c2 = parseNum(updated[F2_C]);
+
+      // Se Preço Unitário e Qtde Pacotes existem → calcula Preço do Pacote
+      if ((changedColId === F2_A || changedColId === F2_B || changedColId === F1_A || changedColId === F1_B) && !isNaN(a2) && !isNaN(b2)) {
+        updated[F2_C] = (a2 * b2).toFixed(4);
       }
-      // C / B = A
-      else if (changedColId === colC && !isNaN(valC) && !isNaN(valB) && valB !== 0) {
-        updated[colA] = fmt(valC / valB);
+      // Se mudou Preço do Pacote e Preço Unitário existe → calcula Qtde Pacotes
+      else if (changedColId === F2_C && !isNaN(c2) && !isNaN(a2) && a2 !== 0) {
+        updated[F2_B] = String(Math.round(c2 / a2));
+      }
+      // Se mudou Preço do Pacote e Qtde Pacotes existe → calcula Preço Unitário
+      else if (changedColId === F2_C && !isNaN(c2) && !isNaN(b2) && b2 !== 0) {
+        updated[F2_A] = (c2 / b2).toFixed(4);
       }
     }
 
