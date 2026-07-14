@@ -285,13 +285,13 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     }
   };
 
-  // ── Fórmula oculta: Unidades por Pacotes × Pacotes por Caixa = Caixa em 40HQ ─────
-  // col_unid_pacote = "Unidades por Pacotes"
+  // ── Fórmula oculta: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes ───────
   // col_pac_caixa   = "Pacotes por Caixa"
-  // col_caixa_40hq  = "Caixa em 40HQ" (resultado)
-  const LINKED_A = "col_unid_pacote";  // Unidades por Pacotes
-  const LINKED_B = "col_pac_caixa";    // Pacotes por Caixa
-  const LINKED_C = "col_caixa_40hq";   // Caixa em 40HQ = A × B
+  // col_caixa_40hq  = "Caixa em 40HQ"
+  // col_unid_pacote = "Qtde Pacotes" (resultado = A × B)
+  const LINKED_A = "col_pac_caixa";    // Pacotes por Caixa
+  const LINKED_B = "col_caixa_40hq";   // Caixa em 40HQ
+  const LINKED_C = "col_unid_pacote";  // Qtde Pacotes = A × B
 
   const applyLinkedFormula = (_rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
     const linkedIds = [LINKED_A, LINKED_B, LINKED_C];
