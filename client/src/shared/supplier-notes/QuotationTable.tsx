@@ -285,18 +285,15 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     }
   };
 
-  // ── Fórmula oculta: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes ───────
-  // col_pac_caixa   = "Pacotes por Caixa"
-  // col_caixa_40hq  = "Caixa em 40HQ"
-  // col_unid_pacote = "Qtde Pacotes" (resultado = A × B)
-  const LINKED_A = "col_pac_caixa";    // Pacotes por Caixa
-  const LINKED_B = "col_caixa_40hq";   // Caixa em 40HQ
-  const LINKED_C = "col_unid_pacote";  // Qtde Pacotes = A × B
+  // ── Fórmulas ocultas vinculadas (A × B = C) ─────────────────────────────
+  // Fórmula 1: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes
+  // Fórmula 2: Preço Unitário × Unidades por Pacote = Preço do Pacote
+  const FORMULAS: Array<{ a: string; b: string; c: string; decimals: number }> = [
+    { a: "col_pac_caixa", b: "col_caixa_40hq", c: "col_unid_pacote", decimals: 0 },
+    { a: "col_preco_unit", b: "col_unid_pacote", c: "col_preco_pacote", decimals: 4 },
+  ];
 
   const applyLinkedFormula = (_rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
-    const linkedIds = [LINKED_A, LINKED_B, LINKED_C];
-    if (!linkedIds.includes(changedColId)) return cells;
-
     const parseNum = (v: string | undefined) => {
       if (!v || !v.trim()) return NaN;
       return parseFloat(v.trim().replace(",", "."));
@@ -306,24 +303,30 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     const changedValue = (cells[changedColId] ?? "").trim();
     if (changedValue === "") return cells;
 
-    const a = parseNum(cells[LINKED_A]);
-    const b = parseNum(cells[LINKED_B]);
-    const c = parseNum(cells[LINKED_C]);
+    let updated = { ...cells };
 
-    const updated = { ...cells };
+    for (const formula of FORMULAS) {
+      const { a: colA, b: colB, c: colC, decimals } = formula;
+      if (changedColId !== colA && changedColId !== colB && changedColId !== colC) continue;
 
-    // Lógica: A × B = C
-    // Se mudou A ou B e ambos existem → calcula C
-    if ((changedColId === LINKED_A || changedColId === LINKED_B) && !isNaN(a) && !isNaN(b)) {
-      updated[LINKED_C] = String(Math.round(a * b));
-    }
-    // Se mudou C e A existe → calcula B = C / A
-    else if (changedColId === LINKED_C && !isNaN(c) && !isNaN(a) && a !== 0) {
-      updated[LINKED_B] = String(Math.round(c / a));
-    }
-    // Se mudou C e B existe → calcula A = C / B
-    else if (changedColId === LINKED_C && !isNaN(c) && !isNaN(b) && b !== 0) {
-      updated[LINKED_A] = String(Math.round(c / b));
+      const valA = parseNum(updated[colA]);
+      const valB = parseNum(updated[colB]);
+      const valC = parseNum(updated[colC]);
+
+      const fmt = (n: number) => decimals === 0 ? String(Math.round(n)) : n.toFixed(decimals);
+
+      // A × B = C
+      if ((changedColId === colA || changedColId === colB) && !isNaN(valA) && !isNaN(valB)) {
+        updated[colC] = fmt(valA * valB);
+      }
+      // C / A = B
+      else if (changedColId === colC && !isNaN(valC) && !isNaN(valA) && valA !== 0) {
+        updated[colB] = fmt(valC / valA);
+      }
+      // C / B = A
+      else if (changedColId === colC && !isNaN(valC) && !isNaN(valB) && valB !== 0) {
+        updated[colA] = fmt(valC / valB);
+      }
     }
 
     return updated;
