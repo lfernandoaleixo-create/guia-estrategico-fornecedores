@@ -24,6 +24,9 @@ import {
   Table2,
   Check,
   Pencil,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -181,6 +184,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [rows, setRows] = useState<Row[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [expanded, setExpanded] = useState(false); // começa retraída
 
   // Sincroniza com o servidor na primeira carga
   useEffect(() => {
@@ -284,6 +288,19 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
 
   const deleteRow = (rowId: string) => {
     setRows((prev) => prev.filter((r) => r.id !== rowId));
+    scheduleSave();
+  };
+
+  const duplicateRow = (rowId: string) => {
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.id === rowId);
+      if (idx === -1) return prev;
+      const original = prev[idx];
+      const copy: Row = { id: genRowId(), cells: { ...original.cells } };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
     scheduleSave();
   };
 
@@ -433,6 +450,18 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="opacity-60 hover:opacity-100 transition-opacity"
+            onClick={() => setExpanded(!expanded)}
+            title={expanded ? "Retrair tabela" : "Expandir tabela"}
+          >
+            {expanded ? (
+              <ChevronUp className="w-4 h-4" style={{ color: accent }} />
+            ) : (
+              <ChevronDown className="w-4 h-4" style={{ color: accent }} />
+            )}
+          </button>
           <Table2 className="w-4 h-4" style={{ color: accent }} />
           <h3 className={titleClass}>Tabela de Cotações</h3>
           {upsertMut.isPending && (
@@ -444,34 +473,36 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            className={btnClass}
-            onClick={() => setShowFilterRow(!showFilterRow)}
-          >
-            <Search className="w-3.5 h-3.5" />
-            Filtros
-          </button>
-          {hasActiveFilters && (
+        {expanded && (
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               className={btnClass}
-              onClick={clearAllFilters}
+              onClick={() => setShowFilterRow(!showFilterRow)}
             >
-              <XCircle className="w-3.5 h-3.5" />
-              Limpar filtros
+              <Search className="w-3.5 h-3.5" />
+              Filtros
             </button>
-          )}
-          <button type="button" className={btnClass} onClick={addRow}>
-            <Plus className="w-3.5 h-3.5" />
-            Linha
-          </button>
-        </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className={btnClass}
+                onClick={clearAllFilters}
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Limpar filtros
+              </button>
+            )}
+            <button type="button" className={btnClass} onClick={addRow}>
+              <Plus className="w-3.5 h-3.5" />
+              Linha
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Tabela */}
-      <div className="overflow-x-auto">
+      {/* Tabela (só visível quando expandida) */}
+      {expanded && <div className="overflow-x-auto">
         <table className="w-full border-collapse min-w-[800px]">
           <thead>
             <tr>
@@ -592,14 +623,24 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
               displayRows.map((row) => (
                 <tr key={row.id} className="group">
                   <td className={`${tdClass} w-8 text-center`}>
-                    <button
-                      type="button"
-                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
-                      onClick={() => deleteRow(row.id)}
-                      title="Excluir linha"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                    </button>
+                    <div className="flex items-center gap-0.5 justify-center">
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                        onClick={() => duplicateRow(row.id)}
+                        title="Duplicar linha"
+                      >
+                        <Copy className="w-3 h-3 text-blue-400" />
+                      </button>
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                        onClick={() => deleteRow(row.id)}
+                        title="Excluir linha"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </button>
+                    </div>
                   </td>
                   {columns.map((col) => {
                     const isEditing =
@@ -642,7 +683,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }
