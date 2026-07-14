@@ -502,9 +502,9 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       </div>
 
       {/* Tabela (só visível quando expandida) */}
-      {expanded && <div className="overflow-x-auto">
+      {expanded && <div className="overflow-x-auto max-h-[70vh] overflow-y-auto relative">
         <table className="w-full border-collapse min-w-[800px]">
-          <thead>
+          <thead className="sticky top-0 z-10" style={{ background: isDark ? '#1a1a1a' : '#ffffff' }}>
             <tr>
               {/* Coluna de ações (excluir) */}
               <th className={`${thClass} w-8`} />

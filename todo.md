@@ -1055,3 +1055,4 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69e: Enter/Tab na célula pula para a coluna seguinte na mesma linha
 - [x] Feature 69f: Botão de duplicar linha na Tabela de Cotações
 - [x] Feature 69g: Setinha para expandir/retrair a tabela (começa retraída por padrão)
+- [x] Feature 69h: Congelar cabeçalho da tabela (títulos + filtros) ao rolar — sticky header
