@@ -285,37 +285,45 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     }
   };
 
-  // ── Fórmula oculta: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes ─────────
-  // IDs das colunas vinculadas (padrão)
-  const LINKED_COL_PAC_CAIXA = "col_pac_caixa";
-  const LINKED_COL_CAIXA_40HQ = "col_caixa_40hq";
-  // "Qtde Pacotes" pode ter sido renomeada, mas o ID permanece
-  // Procuramos pela coluna que originalmente era "Unidades por Pacotes" — mas
-  // pelo print do usuário, "Qtde Pacotes" é na verdade col_unid_pacote
-  const LINKED_COL_QTDE_PAC = "col_unid_pacote";
+  // ── Fórmula oculta: Unidades por Pacotes × Pacotes por Caixa = Caixa em 40HQ ─────
+  // col_unid_pacote = "Unidades por Pacotes"
+  // col_pac_caixa   = "Pacotes por Caixa"
+  // col_caixa_40hq  = "Caixa em 40HQ" (resultado)
+  const LINKED_A = "col_unid_pacote";  // Unidades por Pacotes
+  const LINKED_B = "col_pac_caixa";    // Pacotes por Caixa
+  const LINKED_C = "col_caixa_40hq";   // Caixa em 40HQ = A × B
 
-  const applyLinkedFormula = (rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
-    const linkedIds = [LINKED_COL_PAC_CAIXA, LINKED_COL_CAIXA_40HQ, LINKED_COL_QTDE_PAC];
+  const applyLinkedFormula = (_rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
+    const linkedIds = [LINKED_A, LINKED_B, LINKED_C];
     if (!linkedIds.includes(changedColId)) return cells;
 
     const parseNum = (v: string | undefined) => {
-      if (!v) return NaN;
-      return parseFloat(v.replace(",", "."));
+      if (!v || !v.trim()) return NaN;
+      return parseFloat(v.trim().replace(",", "."));
     };
 
-    const pacCaixa = parseNum(cells[LINKED_COL_PAC_CAIXA]);
-    const caixa40 = parseNum(cells[LINKED_COL_CAIXA_40HQ]);
-    const qtdePac = parseNum(cells[LINKED_COL_QTDE_PAC]);
+    // Se o usuário apagou a célula (vazia), não recalcular nada
+    const changedValue = (cells[changedColId] ?? "").trim();
+    if (changedValue === "") return cells;
+
+    const a = parseNum(cells[LINKED_A]);
+    const b = parseNum(cells[LINKED_B]);
+    const c = parseNum(cells[LINKED_C]);
 
     const updated = { ...cells };
 
-    // Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes
-    if (!isNaN(pacCaixa) && !isNaN(caixa40)) {
-      updated[LINKED_COL_QTDE_PAC] = String(Math.round(pacCaixa * caixa40));
-    } else if (!isNaN(qtdePac) && !isNaN(caixa40) && caixa40 !== 0) {
-      updated[LINKED_COL_PAC_CAIXA] = String(Math.round(qtdePac / caixa40));
-    } else if (!isNaN(qtdePac) && !isNaN(pacCaixa) && pacCaixa !== 0) {
-      updated[LINKED_COL_CAIXA_40HQ] = String(Math.round(qtdePac / pacCaixa));
+    // Lógica: A × B = C
+    // Se mudou A ou B e ambos existem → calcula C
+    if ((changedColId === LINKED_A || changedColId === LINKED_B) && !isNaN(a) && !isNaN(b)) {
+      updated[LINKED_C] = String(Math.round(a * b));
+    }
+    // Se mudou C e A existe → calcula B = C / A
+    else if (changedColId === LINKED_C && !isNaN(c) && !isNaN(a) && a !== 0) {
+      updated[LINKED_B] = String(Math.round(c / a));
+    }
+    // Se mudou C e B existe → calcula A = C / B
+    else if (changedColId === LINKED_C && !isNaN(c) && !isNaN(b) && b !== 0) {
+      updated[LINKED_A] = String(Math.round(c / b));
     }
 
     return updated;
