@@ -65,6 +65,11 @@ function genRowId() {
   return `row_${Date.now()}_${++_rowCounter}`;
 }
 
+let _colCounter = 0;
+function genColId() {
+  return `col_${Date.now()}_${++_colCounter}`;
+}
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 interface Props {
   scope: string;
@@ -245,6 +250,31 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     scheduleSave();
   };
 
+  // Commit e pular para a próxima coluna na mesma linha (Enter/Tab)
+  const commitEditCellAndMoveNext = () => {
+    if (!editingCell) return;
+    const { rowId, colId } = editingCell;
+    // Salva o valor atual
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: editingCellValue } } : r,
+      ),
+    );
+    scheduleSave();
+    // Encontra a próxima coluna
+    const colIdx = columns.findIndex((c) => c.id === colId);
+    if (colIdx < columns.length - 1) {
+      const nextCol = columns[colIdx + 1];
+      // Pega o valor atual da próxima célula
+      const currentRow = rowsRef.current.find((r) => r.id === rowId);
+      const nextValue = currentRow?.cells[nextCol.id] ?? "";
+      setEditingCell({ rowId, colId: nextCol.id });
+      setEditingCellValue(nextValue);
+    } else {
+      setEditingCell(null);
+    }
+  };
+
   // ── Adicionar / excluir linhas ─────────────────────────────────────────────
   const addRow = () => {
     const newRow: Row = { id: genRowId(), cells: {} };
@@ -254,6 +284,26 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
 
   const deleteRow = (rowId: string) => {
     setRows((prev) => prev.filter((r) => r.id !== rowId));
+    scheduleSave();
+  };
+
+  // ── Adicionar / excluir colunas ─────────────────────────────────────────────
+  const addColumn = () => {
+    const newCol: Column = { id: genColId(), title: "Nova Coluna" };
+    setColumns((prev) => [...prev, newCol]);
+    scheduleSave();
+  };
+
+  const deleteColumn = (colId: string) => {
+    setColumns((prev) => prev.filter((c) => c.id !== colId));
+    // Limpar dados das células dessa coluna
+    setRows((prev) =>
+      prev.map((r) => {
+        const cells = { ...r.cells };
+        delete cells[colId];
+        return { ...r, cells };
+      }),
+    );
     scheduleSave();
   };
 
@@ -486,9 +536,28 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                         <ArrowUpDown className="w-3 h-3" />
                       )}
                     </button>
+                    <button
+                      type="button"
+                      className="opacity-30 hover:opacity-100 transition-opacity text-red-400"
+                      onClick={() => deleteColumn(col.id)}
+                      title="Excluir coluna"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 </th>
               ))}
+              {/* Botão + para adicionar coluna */}
+              <th className={`${thClass} w-8`}>
+                <button
+                  type="button"
+                  className="opacity-50 hover:opacity-100 transition-opacity"
+                  onClick={addColumn}
+                  title="Adicionar coluna"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </th>
             </tr>
             {/* Linha de filtros */}
             {showFilterRow && (
@@ -505,6 +574,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                     />
                   </th>
                 ))}
+                <th className={thClass} />
               </tr>
             )}
           </thead>
@@ -512,7 +582,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
             {displayRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + 1}
+                  colSpan={columns.length + 2}
                   className={`text-center py-8 text-xs ${isDark ? "text-white/40" : "text-zinc-400"}`}
                 >
                   Nenhuma linha adicionada. Clique em "+ Linha" para começar.
@@ -551,7 +621,10 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                             onChange={(e) => setEditingCellValue(e.target.value)}
                             onBlur={commitEditCell}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") commitEditCell();
+                              if (e.key === "Enter" || e.key === "Tab") {
+                                e.preventDefault();
+                                commitEditCellAndMoveNext();
+                              }
                               if (e.key === "Escape") setEditingCell(null);
                             }}
                           />
@@ -563,6 +636,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                       </td>
                     );
                   })}
+                  <td className={`${tdClass} w-8`} />
                 </tr>
               ))
             )}
