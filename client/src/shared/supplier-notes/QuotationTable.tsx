@@ -187,13 +187,34 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
   const [initialized, setInitialized] = useState(false);
   const [expanded, setExpanded] = useState(false); // começa retraída
 
-  // Sincroniza com o servidor na primeira carga
+  // Sincroniza com o servidor na primeira carga (e recalcula fórmulas em linhas existentes)
   useEffect(() => {
     if (initialized) return;
     if (isLoading) return;
     if (data) {
       setColumns(data.columns);
-      setRows(data.rows);
+      // Recalcular fórmulas em todas as linhas existentes
+      const recalculated = data.rows.map((row: Row) => {
+        let cells = { ...row.cells };
+        const parseNum = (v: string | undefined) => {
+          if (!v || !v.trim()) return NaN;
+          return parseFloat(v.trim().replace(",", "."));
+        };
+        // Fórmula 1: col_pac_caixa × col_caixa_40hq = col_qtde_pacotes
+        const a1 = parseNum(cells["col_pac_caixa"]);
+        const b1 = parseNum(cells["col_caixa_40hq"]);
+        if (!isNaN(a1) && !isNaN(b1)) {
+          cells["col_qtde_pacotes"] = String(Math.round(a1 * b1));
+        }
+        // Fórmula 2: col_preco_unit × col_unid_pacote = col_preco_pacote
+        const a2 = parseNum(cells["col_preco_unit"]);
+        const b2 = parseNum(cells["col_unid_pacote"]);
+        if (!isNaN(a2) && !isNaN(b2)) {
+          cells["col_preco_pacote"] = (a2 * b2).toFixed(4);
+        }
+        return { ...row, cells };
+      });
+      setRows(recalculated);
     }
     setInitialized(true);
   }, [data, isLoading, initialized]);
