@@ -192,7 +192,25 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     if (initialized) return;
     if (isLoading) return;
     if (data) {
-      setColumns(data.columns);
+      // Mesclar colunas do banco com DEFAULT_COLUMNS para garantir que novas colunas (ex: col_qtde_pacotes) existam
+      const savedCols = data.columns as Column[];
+      const savedIds = new Set(savedCols.map((c) => c.id));
+      const missingDefaults = DEFAULT_COLUMNS.filter((dc) => !savedIds.has(dc.id));
+      // Inserir colunas faltantes na posição correta
+      let mergedCols = [...savedCols];
+      for (const mc of missingDefaults) {
+        const defaultIdx = DEFAULT_COLUMNS.findIndex((d) => d.id === mc.id);
+        // Encontrar a posição de inserção baseada na coluna anterior no DEFAULT
+        let insertAt = mergedCols.length;
+        if (defaultIdx > 0) {
+          const prevDefault = DEFAULT_COLUMNS[defaultIdx - 1];
+          const prevIdx = mergedCols.findIndex((c) => c.id === prevDefault.id);
+          if (prevIdx >= 0) insertAt = prevIdx + 1;
+        }
+        mergedCols.splice(insertAt, 0, mc);
+      }
+      setColumns(mergedCols);
+
       // Recalcular fórmulas em todas as linhas existentes
       const recalculated = data.rows.map((row: Row) => {
         let cells = { ...row.cells };
