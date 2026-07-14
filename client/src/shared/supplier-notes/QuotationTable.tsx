@@ -59,6 +59,7 @@ const DEFAULT_COLUMNS: Column[] = [
   { id: "col_unid_pacote", title: "Unidades por Pacotes" },
   { id: "col_pac_caixa", title: "Pacotes por Caixa" },
   { id: "col_caixa_40hq", title: "Caixa em 40HQ" },
+  { id: "col_qtde_pacotes", title: "Qtde Pacotes" },
   { id: "col_preco_unit", title: "Preço Unitário" },
   { id: "col_preco_pacote", title: "Preço do Pacote" },
 ];
@@ -286,13 +287,10 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
   };
 
   // ── Fórmulas ocultas vinculadas ─────────────────────────────────────
-  // Fórmula 1: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes (col_unid_pacote)
-  // Fórmula 2: Preço Unitário × Qtde Pacotes (col_unid_pacote) = Preço do Pacote
+  // Fórmula 1: Pacotes por Caixa (col_pac_caixa) × Caixa em 40HQ (col_caixa_40hq) = Qtde Pacotes (col_qtde_pacotes)
+  // Fórmula 2: Preço Unitário (col_preco_unit) × Unidades por Pacotes (col_unid_pacote) = Preço do Pacote (col_preco_pacote)
   //
-  // col_unid_pacote participa das duas fórmulas:
-  //   - Na fórmula 1 é o RESULTADO (C)
-  //   - Na fórmula 2 é um FATOR (B)
-  // Quando col_unid_pacote muda, aplicamos as duas fórmulas em cascata.
+  // As duas fórmulas são INDEPENDENTES — não compartilham colunas.
 
   const applyLinkedFormula = (_rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
     const parseNum = (v: string | undefined) => {
@@ -306,10 +304,10 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
 
     let updated = { ...cells };
 
-    // === Fórmula 1: col_pac_caixa × col_caixa_40hq = col_unid_pacote ===
+    // === Fórmula 1: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes ===
     const F1_A = "col_pac_caixa";
     const F1_B = "col_caixa_40hq";
-    const F1_C = "col_unid_pacote";
+    const F1_C = "col_qtde_pacotes";
 
     if (changedColId === F1_A || changedColId === F1_B || changedColId === F1_C) {
       const a = parseNum(updated[F1_A]);
@@ -325,27 +323,25 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       }
     }
 
-    // === Fórmula 2: col_preco_unit × col_unid_pacote = col_preco_pacote ===
-    // Sempre recalcula se qualquer das 3 colunas mudou (inclusive col_unid_pacote vindo da fórmula 1)
+    // === Fórmula 2: Preço Unitário × Unidades por Pacotes = Preço do Pacote ===
     const F2_A = "col_preco_unit";
     const F2_B = "col_unid_pacote";
     const F2_C = "col_preco_pacote";
 
-    if (changedColId === F2_A || changedColId === F2_B || changedColId === F2_C ||
-        changedColId === F1_A || changedColId === F1_B) {
+    if (changedColId === F2_A || changedColId === F2_B || changedColId === F2_C) {
       const a2 = parseNum(updated[F2_A]);
       const b2 = parseNum(updated[F2_B]);
       const c2 = parseNum(updated[F2_C]);
 
-      // Se Preço Unitário e Qtde Pacotes existem → calcula Preço do Pacote
-      if ((changedColId === F2_A || changedColId === F2_B || changedColId === F1_A || changedColId === F1_B) && !isNaN(a2) && !isNaN(b2)) {
+      // Preço Unitário × Unidades por Pacotes = Preço do Pacote
+      if ((changedColId === F2_A || changedColId === F2_B) && !isNaN(a2) && !isNaN(b2)) {
         updated[F2_C] = (a2 * b2).toFixed(4);
       }
-      // Se mudou Preço do Pacote e Preço Unitário existe → calcula Qtde Pacotes
+      // Preço do Pacote / Preço Unitário = Unidades por Pacotes
       else if (changedColId === F2_C && !isNaN(c2) && !isNaN(a2) && a2 !== 0) {
         updated[F2_B] = String(Math.round(c2 / a2));
       }
-      // Se mudou Preço do Pacote e Qtde Pacotes existe → calcula Preço Unitário
+      // Preço do Pacote / Unidades por Pacotes = Preço Unitário
       else if (changedColId === F2_C && !isNaN(c2) && !isNaN(b2) && b2 !== 0) {
         updated[F2_A] = (c2 / b2).toFixed(4);
       }
