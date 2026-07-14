@@ -27,6 +27,7 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
+  Download,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -127,12 +128,12 @@ function FilterInput({ colId, value, onChange, rows, isDark }: FilterInputProps)
     : "w-full bg-zinc-50 border border-zinc-200 rounded px-1.5 py-0.5 text-[11px] text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-zinc-400";
 
   const dropdownCls = isDark
-    ? "absolute z-50 top-full left-0 right-0 mt-0.5 max-h-40 overflow-y-auto rounded border border-white/20 bg-zinc-900 shadow-lg"
-    : "absolute z-50 top-full left-0 right-0 mt-0.5 max-h-40 overflow-y-auto rounded border border-zinc-200 bg-white shadow-lg";
+    ? "absolute z-50 top-full left-0 mt-0.5 min-w-[180px] max-h-40 overflow-y-auto rounded border border-white/20 bg-zinc-900 shadow-lg"
+    : "absolute z-50 top-full left-0 mt-0.5 min-w-[180px] max-h-40 overflow-y-auto rounded border border-zinc-200 bg-white shadow-lg";
 
   const itemCls = isDark
-    ? "px-2 py-1 text-[11px] text-white/80 hover:bg-white/10 cursor-pointer truncate"
-    : "px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-100 cursor-pointer truncate";
+    ? "px-2 py-1 text-[11px] text-white/80 hover:bg-white/10 cursor-pointer whitespace-normal break-words"
+    : "px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-100 cursor-pointer whitespace-normal break-words";
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -558,6 +559,49 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     ? "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white/80 border border-white/15 hover:bg-white/15 transition-all"
     : "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 text-zinc-700 border border-zinc-200 hover:bg-zinc-200 transition-all";
 
+  // ── Exportar PDF ─────────────────────────────────────────────────────────
+  const exportPDF = () => {
+    const visibleCols = columns;
+    const visibleRows = displayRows;
+
+    // Gera HTML para impressão
+    const html = `
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Tabela de Cotações</title>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 10px; margin: 10mm; }
+          h1 { font-size: 14px; margin-bottom: 8px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 9px; }
+          th { background: #f5f5f5; font-weight: bold; }
+          .info { font-size: 9px; color: #666; margin-bottom: 6px; }
+        </style>
+      </head>
+      <body>
+        <h1>Tabela de Cotações — ${scope}</h1>
+        <p class="info">${hasActiveFilters ? "Filtros aplicados — mostrando " + visibleRows.length + " de " + rows.length + " linhas" : "Todas as linhas (" + rows.length + ")"}</p>
+        <table>
+          <thead><tr>${visibleCols.map(c => `<th>${c.title}</th>`).join("")}</tr></thead>
+          <tbody>
+            ${visibleRows.map(r => `<tr>${visibleCols.map(c => `<td>${r.cells[c.id] ?? ""}</td>`).join("")}</tr>`).join("")}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+      }, 300);
+    }
+  };
+
   if (!initialized && isLoading) {
     return (
       <div className={containerClass}>
@@ -621,6 +665,10 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
             <button type="button" className={btnClass} onClick={addRow}>
               <Plus className="w-3.5 h-3.5" />
               Linha
+            </button>
+            <button type="button" className={btnClass} onClick={exportPDF}>
+              <Download className="w-3.5 h-3.5" />
+              Exportar PDF
             </button>
           </div>
         )}

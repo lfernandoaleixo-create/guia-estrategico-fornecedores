@@ -1059,3 +1059,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69i: Fórmula oculta vinculando Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes (calcula a terceira ao preencher 2)
 - [x] Feature 69j: Filtros cascateados — sugestões de busca mostram apenas valores das linhas já filtradas pelas outras colunas
 - [x] Feature 69k: Fórmula oculta vinculando Preço Unitário × Unidades por Pacote = Preço do Pacote
+- [x] Feature 69l: Dropdown de filtro mostra descrições completas (sem truncar)
+- [x] Feature 69m: Botão exportar tabela visível (com filtros) em PDF
