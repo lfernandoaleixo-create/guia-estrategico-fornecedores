@@ -539,12 +539,12 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     : "text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500";
 
   const thClass = isDark
-    ? "px-2 py-2 text-[11px] font-semibold text-white/80 border-b border-white/10 whitespace-nowrap select-none"
-    : "px-2 py-2 text-[11px] font-semibold text-zinc-700 border-b border-zinc-200 whitespace-nowrap select-none";
+    ? "px-1 py-2 text-[10px] font-semibold text-white/80 border-b border-white/10 select-none truncate"
+    : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border-b border-zinc-200 select-none truncate";
 
   const tdClass = isDark
-    ? "px-2 py-1.5 text-[12px] text-white/90 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors"
-    : "px-2 py-1.5 text-[12px] text-zinc-800 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50 transition-colors";
+    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors truncate"
+    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50 transition-colors truncate";
 
   const inputClass = isDark
     ? "w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-[12px] text-white outline-none focus:border-white/50"
@@ -627,8 +627,8 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       </div>
 
       {/* Tabela (só visível quando expandida) */}
-      {expanded && <div className="overflow-x-auto max-h-[70vh] overflow-y-auto relative">
-        <table className="w-full border-collapse min-w-[800px]">
+      {expanded && <div className="max-h-[70vh] overflow-y-auto relative">
+        <table className="w-full border-collapse table-fixed">
           <thead className="sticky top-0 z-10" style={{ background: isDark ? '#1a1a1a' : '#ffffff' }}>
             <tr>
               {/* Coluna de ações (excluir) */}
