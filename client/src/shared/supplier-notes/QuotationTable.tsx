@@ -246,9 +246,12 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     if (!editingCell) return;
     const { rowId, colId } = editingCell;
     setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: editingCellValue } } : r,
-      ),
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+        const newCells = { ...r.cells, [colId]: editingCellValue };
+        const formulaCells = applyLinkedFormula(rowId, colId, newCells);
+        return { ...r, cells: formulaCells };
+      }),
     );
     setEditingCell(null);
     scheduleSave();
@@ -258,11 +261,14 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
   const commitEditCellAndMoveNext = () => {
     if (!editingCell) return;
     const { rowId, colId } = editingCell;
-    // Salva o valor atual
+    // Salva o valor atual com fórmula vinculada
     setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: editingCellValue } } : r,
-      ),
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+        const newCells = { ...r.cells, [colId]: editingCellValue };
+        const formulaCells = applyLinkedFormula(rowId, colId, newCells);
+        return { ...r, cells: formulaCells };
+      }),
     );
     scheduleSave();
     // Encontra a próxima coluna
@@ -277,6 +283,42 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     } else {
       setEditingCell(null);
     }
+  };
+
+  // ── Fórmula oculta: Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes ─────────
+  // IDs das colunas vinculadas (padrão)
+  const LINKED_COL_PAC_CAIXA = "col_pac_caixa";
+  const LINKED_COL_CAIXA_40HQ = "col_caixa_40hq";
+  // "Qtde Pacotes" pode ter sido renomeada, mas o ID permanece
+  // Procuramos pela coluna que originalmente era "Unidades por Pacotes" — mas
+  // pelo print do usuário, "Qtde Pacotes" é na verdade col_unid_pacote
+  const LINKED_COL_QTDE_PAC = "col_unid_pacote";
+
+  const applyLinkedFormula = (rowId: string, changedColId: string, cells: Record<string, string>): Record<string, string> => {
+    const linkedIds = [LINKED_COL_PAC_CAIXA, LINKED_COL_CAIXA_40HQ, LINKED_COL_QTDE_PAC];
+    if (!linkedIds.includes(changedColId)) return cells;
+
+    const parseNum = (v: string | undefined) => {
+      if (!v) return NaN;
+      return parseFloat(v.replace(",", "."));
+    };
+
+    const pacCaixa = parseNum(cells[LINKED_COL_PAC_CAIXA]);
+    const caixa40 = parseNum(cells[LINKED_COL_CAIXA_40HQ]);
+    const qtdePac = parseNum(cells[LINKED_COL_QTDE_PAC]);
+
+    const updated = { ...cells };
+
+    // Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes
+    if (!isNaN(pacCaixa) && !isNaN(caixa40)) {
+      updated[LINKED_COL_QTDE_PAC] = String(Math.round(pacCaixa * caixa40));
+    } else if (!isNaN(qtdePac) && !isNaN(caixa40) && caixa40 !== 0) {
+      updated[LINKED_COL_PAC_CAIXA] = String(Math.round(qtdePac / caixa40));
+    } else if (!isNaN(qtdePac) && !isNaN(pacCaixa) && pacCaixa !== 0) {
+      updated[LINKED_COL_CAIXA_40HQ] = String(Math.round(qtdePac / pacCaixa));
+    }
+
+    return updated;
   };
 
   // ── Adicionar / excluir linhas ─────────────────────────────────────────────

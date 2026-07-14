@@ -1056,3 +1056,4 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69f: Botão de duplicar linha na Tabela de Cotações
 - [x] Feature 69g: Setinha para expandir/retrair a tabela (começa retraída por padrão)
 - [x] Feature 69h: Congelar cabeçalho da tabela (títulos + filtros) ao rolar — sticky header
+- [x] Feature 69i: Fórmula oculta vinculando Pacotes por Caixa × Caixa em 40HQ = Qtde Pacotes (calcula a terceira ao preencher 2)
