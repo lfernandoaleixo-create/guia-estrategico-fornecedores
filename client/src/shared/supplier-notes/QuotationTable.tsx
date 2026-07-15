@@ -616,21 +616,20 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
 
   return (
     <div className={containerClass}>
-      {/* Header */}
+      {/* Header — toda a área do título é clicável para expandir/retrair */}
       <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="opacity-60 hover:opacity-100 transition-opacity"
-            onClick={() => setExpanded(!expanded)}
-            title={expanded ? "Retrair tabela" : "Expandir tabela"}
-          >
+        <div
+          className="flex items-center gap-2 cursor-pointer select-none"
+          onClick={() => setExpanded(!expanded)}
+          title={expanded ? "Retrair tabela" : "Expandir tabela"}
+        >
+          <span className="opacity-60 hover:opacity-100 transition-opacity">
             {expanded ? (
               <ChevronUp className="w-4 h-4" style={{ color: accent }} />
             ) : (
               <ChevronDown className="w-4 h-4" style={{ color: accent }} />
             )}
-          </button>
+          </span>
           <Table2 className="w-4 h-4" style={{ color: accent }} />
           <h3 className={titleClass}>Tabela de Cotações</h3>
           {upsertMut.isPending && (
@@ -643,7 +642,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
           )}
         </div>
         {expanded && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className={btnClass}
