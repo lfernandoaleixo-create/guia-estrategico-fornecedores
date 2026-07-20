@@ -593,12 +593,12 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     : "text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500";
 
   const thClass = isDark
-    ? "px-1 py-2 text-[10px] font-semibold text-white/80 border-b border-white/10 select-none"
-    : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border-b border-zinc-200 select-none";
+    ? "px-1 py-2 text-[10px] font-semibold text-white/80 border border-white/20 select-none"
+    : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border border-zinc-300 select-none";
 
   const tdClass = isDark
-    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer transition-colors"
-    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer transition-colors";
+    ? "px-1 py-1.5 text-[11px] text-white/90 border border-white/10 cursor-pointer transition-colors"
+    : "px-1 py-1.5 text-[11px] text-zinc-800 border border-zinc-200 cursor-pointer transition-colors";
 
   const inputClass = isDark
     ? "w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-[12px] text-white outline-none focus:border-white/50"

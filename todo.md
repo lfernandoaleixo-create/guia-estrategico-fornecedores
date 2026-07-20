@@ -1064,3 +1064,4 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69n: Enter na edição de célula desce uma linha (mesma coluna) em vez de ir para o lado
 - [x] Feature 69o: Setas direcionais navegam entre células adjacentes e abrem edição automaticamente
 - [x] Feature 69p: Títulos das colunas totalmente visíveis (sem truncar) + botões editar/excluir/ordenar sempre acessíveis
+- [x] Feature 69q: Adicionar bordas visíveis nas linhas e colunas da Tabela de Cotações para separar claramente os dados
