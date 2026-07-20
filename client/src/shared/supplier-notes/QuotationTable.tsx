@@ -544,8 +544,8 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border-b border-zinc-200 select-none truncate";
 
   const tdClass = isDark
-    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors truncate"
-    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50 transition-colors truncate";
+    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer transition-colors truncate"
+    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer transition-colors truncate";
 
   const inputClass = isDark
     ? "w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-[12px] text-white outline-none focus:border-white/50"
@@ -794,13 +794,15 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
             ) : (
               displayRows.map((row) => {
                 const isRowEditing = editingCell?.rowId === row.id;
-                const rowHighlight = isRowEditing
-                  ? isDark ? "bg-amber-500/15" : "bg-amber-100"
-                  : "";
-                const rowHover = isDark ? "hover:bg-white/[0.08]" : "hover:bg-zinc-100";
+                const rowBgStyle: React.CSSProperties = isRowEditing
+                  ? { backgroundColor: isDark ? "rgba(251, 191, 36, 0.22)" : "#fde68a" }
+                  : {};
+                const rowHover = isRowEditing
+                  ? ""
+                  : isDark ? "hover:bg-white/[0.18]" : "hover:bg-zinc-300/60";
                 return (
-                <tr key={row.id} className={`group transition-colors ${rowHover} ${rowHighlight}`}>
-                  <td className={`${tdClass} w-8 text-center`}>
+                <tr key={row.id} className={`group transition-colors ${rowHover}`} style={rowBgStyle}>
+                  <td className={`${tdClass} w-8 text-center`} style={isRowEditing ? { backgroundColor: "inherit" } : undefined}>
                     <div className="flex items-center gap-0.5 justify-center">
                       <button
                         type="button"
@@ -828,6 +830,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                       <td
                         key={col.id}
                         className={tdClass}
+                        style={isRowEditing ? { backgroundColor: "inherit" } : undefined}
                         onClick={() => {
                           if (!isEditing) startEditCell(row.id, col.id, cellValue);
                         }}
@@ -855,7 +858,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                       </td>
                     );
                   })}
-                  <td className={`${tdClass} w-8`} />
+                  <td className={`${tdClass} w-8`} style={isRowEditing ? { backgroundColor: "inherit" } : undefined} />
                 </tr>
                 );
               })
