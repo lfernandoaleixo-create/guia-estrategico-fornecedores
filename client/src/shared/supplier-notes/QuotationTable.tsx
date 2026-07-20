@@ -795,9 +795,9 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
               displayRows.map((row) => {
                 const isRowEditing = editingCell?.rowId === row.id;
                 const rowHighlight = isRowEditing
-                  ? isDark ? "bg-white/10" : "bg-amber-50"
+                  ? isDark ? "bg-amber-500/15" : "bg-amber-100"
                   : "";
-                const rowHover = isDark ? "hover:bg-white/[0.06]" : "hover:bg-zinc-50";
+                const rowHover = isDark ? "hover:bg-white/[0.08]" : "hover:bg-zinc-100";
                 return (
                 <tr key={row.id} className={`group transition-colors ${rowHover} ${rowHighlight}`}>
                   <td className={`${tdClass} w-8 text-center`}>
