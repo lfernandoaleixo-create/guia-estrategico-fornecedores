@@ -593,12 +593,12 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     : "text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500";
 
   const thClass = isDark
-    ? "px-1 py-2 text-[10px] font-semibold text-white/80 border-b border-white/10 select-none whitespace-nowrap"
-    : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border-b border-zinc-200 select-none whitespace-nowrap";
+    ? "px-1 py-2 text-[10px] font-semibold text-white/80 border-b border-white/10 select-none"
+    : "px-1 py-2 text-[10px] font-semibold text-zinc-700 border-b border-zinc-200 select-none";
 
   const tdClass = isDark
-    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer transition-colors whitespace-nowrap"
-    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer transition-colors whitespace-nowrap";
+    ? "px-1 py-1.5 text-[11px] text-white/90 border-b border-white/5 cursor-pointer transition-colors"
+    : "px-1 py-1.5 text-[11px] text-zinc-800 border-b border-zinc-100 cursor-pointer transition-colors";
 
   const inputClass = isDark
     ? "w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-[12px] text-white outline-none focus:border-white/50"
@@ -727,7 +727,7 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       </div>
 
       {/* Tabela (só visível quando expandida) */}
-      {expanded && <div className="max-h-[70vh] overflow-auto relative">
+      {expanded && <div className="max-h-[70vh] overflow-y-auto relative">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10" style={{ background: isDark ? '#1a1a1a' : '#ffffff' }}>
             <tr>
@@ -736,70 +736,74 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
               {columns.map((col) => (
                 <th
                   key={col.id}
-                  className={`${thClass} ${dragColId === col.id ? "opacity-40" : ""}`}
+                  className={`${thClass} group/col ${dragColId === col.id ? "opacity-40" : ""}`}
                   draggable
                   onDragStart={() => handleDragStart(col.id)}
                   onDragOver={(e) => handleDragOver(e, col.id)}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="flex items-center gap-1">
-                    <GripVertical className="w-3 h-3 opacity-30 cursor-grab" />
-                    {editingColId === col.id ? (
-                      <input
-                        autoFocus
-                        className={inputClass}
-                        style={{ maxWidth: 140 }}
-                        value={editingColTitle}
-                        onChange={(e) => setEditingColTitle(e.target.value)}
-                        onBlur={commitEditCol}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") commitEditCol();
-                          if (e.key === "Escape") setEditingColId(null);
-                        }}
-                      />
-                    ) : (
-                      <span
-                        className="cursor-pointer hover:underline"
-                        onDoubleClick={() => startEditCol(col)}
-                        title="Duplo-clique para editar título"
-                      >
-                        {col.title}
-                      </span>
-                    )}
-                    {editingColId !== col.id && (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-0.5">
+                      <GripVertical className="w-2.5 h-2.5 opacity-30 cursor-grab shrink-0" />
+                      {editingColId === col.id ? (
+                        <input
+                          autoFocus
+                          className={inputClass}
+                          style={{ maxWidth: 120 }}
+                          value={editingColTitle}
+                          onChange={(e) => setEditingColTitle(e.target.value)}
+                          onBlur={commitEditCol}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitEditCol();
+                            if (e.key === "Escape") setEditingColId(null);
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className="cursor-pointer hover:underline text-[9px] leading-tight break-words hyphens-auto"
+                          onDoubleClick={() => startEditCol(col)}
+                          title="Duplo-clique para editar título"
+                        >
+                          {col.title}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/col:opacity-100 transition-opacity">
+                      {editingColId !== col.id && (
+                        <button
+                          type="button"
+                          className="opacity-60 hover:opacity-100 transition-opacity"
+                          onClick={() => startEditCol(col)}
+                          title="Editar título"
+                        >
+                          <Pencil className="w-2.5 h-2.5" />
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="opacity-40 hover:opacity-100 transition-opacity ml-0.5"
-                        onClick={() => startEditCol(col)}
-                        title="Editar título"
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                        onClick={() => toggleSort(col.id)}
+                        title="Ordenar"
                       >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="opacity-40 hover:opacity-100 transition-opacity"
-                      onClick={() => toggleSort(col.id)}
-                      title="Ordenar"
-                    >
-                      {sort?.columnId === col.id ? (
-                        sort.direction === "asc" ? (
-                          <ArrowUp className="w-3 h-3" />
+                        {sort?.columnId === col.id ? (
+                          sort.direction === "asc" ? (
+                            <ArrowUp className="w-2.5 h-2.5" />
+                          ) : (
+                            <ArrowDown className="w-2.5 h-2.5" />
+                          )
                         ) : (
-                          <ArrowDown className="w-3 h-3" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="w-3 h-3" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="opacity-30 hover:opacity-100 transition-opacity text-red-400"
-                      onClick={() => deleteColumn(col.id)}
-                      title="Excluir coluna"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                          <ArrowUpDown className="w-2.5 h-2.5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="opacity-60 hover:opacity-100 transition-opacity text-red-400"
+                        onClick={() => deleteColumn(col.id)}
+                        title="Excluir coluna"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                   </div>
                 </th>
               ))}
