@@ -1061,3 +1061,5 @@ Objetivo: evitar poluição visual quando o fornecedor tem dezenas de anexos; pa
 - [x] Feature 69k: Fórmula oculta vinculando Preço Unitário × Unidades por Pacote = Preço do Pacote
 - [x] Feature 69l: Dropdown de filtro mostra descrições completas (sem truncar)
 - [x] Feature 69m: Botão exportar tabela visível (com filtros) em PDF
+- [x] Feature 69n: Enter na edição de célula desce uma linha (mesma coluna) em vez de ir para o lado
+- [x] Feature 69o: Setas direcionais navegam entre células adjacentes e abrem edição automaticamente

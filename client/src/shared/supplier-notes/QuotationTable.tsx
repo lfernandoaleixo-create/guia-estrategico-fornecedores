@@ -298,8 +298,8 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
     scheduleSave();
   };
 
-  // Commit e pular para a próxima coluna na mesma linha (Enter/Tab)
-  const commitEditCellAndMoveNext = () => {
+  // Commit e pular para a próxima LINHA na mesma coluna (Enter)
+  const commitEditCellAndMoveDown = () => {
     if (!editingCell) return;
     const { rowId, colId } = editingCell;
     // Salva o valor atual com fórmula vinculada
@@ -312,14 +312,67 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
       }),
     );
     scheduleSave();
-    // Encontra a próxima coluna
+    // Encontra a próxima linha (baseada na displayRows para respeitar filtros/ordenação)
+    const displayed = displayRows;
+    const rowIdx = displayed.findIndex((r) => r.id === rowId);
+    if (rowIdx >= 0 && rowIdx < displayed.length - 1) {
+      const nextRow = displayed[rowIdx + 1];
+      const nextValue = nextRow.cells[colId] ?? "";
+      setEditingCell({ rowId: nextRow.id, colId });
+      setEditingCellValue(nextValue);
+    } else {
+      setEditingCell(null);
+    }
+  };
+
+  // Navegar com setas direcionais (commit + mover para célula adjacente + abrir edição)
+  const navigateCell = (direction: "up" | "down" | "left" | "right") => {
+    if (!editingCell) return;
+    const { rowId, colId } = editingCell;
+    // Commit o valor atual
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r;
+        const newCells = { ...r.cells, [colId]: editingCellValue };
+        const formulaCells = applyLinkedFormula(rowId, colId, newCells);
+        return { ...r, cells: formulaCells };
+      }),
+    );
+    scheduleSave();
+
+    const displayed = displayRows;
+    const rowIdx = displayed.findIndex((r) => r.id === rowId);
     const colIdx = columns.findIndex((c) => c.id === colId);
-    if (colIdx < columns.length - 1) {
-      const nextCol = columns[colIdx + 1];
-      // Pega o valor atual da próxima célula
-      const currentRow = rowsRef.current.find((r) => r.id === rowId);
-      const nextValue = currentRow?.cells[nextCol.id] ?? "";
-      setEditingCell({ rowId, colId: nextCol.id });
+
+    let nextRowIdx = rowIdx;
+    let nextColIdx = colIdx;
+
+    switch (direction) {
+      case "up":
+        nextRowIdx = Math.max(0, rowIdx - 1);
+        break;
+      case "down":
+        nextRowIdx = Math.min(displayed.length - 1, rowIdx + 1);
+        break;
+      case "left":
+        nextColIdx = Math.max(0, colIdx - 1);
+        break;
+      case "right":
+        nextColIdx = Math.min(columns.length - 1, colIdx + 1);
+        break;
+    }
+
+    // Se não mudou posição, apenas fecha
+    if (nextRowIdx === rowIdx && nextColIdx === colIdx && (direction === "up" || direction === "down")) {
+      setEditingCell(null);
+      return;
+    }
+
+    const nextRow = displayed[nextRowIdx];
+    const nextCol = columns[nextColIdx];
+    if (nextRow && nextCol) {
+      const nextValue = nextRow.cells[nextCol.id] ?? "";
+      setEditingCell({ rowId: nextRow.id, colId: nextCol.id });
       setEditingCellValue(nextValue);
     } else {
       setEditingCell(null);
@@ -843,9 +896,29 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                             onChange={(e) => setEditingCellValue(e.target.value)}
                             onBlur={commitEditCell}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === "Tab") {
+                              if (e.key === "Enter") {
                                 e.preventDefault();
-                                commitEditCellAndMoveNext();
+                                commitEditCellAndMoveDown();
+                              }
+                              if (e.key === "Tab") {
+                                e.preventDefault();
+                                navigateCell(e.shiftKey ? "left" : "right");
+                              }
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                navigateCell("down");
+                              }
+                              if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                navigateCell("up");
+                              }
+                              if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
+                                e.preventDefault();
+                                navigateCell("left");
+                              }
+                              if (e.key === "ArrowRight" && e.currentTarget.selectionStart === e.currentTarget.value.length) {
+                                e.preventDefault();
+                                navigateCell("right");
                               }
                               if (e.key === "Escape") setEditingCell(null);
                             }}
