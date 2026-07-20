@@ -792,8 +792,14 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                 </td>
               </tr>
             ) : (
-              displayRows.map((row) => (
-                <tr key={row.id} className="group">
+              displayRows.map((row) => {
+                const isRowEditing = editingCell?.rowId === row.id;
+                const rowHighlight = isRowEditing
+                  ? isDark ? "bg-white/10" : "bg-amber-50"
+                  : "";
+                const rowHover = isDark ? "hover:bg-white/[0.06]" : "hover:bg-zinc-50";
+                return (
+                <tr key={row.id} className={`group transition-colors ${rowHover} ${rowHighlight}`}>
                   <td className={`${tdClass} w-8 text-center`}>
                     <div className="flex items-center gap-0.5 justify-center">
                       <button
@@ -851,7 +857,8 @@ export function QuotationTable({ scope, accent = "#0891b2", tone = "dark" }: Pro
                   })}
                   <td className={`${tdClass} w-8`} />
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
