@@ -125,8 +125,8 @@ export default function TopicAttachments({
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     for (const file of Array.from(files)) {
-      if (file.size > 99 * 1024 * 1024) {
-        toast.error(`"${file.name}" passa de 99 MB. Compacte ou reduza antes de anexar.`);
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`"${file.name}" passa de 20 MB. Compacte ou reduza antes de anexar.`);
         continue;
       }
       setUploading(true);
