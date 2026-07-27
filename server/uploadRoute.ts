@@ -20,7 +20,7 @@ import Busboy from "busboy";
 import { storagePut, storageGetSignedUrl, sanitizeKeySegment } from "./storage";
 import { appendAttachmentToNote } from "./db";
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB por arquivo
+const MAX_FILE_BYTES = 99 * 1024 * 1024; // 99 MB por arquivo
 
 function nowDateBR(): string {
   return new Date().toLocaleDateString("pt-BR", {
@@ -166,7 +166,7 @@ export function registerUploadRoute(app: Express) {
     busboy.on("finish", async () => {
       if (handledError) return;
       if (tooLarge) {
-        fail(413, "Arquivo maior que 20 MB. Compacte ou reduza antes de anexar.");
+        fail(413, "Arquivo maior que 99 MB. Compacte ou reduza antes de anexar.");
         return;
       }
       const { scope, supplierId, category, folder } = fields;

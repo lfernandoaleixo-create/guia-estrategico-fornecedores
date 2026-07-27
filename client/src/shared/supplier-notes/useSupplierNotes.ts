@@ -604,8 +604,8 @@ export function useSupplierNotes(scope: Scope) {
       onProgress?: (percent: number) => void,
       folder?: string,
     ) => {
-      if (file.size > 20 * 1024 * 1024) {
-        throw new Error("Arquivo maior que 20 MB. Compacte ou reduza antes de anexar.");
+      if (file.size > 99 * 1024 * 1024) {
+        throw new Error("Arquivo maior que 99 MB. Compacte ou reduza antes de anexar.");
       }
 
       const att = await new Promise<SupplierAttachment>((resolve, reject) => {

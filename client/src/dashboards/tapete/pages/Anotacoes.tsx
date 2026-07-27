@@ -258,7 +258,7 @@ function DiarioSectionLegacy({ empresaId, nomeEmpresa, categoria, neg, onNegUpda
 
   function handleAnexo(e: React.ChangeEvent<HTMLInputElement>) {
     Array.from(e.target.files || []).forEach(file => {
-      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} excede 5 MB.`); return; }
+      if (file.size > 99 * 1024 * 1024) { toast.error(`${file.name} excede 99 MB.`); return; }
       const reader = new FileReader();
       reader.onload = ev => setForm(p => ({
         ...p,
