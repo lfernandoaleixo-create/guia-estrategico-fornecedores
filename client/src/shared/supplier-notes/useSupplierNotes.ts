@@ -667,15 +667,37 @@ export function useSupplierNotes(scope: Scope) {
   const removeAttachment = useCallback(
     (supplierId: string, attachmentId: string) => {
       const existing = entries[supplierId];
-      if (!existing) return;
+      if (!existing) {
+        console.warn("[removeAttachment] Entrada não encontrada para", supplierId);
+        return;
+      }
       const updated: SupplierNoteEntry = {
         ...existing,
         attachments: existing.attachments.filter((a) => a.id !== attachmentId),
         updatedAt: nowDate(),
       };
-      void persist(updated);
+      // Optimistic: atualiza o cache local imediatamente para feedback instantâneo
+      utils.data.notes.listByScope.setData({ scope }, (old) => {
+        if (!old) return old;
+        return old.map((row) => {
+          if ((row as Record<string, unknown>).supplierId === supplierId) {
+            return { ...row, attachments: JSON.stringify(updated.attachments), updatedAt: updated.updatedAt };
+          }
+          return row;
+        });
+      });
+      // Persiste no servidor
+      (async () => {
+        try {
+          await persist(updated);
+        } catch (err) {
+          console.error("[removeAttachment] Falha ao persistir remoção:", err);
+          // Reverte o optimistic update
+          await reload();
+        }
+      })();
     },
-    [entries, persist],
+    [entries, persist, utils, scope, reload],
   );
 
   const deleteEntry = useCallback(

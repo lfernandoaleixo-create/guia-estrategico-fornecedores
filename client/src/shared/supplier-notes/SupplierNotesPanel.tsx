@@ -1921,7 +1921,11 @@ function AttachmentList({ items, onRemove, onPreview, emptyText, onCalc }: Attac
             </button>
             <button
               type="button"
-              onClick={() => onRemove(att.id)}
+              onClick={() => {
+                if (window.confirm(`Remover "${att.name}"?`)) {
+                  onRemove(att.id);
+                }
+              }}
               className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-600"
               aria-label="Remover"
               title="Remover"
